@@ -1,5 +1,5 @@
 from jaqs_fxdayu.patch_util import auto_register_patch
-
+import matplotlib.pyplot as plt
 
 @auto_register_patch()
 def plot_ic_by_group(ic_group, ax=None):
@@ -28,5 +28,3 @@ def plot_ic_by_group(ic_group, ax=None):
     ax.set_xticklabels(ic_group.index, rotation=45)
 
     return ax
-
-from jaqs.research.signaldigger.plotting import *
