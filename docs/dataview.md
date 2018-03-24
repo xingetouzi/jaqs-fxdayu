@@ -4064,9 +4064,9 @@ dv.get_ts("close-high").head()
 
 
 
-### append_df_quanter
+### append_df_quarter
 
-- ` jaqs.data.Dataview.append_df_quanterly(df, field_name, overwrite=True) `
+- ` jaqs.data.Dataview.append_df_quarter(df, field_name, overwrite=True) `
 
 **简要描述：**
 
