@@ -1,0 +1,23 @@
+site_name: jaqs-fxdayu
+site_author: xingetouzi
+repo_url: https://github.com/xingetouzi/jaqs-fxdayu/
+pages:
+    - 主页: index.md
+    - API文档(基础部分):
+        - dataview: dataview.md
+        - digger: digger/digger.md
+    - API文档(拓展部分):
+        - analysis: analysis.md
+        - process: process.md
+        - optimizer: optimizer.md
+        - multi_factor: multi_factor.md
+
+theme: readthedocs
+
+markdown_extensions:
+    - toc:
+        permalink: 
+    - admonition
+    - def_list
+
+copyright: Copyright &copy; 2014
