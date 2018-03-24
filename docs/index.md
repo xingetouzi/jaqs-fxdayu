@@ -36,6 +36,8 @@
 ### 依赖
 该模块基于JAQS进行拓展，且只支持`python3`，需要安装：`jaqs>=0.6.10`
 
+jaqs的安装可以参考[JAQS官方安装指南](http://jaqs.readthedocs.io/zh_CN/latest/install.html)
+
 ### 安装
 ```bash
 $ pip install jaqs_fxdayu
@@ -94,7 +96,6 @@ from jaqs_fxdayu.research import Optimizer
 
 
 ### 文档
-
 [详细文档地址](http://jaqs-fxdayu.readthedocs.io/zh_CN/latest/)
 
 ## 最新功能
@@ -108,6 +109,6 @@ from jaqs_fxdayu.research import Optimizer
 
 ## 技术支持
 
-- [GitHub](https://github.com/xingetouzi/jaqs_fxdayu/tree/master)
+- [GitHub](https://github.com/xingetouzi/jaqs-fxdayu/tree/master)
 - [访问大鱼学院获得更多的案例和金融量化知识](http://www.fxdayu.com)
 - 加qq群(372592121)进行讨论
