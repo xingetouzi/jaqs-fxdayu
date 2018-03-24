@@ -12,7 +12,6 @@ def readme():
     with codecs.open('README.md', 'r', encoding='utf-8') as f:
         return f.read()
 
-
 with open(join(dirname(__file__), 'VERSION.txt'), 'rb') as f:
     version = f.read().decode('ascii').strip()
 

@@ -93,6 +93,10 @@ from jaqs_fxdayu.research import Optimizer
 ```
 
 
+### 文档
+
+[详细文档地址](http://jaqs-fxdayu.readthedocs.io/zh_CN/latest/)
+
 ## 最新功能
 ### 2018/3/20
 
