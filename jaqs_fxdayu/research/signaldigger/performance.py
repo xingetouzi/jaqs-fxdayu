@@ -171,8 +171,9 @@ def price2ret(prices, period=5, axis=None, compound=True):
 
 _calc_signal_ic = calc_signal_ic
 _mean_information_coefficient = mean_information_coefficient
+_calc_ic_stats_table = calc_ic_stats_table
 _calc_quantile_return_mean_std = calc_quantile_return_mean_std
-_daily_ret_to_cum2 = daily_ret_to_cum
+_daily_ret_to_cum = daily_ret_to_cum
 _price2ret = price2ret
 
 from jaqs.research.signaldigger.performance import *
@@ -180,5 +181,6 @@ from jaqs.research.signaldigger.performance import *
 calc_signal_ic = _calc_signal_ic
 mean_information_coefficient = _mean_information_coefficient
 calc_quantile_return_mean_std = _calc_quantile_return_mean_std
-daily_ret_to_cum2 = _daily_ret_to_cum2
+daily_ret_to_cum = _daily_ret_to_cum
 price2ret = _price2ret
+calc_ic_stats_table = _calc_ic_stats_table
