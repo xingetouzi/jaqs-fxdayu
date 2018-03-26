@@ -245,6 +245,18 @@ class BaseDataView(OriginDataView):
         if self.data_q is not None:
             self.data_q.columns = self.data_q.columns.remove_unused_levels()
 
+    # Add/Remove Fields&Formulas
+    def _add_field(self, field_name, is_quarterly=None):
+        if field_name not in self.fields:
+            self.fields.append(field_name)
+        if not self._is_predefined_field(field_name):
+            if is_quarterly is None:
+                raise ValueError("Field [{:s}] is not a predefined field, but no frequency information is provided.")
+            if is_quarterly:
+                self.custom_quarterly_fields.append(field_name)
+            else:
+                self.custom_daily_fields.append(field_name)
+
     def add_field(self, field_name, data_api=None):
         """
         Query and append new field to DataView.
@@ -411,7 +423,7 @@ class BaseDataView(OriginDataView):
             if is_quarterly:
                 self.append_df_quarter(df_eval, field_name)
             else:
-                self.append_df(df_eval, field_name, is_quarterly=False)
+                self.append_df(df_eval, field_name, is_quarterly=False,)
 
         if is_quarterly:
             df_ann = self._get_ann_df()
