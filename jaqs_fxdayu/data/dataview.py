@@ -301,13 +301,15 @@ class BaseDataView(OriginDataView):
         df = merge.loc[:, pd.IndexSlice[:, field_name]]
         df.columns = df.columns.droplevel(level=1)
         # whether contain only trade days is decided by existing data.
-        self.append_df(df, field_name, is_quarterly=is_quarterly)
+
+        # 季度添加至data_q　日度添加至data_d
+        super().append_df(df, field_name, is_quarterly=is_quarterly)
 
         if is_quarterly:
             df_ann = merge.loc[:, pd.IndexSlice[:, self.ANN_DATE_FIELD_NAME]]
             df_ann.columns = df_ann.columns.droplevel(level='field')
             df_expanded = align(df, df_ann, self.dates)
-            self.append_df(df_expanded, field_name, is_quarterly=False)
+            super().append_df(df_expanded, field_name, is_quarterly=False)
         return True
 
     def add_formula(self, field_name, formula, is_quarterly,
@@ -406,7 +408,10 @@ class BaseDataView(OriginDataView):
             df_eval = parser.evaluate(var_df_dic, ann_dts=df_ann, trade_dts=self.dates)
 
         if add_data:
-            self.append_df(df_eval, field_name, is_quarterly=is_quarterly)
+            if is_quarterly:
+                self.append_df_quarter(df_eval, field_name)
+            else:
+                self.append_df(df_eval, field_name, is_quarterly=False)
 
         if is_quarterly:
             df_ann = self._get_ann_df()
