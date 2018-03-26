@@ -432,7 +432,7 @@ mean_information_coefficient(ic_data, by_time='3w')
 
 
 
-#### 示例一：分组求每组的月平均ic
+#### 示例二：分组求每组的月平均ic
 
 
 ```python
