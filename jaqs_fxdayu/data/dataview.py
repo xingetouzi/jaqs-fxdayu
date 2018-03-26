@@ -354,8 +354,232 @@ class BaseDataView(OriginDataView):
         return search
 
 
+class BcolzDataViewMixin(OriginDataView):
+    _use_bcolz = False
+
+    @classmethod
+    def set_persist_format(cls, format):
+        if format == "bcolz":
+            cls._use_bcolz = True
+        elif format == "hdf5":
+            cls._use_bcolz = False
+        else:
+            raise RuntimeError("Unsupported persist format: %s" % format)
+
+    def save_bcolz(self, folder_path):
+        """
+        Save data and meta_data_to_store to a bcolz dir.
+        Store at output/sub_folder
+
+        Parameters
+        ----------
+        folder_path : str or unicode
+            Path to store your data.
+
+        """
+        abs_folder = os.path.abspath(folder_path)
+        meta_path = os.path.join(folder_path, 'meta_data_bcolz.json')
+
+        data_to_store = {'data_d': copy(self.data_d), 'data_q': copy(self.data_q),
+                         'data_benchmark': copy(self.data_benchmark), 'data_inst': copy(self.data_inst)}
+        data_to_store = {k: v for k, v in data_to_store.items() if v is not None}
+        meta_data_to_store = {key: self.__dict__[key] for key in self.meta_data_list}
+
+        print("\nStore data...")
+        jutil.save_json(meta_data_to_store, meta_path)
+        self._save_bz(abs_folder, data_to_store)
+
+        print("Dataview has been successfully saved to:\n"
+              + abs_folder + "\n\n"
+              + "You can load it with load_bcolz('{:s}')".format(abs_folder))
+
+    @staticmethod
+    def _save_bz(fp, dic):
+        for key, data in dic.items():
+            path = fp + '\\' + key
+            if type(data.columns) == pd.core.indexes.multi.MultiIndex:
+                data = data.stack(0).reset_index()
+                index = data.index.values
+                data['index'] = index
+                if 'trade_date' in data.columns:
+                    data = data.sort_values(by=['symbol', 'trade_date'])
+                elif 'report_date' in data.columns:
+                    data = data.sort_values(by=['symbol', 'report_date'])
+                data.index = index
+                info = data.groupby('symbol').apply(lambda x: str(x.index[0]) + ',' + str(x.index[-1]))
+
+                tb = bcolz.ctable.fromdataframe(data, rootdir=path)
+
+                tb.attrs['index'] = info.to_dict()
+                tb.flush()
+                tb.free_cachemem()
+                print("Dataview has been successfully saved to {}".format(path))
+
+            elif type(data.columns) == pd.core.indexes.base.Index:
+                if 'product' in data.columns:
+                    data = data.drop('product', axis=1)
+                data = data.reset_index()
+                tb = bcolz.ctable.fromdataframe(data, rootdir=path)
+                tb.flush()
+                tb.free_cachemem()
+                print("Dataview has been successfully saved to {}".format(path))
+
+            else:
+                print('Wrong data type.')
+
+    def _load_bz(self, fp):
+        """Load data and meta_data from bcolz file.
+
+        Parameters
+        ----------
+        file : str, optional
+            File path of bcolz data
+
+        """
+        res = dict()
+        files = os.listdir(fp)
+        files.remove('meta_data.json')
+        for file in files:
+            path = fp + '//' + file
+            tb = bcolz.open(path)
+            data = ''
+
+            if file == 'data_d':
+                symbol = [x for x in self.symbol if x in tb.attrs['index'].keys()]
+                fields = [x for x in self.fields if x in tb.cols.names]
+                exp = '(trade_date>{})&(trade_date<{})'.format(self.start_date, self.end_date)
+
+                for sb in symbol:
+                    s, e = tb.attrs['index'][sb].split(',')
+                    exp += '|(index>{})&(index<{})'.format(s, e)
+
+                data = tb.fetchwhere(exp, outcols=fields + ['trade_date', 'symbol']).todataframe()
+                data = data.set_index(['trade_date', 'symbol']).unstack('symbol')
+                data.columns = pd.MultiIndex.from_arrays(
+                    [data.columns.get_level_values(1), data.columns.get_level_values(0)], names=['symbol', 'fields'])
+                '''
+                symbol_ni = set(self.symbol) - set(symbol) 
+                if symbol_ni:
+                    for symbol in symbol_ni:
+                fields_ni = set(self.fields) - set(fields) 
+                 '''
+
+            elif file == 'data_q':
+                symbol = [x for x in self.symbol if x in tb.attrs['index'].keys()]
+                exp = '(report_date>{})&(report_date<{})'.format(self.start_date, self.end_date)
+
+                for sb in symbol:
+                    s, e = tb.attrs['index'][sb].split(',')
+                    exp += '|(index>{})&(index<{})'.format(s, e)
+
+                data = tb.fetchwhere(exp).todataframe()
+                data = data.set_index(['report_date', 'symbol']).unstack('symbol')
+                data.columns = pd.MultiIndex.from_arrays(
+                    [data.columns.get_level_values(1), data.columns.get_level_values(0)], names=['symbol', 'fields'])
+
+            elif file == 'data_inst':
+                fields = tb.cols.names
+                data = tb.todataframe().set_index('symbol')
+                data = data.loc[self.symbol, :]
+
+            res[file] = data.sort_index(axis=1)
+
+        return res
+
+    def load_bcolz(self, folder_path):
+        """
+        Load data from local file.
+
+        Parameters
+        ----------
+        folder_path : str or unicode, optional
+            Folder path to store hd5 file and meta data.
+
+        """
+        path_meta_data = os.path.join(folder_path, 'meta_data_bcolz.json')
+
+        if not (os.path.exists(path_meta_data)):
+            raise IOError("There is no meta_data file under directory {}".format(folder_path))
+        meta_data = jutil.read_json(path_meta_data)
+        dic = self._load_bz(folder_path)
+        self.data_d = dic.get('data_d', None)
+        self.data_q = dic.get('data_q', None)
+        self._data_benchmark = dic.get('data_benchmark', None)
+        self._data_inst = dic.get('data_inst', None)
+        self.__dict__.update(meta_data)
+
+        print("Dataview loaded successfully.")
+
+    def load_dataview(self, folder_path='.', use_bcolz=None):
+        """
+        Load data from local file.
+
+        Parameters
+        ----------
+        folder_path : str or unicode, optional
+            Folder path to store hd5 file and meta data.
+        use_bcolz: bool,
+            if True, using bcol format data, rather than hdf5.
+        """
+        if use_bcolz is None:
+            use_bcolz = self._use_bcolz
+        if use_bcolz:
+            self.load_bcolz(folder_path=folder_path)
+            return
+
+        path_meta_data = os.path.join(folder_path, 'meta_data.json')
+        path_data = os.path.join(folder_path, 'data.hd5')
+        if not (os.path.exists(path_meta_data) and os.path.exists(path_data)):
+            raise IOError("There is no data file under directory {}".format(folder_path))
+
+        meta_data = jutil.read_json(path_meta_data)
+        dic = self._load_h5(path_data)
+        self.data_d = dic.get('/data_d', None)
+        self.data_q = dic.get('/data_q', None)
+        self._data_benchmark = dic.get('/data_benchmark', None)
+        self._data_inst = dic.get('/data_inst', None)
+        self.__dict__.update(meta_data)
+
+        print("Dataview loaded successfully.")
+
+    def save_dataview(self, folder_path, use_bcolz=True):
+        """
+        Save data and meta_data_to_store to a single hd5 file.
+        Store at output/sub_folder
+
+        Parameters
+        ----------
+        folder_path : str or unicode
+            Path to store your data.
+        use_bcolz: bool,
+            if True, using bcol format data, rather than hdf5.
+        """
+        if use_bcolz is None:
+            use_bcolz = self._use_bcolz
+        if use_bcolz:
+            self.save_bcolz(folder_path=folder_path)
+            return
+
+        abs_folder = os.path.abspath(folder_path)
+        meta_path = os.path.join(folder_path, 'meta_data.json')
+        data_path = os.path.join(folder_path, 'data.hd5')
+
+        data_to_store = {'data_d': self.data_d, 'data_q': self.data_q,
+                         'data_benchmark': self.data_benchmark, 'data_inst': self.data_inst}
+        data_to_store = {k: v for k, v in data_to_store.items() if v is not None}
+        meta_data_to_store = {key: self.__dict__[key] for key in self.meta_data_list}
+
+        print("\nStore data...")
+        jutil.save_json(meta_data_to_store, meta_path)
+        self._save_h5(data_path, data_to_store)
+
+        print("Dataview has been successfully saved to:\n"
+              + abs_folder + "\n\n"
+              + "You can load it with load_dataview('{:s}')".format(abs_folder))
+
+
 @auto_register_patch(parent_level=1)
-class DataView(BaseDataView):
+class DataView(BaseDataView, BcolzDataViewMixin):
     def __init__(self):
         super(DataView, self).__init__()
         self.factor_fields = set()
