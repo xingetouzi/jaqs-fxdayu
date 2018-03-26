@@ -107,6 +107,59 @@ class BaseDataView(OriginDataView):
             return
         self.symbol.append(symbol_name)
 
+    def append_df_symbol(self, df, symbol_name, overwrite=False):
+        """
+        Append DataFrame to existing multi-index DataFrame and add corresponding field name.
+
+        Parameters
+        ----------
+        df : pd.DataFrame or pd.Series
+        symbol_name : str
+        overwrite : bool, optional
+            Whether overwrite existing field. True by default.
+        Notes
+        -----
+        append_df does not support overwrite. To overwrite a field, you must first do self.remove_fields(),
+        then append_df() again.
+
+        """
+        if symbol_name in self.symbol:
+            if overwrite:
+                self.remove_symbol(symbol_name)
+                print("Symbol [{:s}] is overwritten.".format(symbol_name))
+            else:
+                print("Append symbol failed: symbol [{:s}] exist. ".format(symbol_name))
+                return
+
+        df = df.copy()
+        if isinstance(df, pd.DataFrame):
+            pass
+        elif isinstance(df, pd.Series):
+            df = pd.DataFrame(df)
+        else:
+            raise ValueError("Data to be appended must be pandas format. But we have {}".format(type(df)))
+
+        the_data = self.data_d
+
+        exist_fields = the_data.columns.levels[1]
+        if len(set(exist_fields) - set(df.columns)):
+            # if set(df.columns) < set(exist_fields):
+            df2 = pd.DataFrame(index=df.index, columns=exist_fields, data=np.nan)
+            df2.update(df)
+            df = df2
+        multi_idx = pd.MultiIndex.from_product([[symbol_name], exist_fields])
+        df.columns = multi_idx
+
+        # the_data = apply_in_subprocess(pd.merge, args=(the_data, df),
+        #                            kwargs={'left_index': True, 'right_index': True, 'how': 'left'})  # runs in *only* one process
+        the_data = pd.merge(the_data, df, left_index=True, right_index=True, how='left')
+        the_data = the_data.sort_index(axis=1)
+        # merge = the_data.join(df, how='left')  # left: keep index of existing data unchanged
+        # sort_columns(the_data)
+
+        self.data_d = the_data
+        self._add_symbol(symbol_name)
+
     def append_df_quarter(self, df, field_name, overwrite=True):
         if field_name in self.fields:
             if overwrite:
