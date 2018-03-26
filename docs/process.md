@@ -30,9 +30,7 @@ warnings.filterwarnings('ignore')
 
 
 ```python
-import jaqs_fxdayu
-jaqs_fxdayu.patch_all()
-from jaqs.data import DataView
+from jaqs_fxdayu.data import DataView
 from jaqs_fxdayu.research.signaldigger.process import standardize
 
 # 加载dataview数据集

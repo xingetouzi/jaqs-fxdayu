@@ -11,6 +11,7 @@ pages:
         - process: process.md
         - optimizer: optimizer.md
         - multi_factor: multi_factor.md
+        - dp: dp.md
 
 theme: readthedocs
 
