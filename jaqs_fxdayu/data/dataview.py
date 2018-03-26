@@ -8,6 +8,11 @@ from jaqs.data.py_expression_eval import Parser
 from jaqs_fxdayu.data.search_doc import FuncDoc
 from jaqs_fxdayu.patch_util import auto_register_patch
 
+try:
+    basestring
+except NameError:
+    basestring = str
+
 PF = "prepare_fields"
 
 

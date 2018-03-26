@@ -149,7 +149,7 @@ def neutralize(factor_df,
     # 逐个截面进行回归，留残差作为中性化后的因子值
     for i in factor_df.index:
         # 获取行业分类信息
-        X = pd.get_dummies(group.loc[i,:])
+        X = pd.get_dummies(group.loc[i, :].dropna())
         if float_mv is not None:
             nfactors = len(X.columns)+1
             DataAll = pd.concat([X, x1.loc[i], factor_df.loc[i]], axis=1)

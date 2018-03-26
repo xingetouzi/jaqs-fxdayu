@@ -34,6 +34,8 @@ def reload_jaqs():
 
 
 def patch_all():
+    import matplotlib
+    import matplotlib.pyplot
     global _patched
     if _patched:
         warnings.warn("jaqs_fxdayu.patch method should be called only once!")
