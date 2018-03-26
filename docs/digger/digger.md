@@ -1,5 +1,6 @@
-
 # SignalDigger
+
+## 介绍
 SignalDigger是digger模块中的一个核心类，使用SigalDigger可以分析股票单因子各项表现
 
 *** 步骤 ***

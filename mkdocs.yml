@@ -6,6 +6,7 @@ pages:
     - API文档(基础部分):
         - dataview: dataview.md
         - digger: digger/digger.md
+        - performance: performance.md
     - API文档(拓展部分):
         - analysis: analysis.md
         - process: process.md
