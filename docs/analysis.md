@@ -39,10 +39,8 @@ warnings.filterwarnings('ignore')
 
 
 ```python
-import jaqs_fxdayu 
-jaqs_fxdayu.patch_all()
-from jaqs.data import DataView
-from jaqs.research import SignalDigger
+from jaqs_fxdayu.data import DataView
+from jaqs_fxdayu.research import SignalDigger
 
 # 加载dataview数据集
 dv = DataView()
@@ -66,7 +64,7 @@ signal_data.head()
 
     Dataview loaded successfully.
     Nan Data Count (should be zero) : 0;  Percentage of effective data: 99%
-    
+
 
 
 
@@ -632,7 +630,7 @@ result["ic"]
 ```
 
     dict_keys(['ic', 'ret', 'space'])
-    
+
 
 
 

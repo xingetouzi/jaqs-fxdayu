@@ -50,11 +50,8 @@ warnings.filterwarnings('ignore')
 
 
 ```python
-import jaqs_fxdayu
-jaqs_fxdayu.patch_all()
-
 from jaqs_fxdayu.research import Optimizer
-from jaqs.data import DataView
+from jaqs_fxdayu.data import DataView
 
 # 加载dataview数据集
 dv = DataView()
@@ -78,13 +75,54 @@ optimizer = Optimizer(dataview=dv,
 ```
 
     Dataview loaded successfully.
-    
+
+
+
+```python
+dv.fields
+```
+
+
+
+
+    ['sw1',
+     'low_adj',
+     'high_adj',
+     'pe',
+     'quarter',
+     'low',
+     'oper_exp',
+     'open_adj',
+     'trade_status',
+     'close_adj',
+     'index_weight',
+     'pb',
+     'total_oper_rev',
+     'high',
+     '_limit',
+     'ann_date',
+     'vwap',
+     'vwap_adj',
+     'close',
+     'adjust_factor',
+     'index_member',
+     '_daily_adjust_factor',
+     '000016.SH_member',
+     '000016.SH_weight',
+     'volume',
+     'momentum',
+     'double_SMA',
+     'close-high',
+     'roe',
+     'd-roe']
+
+
 
 # step 2 进行因子计算和参数优化
 
 ## dataview
 
-- ` jaqs.research.signaldigger.optimizer.Optimizer.dataview `
+- ` jaqs_fxdayu.research.signaldigger.optimizer.Optimizer.dataview `
 
 **简要描述：**
 
@@ -100,13 +138,13 @@ optimizer.dataview
 
 
 
-    <jaqs_fxdayu.data.dataview.FxdayuDataView at 0x1b5a6ea79e8>
+    <jaqs_fxdayu.data.dataview.DataView at 0x7f684819db00>
 
 
 
 ## formula
 
-- ` jaqs.research.signaldigger.optimizer.Optimizer.formula `
+- ` jaqs_fxdayu.research.signaldigger.optimizer.Optimizer.formula `
 
 **简要描述：**
 
@@ -128,7 +166,7 @@ optimizer.formula
 
 ## params
 
-- ` jaqs.research.signaldigger.optimizer.Optimizer.params `
+- ` jaqs_fxdayu.research.signaldigger.optimizer.Optimizer.params `
 
 **简要描述：**
 
@@ -150,7 +188,7 @@ optimizer.params
 
 ## name
 
-- ` jaqs.research.signaldigger.optimizer.Optimizer.name `
+- ` jaqs_fxdayu.research.signaldigger.optimizer.Optimizer.name `
 
 **简要描述：**
 
@@ -172,7 +210,7 @@ optimizer.name
 
 ## period
 
-- ` jaqs.research.signaldigger.optimizer.Optimizer.period `
+- ` jaqs_fxdayu.research.signaldigger.optimizer.Optimizer.period `
 
 **简要描述：**
 
@@ -194,7 +232,7 @@ optimizer.period
 
 ## all_signals
 
-- ` jaqs.research.signaldigger.optimizer.Optimizer.all_signals `
+- ` jaqs_fxdayu.research.signaldigger.optimizer.Optimizer.all_signals `
 
 **简要描述：**
 
@@ -209,11 +247,11 @@ print(optimizer.all_signals)
 ```
 
     None
-    
+
 
 ## get_all_signals
 
-- ` jaqs.research.signaldigger.optimizer.Optimizer.get_all_signals() `
+- ` jaqs_fxdayu.research.signaldigger.optimizer.Optimizer.get_all_signals() `
 
 **简要描述：**
 
@@ -229,7 +267,7 @@ optimizer.get_all_signals()
     Nan Data Count (should be zero) : 0;  Percentage of effective data: 92%
     Nan Data Count (should be zero) : 0;  Percentage of effective data: 94%
     Nan Data Count (should be zero) : 0;  Percentage of effective data: 93%
-    
+
 
 
 ```python
@@ -240,16 +278,16 @@ print(optimizer.all_signals["divert{'LEN': 2}"].head())
     dict_keys(["divert{'LEN': 2}", "divert{'LEN': 3}", "divert{'LEN': 4}"])
                           signal    return  upside_ret  downside_ret  quantile
     trade_date symbol                                                         
-    20170503   000001.SZ     1.0  0.011546    0.041849     -0.042326         4
-               000002.SZ    -1.0  0.109486    0.208108     -1.000800         3
+    20170503   000002.SZ    -1.0  0.109486    0.208108     -1.000800         3
                000008.SZ    -1.0 -0.071442    0.000463     -0.135901         2
                000009.SZ    -1.0 -0.089585    0.009714     -0.170193         2
                000027.SZ    -1.0 -0.016835    0.075002     -0.082433         3
-    
+               000039.SZ    -1.0  0.074825    0.103575     -0.098925         1
+
 
 ## all_signals_perf
 
-- ` jaqs.research.signaldigger.optimizer.Optimizer.all_signals_perf `
+- ` jaqs_fxdayu.research.signaldigger.optimizer.Optimizer.all_signals_perf `
 
 **简要描述：**
 
@@ -270,11 +308,11 @@ print(optimizer.all_signals_perf)
 ```
 
     None
-    
+
 
 ## get_all_signals_perf
 
-- ` jaqs.research.signaldigger.optimizer.Optimizer.get_all_signals_perf(in_sample_range=None) `
+- ` jaqs_fxdayu.research.signaldigger.optimizer.Optimizer.get_all_signals_perf(in_sample_range=None) `
 
 **简要描述：**
 
@@ -303,7 +341,7 @@ optimizer.all_signals_perf["divert{'LEN': 2}"]["ic"]
 
     dict_keys(["divert{'LEN': 2}", "divert{'LEN': 3}", "divert{'LEN': 4}"])
     dict_keys(['ic', 'ret', 'space', 'signal_name'])
-    
+
 
 
 
@@ -334,45 +372,45 @@ optimizer.all_signals_perf["divert{'LEN': 2}"]["ic"]
   <tbody>
     <tr>
       <th>IC Mean</th>
-      <td>0.018626</td>
-      <td>0.009977</td>
-      <td>0.032883</td>
+      <td>0.018350</td>
+      <td>0.009832</td>
+      <td>0.032779</td>
     </tr>
     <tr>
       <th>IC Std.</th>
-      <td>0.067424</td>
-      <td>0.074680</td>
-      <td>0.069429</td>
+      <td>0.067582</td>
+      <td>0.074829</td>
+      <td>0.069326</td>
     </tr>
     <tr>
       <th>t-stat(IC)</th>
-      <td>2.408349</td>
-      <td>1.164705</td>
-      <td>4.128971</td>
+      <td>2.367057</td>
+      <td>1.145460</td>
+      <td>4.121944</td>
     </tr>
     <tr>
       <th>p-value(IC)</th>
-      <td>0.018482</td>
-      <td>0.247830</td>
-      <td>0.000094</td>
+      <td>0.020511</td>
+      <td>0.255660</td>
+      <td>0.000096</td>
     </tr>
     <tr>
       <th>IC Skew</th>
-      <td>-0.009268</td>
-      <td>0.137299</td>
-      <td>0.206838</td>
+      <td>-0.010015</td>
+      <td>0.147546</td>
+      <td>0.189683</td>
     </tr>
     <tr>
       <th>IC Kurtosis</th>
-      <td>-0.771501</td>
-      <td>-0.618371</td>
-      <td>0.118013</td>
+      <td>-0.779674</td>
+      <td>-0.615603</td>
+      <td>0.070359</td>
     </tr>
     <tr>
       <th>Ann. IR</th>
-      <td>0.276257</td>
-      <td>0.133601</td>
-      <td>0.473625</td>
+      <td>0.271520</td>
+      <td>0.131393</td>
+      <td>0.472819</td>
     </tr>
   </tbody>
 </table>
@@ -382,7 +420,7 @@ optimizer.all_signals_perf["divert{'LEN': 2}"]["ic"]
 
 ## enumerate_optimizer
 
-- ` jaqs.research.signaldigger.optimizer.Optimizer.enumerate_optimizer(target_type="long_ret",target="Ann. IR",ascending=False,in_sample_range=None) `
+- ` jaqs_fxdayu.research.signaldigger.optimizer.Optimizer.enumerate_optimizer(target_type="long_ret",target="Ann. IR",ascending=False,in_sample_range=None) `
 
 **简要描述：**
 
@@ -444,7 +482,7 @@ ret_best[0]["ret"]
     3
     dict_keys(['ic', 'ret', 'space', 'signal_name'])
     divert{'LEN': 3}
-    
+
 
 
 
@@ -479,83 +517,83 @@ ret_best[0]["ret"]
   <tbody>
     <tr>
       <th>t-stat</th>
-      <td>13.690192</td>
-      <td>-16.919173</td>
-      <td>1.952953</td>
-      <td>29.279382</td>
-      <td>23.340900</td>
-      <td>2.483257</td>
-      <td>58.737376</td>
+      <td>13.663182</td>
+      <td>-16.705837</td>
+      <td>2.070200</td>
+      <td>29.122529</td>
+      <td>23.165669</td>
+      <td>2.551231</td>
+      <td>58.301138</td>
     </tr>
     <tr>
       <th>p-value</th>
       <td>0.000000</td>
       <td>0.000000</td>
-      <td>0.055340</td>
+      <td>0.042610</td>
       <td>0.000000</td>
       <td>0.000000</td>
-      <td>0.015740</td>
+      <td>0.013220</td>
       <td>0.000000</td>
     </tr>
     <tr>
       <th>skewness</th>
-      <td>0.182609</td>
-      <td>-0.003487</td>
-      <td>0.187786</td>
-      <td>1.211561</td>
-      <td>1.265175</td>
-      <td>0.226588</td>
-      <td>1.288040</td>
+      <td>0.180808</td>
+      <td>-0.028991</td>
+      <td>0.149466</td>
+      <td>1.212846</td>
+      <td>1.283619</td>
+      <td>0.193644</td>
+      <td>1.294608</td>
     </tr>
     <tr>
       <th>kurtosis</th>
-      <td>-0.535175</td>
-      <td>-0.251135</td>
-      <td>-0.069220</td>
-      <td>5.011009</td>
-      <td>4.214267</td>
-      <td>-0.157311</td>
-      <td>5.063574</td>
+      <td>-0.543815</td>
+      <td>-0.253210</td>
+      <td>-0.102499</td>
+      <td>5.032953</td>
+      <td>4.293791</td>
+      <td>-0.182180</td>
+      <td>5.098249</td>
     </tr>
     <tr>
       <th>Ann. Ret</th>
-      <td>0.332479</td>
-      <td>-0.301558</td>
-      <td>0.016166</td>
-      <td>0.346004</td>
-      <td>0.289812</td>
-      <td>0.055546</td>
-      <td>0.319609</td>
+      <td>0.332104</td>
+      <td>-0.299027</td>
+      <td>0.017125</td>
+      <td>0.344567</td>
+      <td>0.287333</td>
+      <td>0.056858</td>
+      <td>0.317683</td>
     </tr>
     <tr>
       <th>Ann. Vol</th>
-      <td>0.067329</td>
-      <td>0.049413</td>
-      <td>0.022948</td>
-      <td>0.260637</td>
-      <td>0.275591</td>
-      <td>0.062013</td>
-      <td>0.269179</td>
+      <td>0.067386</td>
+      <td>0.049624</td>
+      <td>0.022933</td>
+      <td>0.260520</td>
+      <td>0.274885</td>
+      <td>0.061787</td>
+      <td>0.269129</td>
     </tr>
     <tr>
       <th>Ann. IR</th>
-      <td>4.938110</td>
-      <td>-6.102817</td>
-      <td>0.704438</td>
-      <td>1.327530</td>
-      <td>1.051600</td>
-      <td>0.895721</td>
-      <td>1.187345</td>
+      <td>4.928367</td>
+      <td>-6.025866</td>
+      <td>0.746730</td>
+      <td>1.322611</td>
+      <td>1.045285</td>
+      <td>0.920240</td>
+      <td>1.180412</td>
     </tr>
     <tr>
       <th>occurance</th>
       <td>63.000000</td>
       <td>63.000000</td>
       <td>63.000000</td>
-      <td>3925.000000</td>
-      <td>3975.000000</td>
+      <td>3912.000000</td>
+      <td>3963.000000</td>
       <td>63.000000</td>
-      <td>19742.000000</td>
+      <td>19679.000000</td>
     </tr>
   </tbody>
 </table>

@@ -31,10 +31,8 @@ warnings.filterwarnings('ignore')
 
 
 ```python
-from jaqs_fxdayu import patch_all
-patch_all()
-from jaqs.data import DataView
-from jaqs.data import RemoteDataService # 远程数据服务类
+from jaqs_fxdayu.data import DataView
+from jaqs_fxdayu.data import RemoteDataService # 远程数据服务类
 
 # step 1 其中，username password分别对应官网注册的账号和序列号
 data_config = {
@@ -61,7 +59,7 @@ dv.init_from_config(props, ds)
         login success 
     
     Initialize config success.
-    
+
 
 
 ```python
@@ -73,11 +71,11 @@ dv.prepare_data()
     Query data - query...
     NOTE: price adjust method is [post adjust]
     当前请求daily...
-    {'adjust_mode': None, 'fields': 'vwap_adj,trade_date,low,trade_status,close,vwap,low_adj,high_adj,open_adj,symbol,open,high,close_adj'}
+    {'adjust_mode': None, 'fields': 'symbol,low_adj,high_adj,vwap,low,open,open_adj,trade_date,trade_status,close_adj,high,vwap_adj,close'}
     当前请求daily...
-    {'adjust_mode': 'post', 'fields': 'vwap_adj,trade_date,low,trade_status,close,vwap,low_adj,high_adj,open_adj,symbol,open,high,close_adj'}
+    {'adjust_mode': 'post', 'fields': 'symbol,low_adj,high_adj,vwap,low,open,open_adj,trade_date,trade_status,close_adj,high,vwap_adj,close'}
     当前请求query_lb_dailyindicator...
-    {'fields': 'pe,trade_date,pb,symbol'}
+    {'fields': 'trade_date,pb,symbol,pe'}
     WARNING: some data is unavailable: 
         At fields 
     Query data - daily fields prepared.
@@ -89,7 +87,7 @@ dv.prepare_data()
     Query groups (industry)...
     Field [sw1] is overwritten.
     Data has been successfully prepared.
-    
+
 
 **props参数**
 
@@ -110,7 +108,7 @@ dataview的底层数据api提供了字段的文档，可供查阅。目前,只�
 
 
 ```python
-from jaqs.data import DataApi
+from jaqs_fxdayu.data import DataApi
 
 api = DataApi(data_config["remote.data.address"]) # 传入连接到的远端数据服务器的tcp地址
 api.login(username=data_config["remote.data.username"],
@@ -265,7 +263,7 @@ df
 
 ```python
 df ,msg = api.query(view="help.apiParam",fields="",filter="api=jy.cashFlow") # 查询现金流量表可选字段
-df
+df.head()
 ```
 
 
@@ -349,569 +347,8 @@ df
       <td>报告期结束日期</td>
       <td>IN</td>
     </tr>
-    <tr>
-      <th>5</th>
-      <td>jy.cashFlow</td>
-      <td></td>
-      <td>String</td>
-      <td>Y</td>
-      <td>symbol</td>
-      <td>证券代码</td>
-      <td>OUT</td>
-    </tr>
-    <tr>
-      <th>6</th>
-      <td>jy.cashFlow</td>
-      <td></td>
-      <td>String</td>
-      <td>Y</td>
-      <td>ann_date</td>
-      <td>公告日期</td>
-      <td>OUT</td>
-    </tr>
-    <tr>
-      <th>7</th>
-      <td>jy.cashFlow</td>
-      <td></td>
-      <td>String</td>
-      <td>Y</td>
-      <td>report_date</td>
-      <td>报告期</td>
-      <td>OUT</td>
-    </tr>
-    <tr>
-      <th>8</th>
-      <td>jy.cashFlow</td>
-      <td></td>
-      <td>Double</td>
-      <td>Y</td>
-      <td>cash_recp_sg_and_rs</td>
-      <td>销售商品、提供劳务收到的现金</td>
-      <td>OUT</td>
-    </tr>
-    <tr>
-      <th>9</th>
-      <td>jy.cashFlow</td>
-      <td></td>
-      <td>Double</td>
-      <td>Y</td>
-      <td>recp_tax_rends</td>
-      <td>收到的税费返还</td>
-      <td>OUT</td>
-    </tr>
-    <tr>
-      <th>10</th>
-      <td>jy.cashFlow</td>
-      <td></td>
-      <td>Double</td>
-      <td>Y</td>
-      <td>net_incr_dep_cob</td>
-      <td>客户存款和同业存放款项净增加额</td>
-      <td>OUT</td>
-    </tr>
-    <tr>
-      <th>11</th>
-      <td>jy.cashFlow</td>
-      <td></td>
-      <td>Double</td>
-      <td>Y</td>
-      <td>net_incr_loans_central_bank</td>
-      <td>向中央银行借款净增加额</td>
-      <td>OUT</td>
-    </tr>
-    <tr>
-      <th>12</th>
-      <td>jy.cashFlow</td>
-      <td></td>
-      <td>Double</td>
-      <td>Y</td>
-      <td>net_incr_fund_borr_ofi</td>
-      <td>向其他金融机构拆入资金净增加额</td>
-      <td>OUT</td>
-    </tr>
-    <tr>
-      <th>13</th>
-      <td>jy.cashFlow</td>
-      <td></td>
-      <td>Double</td>
-      <td>Y</td>
-      <td>net_incr_disp_tfa</td>
-      <td>处置交易性金融资产净增加额</td>
-      <td>OUT</td>
-    </tr>
-    <tr>
-      <th>14</th>
-      <td>jy.cashFlow</td>
-      <td></td>
-      <td>Double</td>
-      <td>Y</td>
-      <td>net_incr_int_handling_chrg</td>
-      <td>收取利息和手续费净增加额</td>
-      <td>OUT</td>
-    </tr>
-    <tr>
-      <th>15</th>
-      <td>jy.cashFlow</td>
-      <td></td>
-      <td>Double</td>
-      <td>N</td>
-      <td>net_incr_repurch_bus_fund</td>
-      <td>回购业务资金净增加额</td>
-      <td>OUT</td>
-    </tr>
-    <tr>
-      <th>16</th>
-      <td>jy.cashFlow</td>
-      <td></td>
-      <td>Double</td>
-      <td>Y</td>
-      <td>other_cash_recp_ral_oper_act</td>
-      <td>收到其他与经营活动有关的现金</td>
-      <td>OUT</td>
-    </tr>
-    <tr>
-      <th>17</th>
-      <td>jy.cashFlow</td>
-      <td></td>
-      <td>Double</td>
-      <td>Y</td>
-      <td>stot_cash_inflows_oper_act</td>
-      <td>经营活动现金流入小计</td>
-      <td>OUT</td>
-    </tr>
-    <tr>
-      <th>18</th>
-      <td>jy.cashFlow</td>
-      <td></td>
-      <td>Double</td>
-      <td>N</td>
-      <td>cash_pay_goods_purch_serv_rec</td>
-      <td>购买商品、接受劳务支付的现金</td>
-      <td>OUT</td>
-    </tr>
-    <tr>
-      <th>19</th>
-      <td>jy.cashFlow</td>
-      <td></td>
-      <td>Double</td>
-      <td>N</td>
-      <td>cash_pay_beh_empl</td>
-      <td>支付给职工以及为职工支付的现金</td>
-      <td>OUT</td>
-    </tr>
-    <tr>
-      <th>20</th>
-      <td>jy.cashFlow</td>
-      <td></td>
-      <td>Double</td>
-      <td>N</td>
-      <td>pay_all_typ_tax</td>
-      <td>支付的各项税费</td>
-      <td>OUT</td>
-    </tr>
-    <tr>
-      <th>21</th>
-      <td>jy.cashFlow</td>
-      <td></td>
-      <td>Double</td>
-      <td>N</td>
-      <td>net_incr_clients_loan_adv</td>
-      <td>客户贷款及垫款净增加额</td>
-      <td>OUT</td>
-    </tr>
-    <tr>
-      <th>22</th>
-      <td>jy.cashFlow</td>
-      <td></td>
-      <td>Double</td>
-      <td>N</td>
-      <td>net_incr_dep_cbob</td>
-      <td>存放央行和同业款项净增加额</td>
-      <td>OUT</td>
-    </tr>
-    <tr>
-      <th>23</th>
-      <td>jy.cashFlow</td>
-      <td></td>
-      <td>Double</td>
-      <td>Y</td>
-      <td>stot_cash_outflows_oper_act</td>
-      <td>经营活动现金流出小计</td>
-      <td>OUT</td>
-    </tr>
-    <tr>
-      <th>24</th>
-      <td>jy.cashFlow</td>
-      <td></td>
-      <td>Double</td>
-      <td>N</td>
-      <td>net_cash_flows_oper_act</td>
-      <td>经营活动产生的现金流量净额</td>
-      <td>OUT</td>
-    </tr>
-    <tr>
-      <th>25</th>
-      <td>jy.cashFlow</td>
-      <td></td>
-      <td>Double</td>
-      <td>N</td>
-      <td>cash_recp_disp_withdrwl_invest</td>
-      <td>收回投资收到的现金</td>
-      <td>OUT</td>
-    </tr>
-    <tr>
-      <th>26</th>
-      <td>jy.cashFlow</td>
-      <td></td>
-      <td>Double</td>
-      <td>Y</td>
-      <td>cash_recp_return_invest</td>
-      <td>取得投资收益收到的现金</td>
-      <td>OUT</td>
-    </tr>
-    <tr>
-      <th>27</th>
-      <td>jy.cashFlow</td>
-      <td></td>
-      <td>Double</td>
-      <td>N</td>
-      <td>net_cash_recp_disp_fiolta</td>
-      <td>处置固定资产、无形资产和其他长期资产收回的现金净额</td>
-      <td>OUT</td>
-    </tr>
-    <tr>
-      <th>28</th>
-      <td>jy.cashFlow</td>
-      <td></td>
-      <td>Double</td>
-      <td>N</td>
-      <td>net_cash_recp_disp_sobu</td>
-      <td>处置子公司及其他营业单位收到的现金净额</td>
-      <td>OUT</td>
-    </tr>
-    <tr>
-      <th>29</th>
-      <td>jy.cashFlow</td>
-      <td></td>
-      <td>Double</td>
-      <td>N</td>
-      <td>other_cash_recp_ral_inv_act</td>
-      <td>收到其他与投资活动有关的现金</td>
-      <td>OUT</td>
-    </tr>
-    <tr>
-      <th>...</th>
-      <td>...</td>
-      <td>...</td>
-      <td>...</td>
-      <td>...</td>
-      <td>...</td>
-      <td>...</td>
-      <td>...</td>
-    </tr>
-    <tr>
-      <th>37</th>
-      <td>jy.cashFlow</td>
-      <td></td>
-      <td>Double</td>
-      <td>Y</td>
-      <td>net_cash_flows_inv_act</td>
-      <td>投资活动产生的现金流量净额</td>
-      <td>OUT</td>
-    </tr>
-    <tr>
-      <th>38</th>
-      <td>jy.cashFlow</td>
-      <td></td>
-      <td>Double</td>
-      <td>N</td>
-      <td>cash_recp_cap_contrib</td>
-      <td>吸收投资收到的现金</td>
-      <td>OUT</td>
-    </tr>
-    <tr>
-      <th>39</th>
-      <td>jy.cashFlow</td>
-      <td></td>
-      <td>Double</td>
-      <td>N</td>
-      <td>incl_cash_rec_saims</td>
-      <td>其中:子公司吸收少数股东投资收到的现金</td>
-      <td>OUT</td>
-    </tr>
-    <tr>
-      <th>40</th>
-      <td>jy.cashFlow</td>
-      <td></td>
-      <td>Double</td>
-      <td>N</td>
-      <td>cash_recp_borrow</td>
-      <td>取得借款收到的现金</td>
-      <td>OUT</td>
-    </tr>
-    <tr>
-      <th>41</th>
-      <td>jy.cashFlow</td>
-      <td></td>
-      <td>Double</td>
-      <td>N</td>
-      <td>proc_issue_bonds</td>
-      <td>发行债券收到的现金</td>
-      <td>OUT</td>
-    </tr>
-    <tr>
-      <th>42</th>
-      <td>jy.cashFlow</td>
-      <td></td>
-      <td>Double</td>
-      <td>Y</td>
-      <td>other_cash_recp_ral_fnc_act</td>
-      <td>收到其他与筹资活动有关的现金</td>
-      <td>OUT</td>
-    </tr>
-    <tr>
-      <th>43</th>
-      <td>jy.cashFlow</td>
-      <td></td>
-      <td>Double</td>
-      <td>N</td>
-      <td>stot_cash_inflows_fnc_act</td>
-      <td>筹资活动现金流入小计</td>
-      <td>OUT</td>
-    </tr>
-    <tr>
-      <th>44</th>
-      <td>jy.cashFlow</td>
-      <td></td>
-      <td>Double</td>
-      <td>N</td>
-      <td>cash_prepay_amt_borr</td>
-      <td>偿还债务支付的现金</td>
-      <td>OUT</td>
-    </tr>
-    <tr>
-      <th>45</th>
-      <td>jy.cashFlow</td>
-      <td></td>
-      <td>Double</td>
-      <td>N</td>
-      <td>cash_pay_dist_dpcp_int_exp</td>
-      <td>分配股利、利润或偿付利息支付的现金</td>
-      <td>OUT</td>
-    </tr>
-    <tr>
-      <th>46</th>
-      <td>jy.cashFlow</td>
-      <td></td>
-      <td>Double</td>
-      <td>N</td>
-      <td>stot_cash_outflows_fnc_act</td>
-      <td>筹资活动现金流出小计</td>
-      <td>OUT</td>
-    </tr>
-    <tr>
-      <th>47</th>
-      <td>jy.cashFlow</td>
-      <td></td>
-      <td>Double</td>
-      <td>N</td>
-      <td>net_cash_flows_fnc_act</td>
-      <td>筹资活动产生的现金流量净额</td>
-      <td>OUT</td>
-    </tr>
-    <tr>
-      <th>48</th>
-      <td>jy.cashFlow</td>
-      <td></td>
-      <td>Double</td>
-      <td>N</td>
-      <td>eff_fx_flu_cash</td>
-      <td>汇率变动对现金及现金等价物的影响</td>
-      <td>OUT</td>
-    </tr>
-    <tr>
-      <th>49</th>
-      <td>jy.cashFlow</td>
-      <td></td>
-      <td>Double</td>
-      <td>N</td>
-      <td>net_incr_cash_cash_equ</td>
-      <td>现金及现金等价物净增加额</td>
-      <td>OUT</td>
-    </tr>
-    <tr>
-      <th>50</th>
-      <td>jy.cashFlow</td>
-      <td></td>
-      <td>Double</td>
-      <td>N</td>
-      <td>net_profit</td>
-      <td>净利润</td>
-      <td>OUT</td>
-    </tr>
-    <tr>
-      <th>51</th>
-      <td>jy.cashFlow</td>
-      <td></td>
-      <td>Double</td>
-      <td>N</td>
-      <td>amort_intang_assets</td>
-      <td>无形资产摊销</td>
-      <td>OUT</td>
-    </tr>
-    <tr>
-      <th>52</th>
-      <td>jy.cashFlow</td>
-      <td></td>
-      <td>Double</td>
-      <td>N</td>
-      <td>amort_lt_deferred_exp</td>
-      <td>长期待摊费用摊销</td>
-      <td>OUT</td>
-    </tr>
-    <tr>
-      <th>53</th>
-      <td>jy.cashFlow</td>
-      <td></td>
-      <td>Double</td>
-      <td>N</td>
-      <td>loss_disp_fiolta</td>
-      <td>处置固定、无形资产和其他长期资产的损失</td>
-      <td>OUT</td>
-    </tr>
-    <tr>
-      <th>54</th>
-      <td>jy.cashFlow</td>
-      <td></td>
-      <td>Double</td>
-      <td>N</td>
-      <td>loss_scr_fa</td>
-      <td>固定资产报废损失</td>
-      <td>OUT</td>
-    </tr>
-    <tr>
-      <th>55</th>
-      <td>jy.cashFlow</td>
-      <td></td>
-      <td>Double</td>
-      <td>N</td>
-      <td>fin_exp</td>
-      <td>财务费用</td>
-      <td>OUT</td>
-    </tr>
-    <tr>
-      <th>56</th>
-      <td>jy.cashFlow</td>
-      <td></td>
-      <td>Double</td>
-      <td>N</td>
-      <td>invest_loss</td>
-      <td>投资损失</td>
-      <td>OUT</td>
-    </tr>
-    <tr>
-      <th>57</th>
-      <td>jy.cashFlow</td>
-      <td></td>
-      <td>Double</td>
-      <td>N</td>
-      <td>decr_deferred_inc_tax_assets</td>
-      <td>递延所得税资产减少</td>
-      <td>OUT</td>
-    </tr>
-    <tr>
-      <th>58</th>
-      <td>jy.cashFlow</td>
-      <td></td>
-      <td>Double</td>
-      <td>N</td>
-      <td>incr_deferred_inc_tax_liab</td>
-      <td>递延所得税负债增加</td>
-      <td>OUT</td>
-    </tr>
-    <tr>
-      <th>59</th>
-      <td>jy.cashFlow</td>
-      <td></td>
-      <td>Double</td>
-      <td>N</td>
-      <td>decr_inventories</td>
-      <td>存货的减少</td>
-      <td>OUT</td>
-    </tr>
-    <tr>
-      <th>60</th>
-      <td>jy.cashFlow</td>
-      <td></td>
-      <td>Double</td>
-      <td>N</td>
-      <td>decr_oper_payable</td>
-      <td>经营性应收项目的减少</td>
-      <td>OUT</td>
-    </tr>
-    <tr>
-      <th>61</th>
-      <td>jy.cashFlow</td>
-      <td></td>
-      <td>Double</td>
-      <td>N</td>
-      <td>incr_oper_payable</td>
-      <td>经营性应付项目的增加</td>
-      <td>OUT</td>
-    </tr>
-    <tr>
-      <th>62</th>
-      <td>jy.cashFlow</td>
-      <td></td>
-      <td>Double</td>
-      <td>N</td>
-      <td>others</td>
-      <td>其他</td>
-      <td>OUT</td>
-    </tr>
-    <tr>
-      <th>63</th>
-      <td>jy.cashFlow</td>
-      <td></td>
-      <td>Double</td>
-      <td>N</td>
-      <td>conv_debt_into_cap</td>
-      <td>债务转为资本</td>
-      <td>OUT</td>
-    </tr>
-    <tr>
-      <th>64</th>
-      <td>jy.cashFlow</td>
-      <td></td>
-      <td>Double</td>
-      <td>N</td>
-      <td>conv_corp_bonds_due_within_1y</td>
-      <td>一年内到期的可转换公司债券</td>
-      <td>OUT</td>
-    </tr>
-    <tr>
-      <th>65</th>
-      <td>jy.cashFlow</td>
-      <td></td>
-      <td>Double</td>
-      <td>N</td>
-      <td>fa_fnc_leases</td>
-      <td>融资租入固定资产</td>
-      <td>OUT</td>
-    </tr>
-    <tr>
-      <th>66</th>
-      <td>jy.cashFlow</td>
-      <td></td>
-      <td>Double</td>
-      <td>N</td>
-      <td>end_bal_cash</td>
-      <td>现金的期末余额</td>
-      <td>OUT</td>
-    </tr>
   </tbody>
 </table>
-<p>67 rows × 7 columns</p>
 </div>
 
 
@@ -919,7 +356,7 @@ df
 ## 数据查询
 
 ### fields
-- ` jaqs.data.Dataview.fields `
+- ` jaqs_fxdayu.data.Dataview.fields `
 
 **简要描述：**
 
@@ -942,32 +379,34 @@ dv.fields
 
 
 
-    ['high',
-     'quarter',
-     'open',
-     'ann_date',
-     'open_adj',
-     'close',
-     'close_adj',
-     'pe',
-     'total_oper_rev',
-     'adjust_factor',
-     'trade_status',
-     'vwap_adj',
-     'vwap',
-     'high_adj',
-     'low',
-     'sw1',
+    ['sw1',
      'low_adj',
-     'pb',
-     'index_member',
+     'high_adj',
+     'pe',
+     'quarter',
+     'low',
      'oper_exp',
-     'index_weight']
+     'open_adj',
+     'trade_status',
+     'close_adj',
+     'index_weight',
+     'pb',
+     'total_oper_rev',
+     'open',
+     'high',
+     '_limit',
+     'ann_date',
+     'vwap',
+     'vwap_adj',
+     'close',
+     'adjust_factor',
+     'index_member',
+     '_daily_adjust_factor']
 
 
 
 ### _get_fields
-- ` jaqs.data.Dataview._get_fields(field_type, fields) `
+- ` jaqs_fxdayu.data.Dataview._get_fields(field_type, fields) `
 
 **简要描述：**
 
@@ -986,12 +425,12 @@ dv._get_fields('quarterly',dv.fields) # 查询数据集的字段里有哪些是�
 
 
 
-    ['quarter', 'total_oper_rev', 'oper_exp', 'ann_date']
+    ['quarter', 'total_oper_rev', 'ann_date', 'oper_exp']
 
 
 
 ###  symbol
-- ` jaqs.data.Dataview.symbol `
+- ` jaqs_fxdayu.data.Dataview.symbol `
 
 **简要描述：**
 
@@ -1012,7 +451,7 @@ dv.symbol[:2] # 前两只股票
 
 
 ### universe
-- ` jaqs.data.Dataview.universe `
+- ` jaqs_fxdayu.data.Dataview.universe `
 
 **简要描述：**
 
@@ -1033,7 +472,7 @@ dv.universe
 
 
 ### benchmark
-- ` jaqs.data.Dataview.benchmark `
+- ` jaqs_fxdayu.data.Dataview.benchmark `
 
 **简要描述：**
 
@@ -1054,7 +493,7 @@ dv.benchmark
 
 
 ### data_benchmark
-- ` jaqs.data.Dataview.data_benchmark `
+- ` jaqs_fxdayu.data.Dataview.data_benchmark `
 
 **简要描述：**
 
@@ -1123,7 +562,7 @@ dv.data_benchmark.head()
 
 
 ### data_inst
-- ` jaqs.data.Dataview.data_inst `
+- ` jaqs_fxdayu.data.Dataview.data_inst `
 
 **简要描述：**
 
@@ -1253,7 +692,7 @@ dv.data_inst.head()
 |multiplier	|合约乘数|
 
 ### dates
-- ` jaqs.data.Dataview.dates `
+- ` jaqs_fxdayu.data.Dataview.dates `
 
 **简要描述：**
 
@@ -1269,12 +708,12 @@ dv.dates[:2] #日期序列前两个
 
 
 
-    array([20170306, 20170307], dtype=int64)
+    array([20170306, 20170307])
 
 
 
 ### data_d
-- ` jaqs.data.Dataview.data_d`
+- ` jaqs_fxdayu.data.Dataview.data_d`
 
 **简要描述：**
 
@@ -1314,6 +753,8 @@ dv.data_d.head()
     </tr>
     <tr>
       <th>field</th>
+      <th>_daily_adjust_factor</th>
+      <th>_limit</th>
       <th>adjust_factor</th>
       <th>ann_date</th>
       <th>close</th>
@@ -1322,8 +763,6 @@ dv.data_d.head()
       <th>high_adj</th>
       <th>index_member</th>
       <th>index_weight</th>
-      <th>low</th>
-      <th>low_adj</th>
       <th>...</th>
       <th>open_adj</th>
       <th>oper_exp</th>
@@ -1364,6 +803,8 @@ dv.data_d.head()
   <tbody>
     <tr>
       <th>20170306</th>
+      <td>NaN</td>
+      <td>NaN</td>
       <td>100.523</td>
       <td>20161021.0</td>
       <td>9.45</td>
@@ -1372,8 +813,6 @@ dv.data_d.head()
       <td>950.94758</td>
       <td>1.0</td>
       <td>0.008449</td>
-      <td>9.39</td>
-      <td>943.91097</td>
       <td>...</td>
       <td>15.685408</td>
       <td>0.0</td>
@@ -1388,6 +827,8 @@ dv.data_d.head()
     </tr>
     <tr>
       <th>20170307</th>
+      <td>NaN</td>
+      <td>NaN</td>
       <td>100.523</td>
       <td>20161021.0</td>
       <td>9.45</td>
@@ -1396,8 +837,6 @@ dv.data_d.head()
       <td>950.94758</td>
       <td>1.0</td>
       <td>0.008449</td>
-      <td>9.40</td>
-      <td>944.91620</td>
       <td>...</td>
       <td>15.974097</td>
       <td>0.0</td>
@@ -1412,6 +851,8 @@ dv.data_d.head()
     </tr>
     <tr>
       <th>20170308</th>
+      <td>NaN</td>
+      <td>NaN</td>
       <td>100.523</td>
       <td>20161021.0</td>
       <td>9.42</td>
@@ -1420,8 +861,6 @@ dv.data_d.head()
       <td>949.94235</td>
       <td>1.0</td>
       <td>0.008449</td>
-      <td>9.40</td>
-      <td>944.91620</td>
       <td>...</td>
       <td>15.557102</td>
       <td>0.0</td>
@@ -1436,6 +875,8 @@ dv.data_d.head()
     </tr>
     <tr>
       <th>20170309</th>
+      <td>NaN</td>
+      <td>NaN</td>
       <td>100.523</td>
       <td>20161021.0</td>
       <td>9.38</td>
@@ -1444,8 +885,6 @@ dv.data_d.head()
       <td>947.93189</td>
       <td>1.0</td>
       <td>0.008449</td>
-      <td>9.36</td>
-      <td>940.89528</td>
       <td>...</td>
       <td>15.781638</td>
       <td>0.0</td>
@@ -1460,6 +899,8 @@ dv.data_d.head()
     </tr>
     <tr>
       <th>20170310</th>
+      <td>NaN</td>
+      <td>NaN</td>
       <td>100.523</td>
       <td>20161021.0</td>
       <td>9.40</td>
@@ -1468,8 +909,6 @@ dv.data_d.head()
       <td>945.92143</td>
       <td>1.0</td>
       <td>0.008449</td>
-      <td>9.36</td>
-      <td>940.89528</td>
       <td>...</td>
       <td>15.525026</td>
       <td>0.0</td>
@@ -1484,13 +923,13 @@ dv.data_d.head()
     </tr>
   </tbody>
 </table>
-<p>5 rows × 6930 columns</p>
+<p>5 rows × 7590 columns</p>
 </div>
 
 
 
 ###  data_q
-- ` jaqs.data.Dataview.data_q `
+- ` jaqs_fxdayu.data.Dataview.data_q `
 
 **简要描述：**
 
@@ -1710,7 +1149,7 @@ dv.data_q.head()
 
 
 ### get
-- ` jaqs.data.Dataview.get(symbol="", start_date=0, end_date=0, fields="") `
+- ` jaqs_fxdayu.data.Dataview.get(symbol="", start_date=0, end_date=0, fields="") `
 
 **简要描述：**
 
@@ -1814,7 +1253,7 @@ dv.get("000001.SZ,000002.SZ",fields="open,high").head()
 
 
 ### get_snapshot
-- ` jaqs.data.Dataview.get_snapshot(snapshot_date, symbol="", fields="") `
+- ` jaqs_fxdayu.data.Dataview.get_snapshot(snapshot_date, symbol="", fields="") `
 
 **简要描述：**
 
@@ -1832,7 +1271,7 @@ dv.get("000001.SZ,000002.SZ",fields="open,high").head()
 
 
 ```python
-dv.get_snapshot(20170504,fields="open,high").head()
+dv.get_snapshot(20170504, fields="open,high").head()
 ```
 
 
@@ -1898,11 +1337,12 @@ dv.get_snapshot(20170504,fields="open,high").head()
 
 
 ### get_ts
-- ` jaqs.data.Dataview.get_ts(field, symbol="", start_date=0, end_date=0) `
+- ` jaqs_fxdayu.data.Dataview.get_ts(field, symbol="", start_date=0, end_date=0) `
 
 **简要描述：**
 
 - 切片查询方法：指定字段，按时间+品种查询数据，返回时间为索引，品种为columns的DataFrame
+- 查询的结果为日频（季度数据也会被自动扩展为日频）
 
 **参数：**
 
@@ -2117,7 +1557,7 @@ dv.get_ts("open").head()
 
 
 ### get_ts_quarter
-- ` jaqs.data.Dataview.get_ts_quarter(field, symbol="", start_date=0, end_date=0) `
+- ` jaqs_fxdayu.data.Dataview.get_ts_quarter(field, symbol="", start_date=0, end_date=0) `
 
 **简要描述：**
 
@@ -2339,7 +1779,7 @@ dv.get_ts_quarter('total_oper_rev').head()
 ## 数据添加
 
 ### data_api
-- ` jaqs.data.Dataview.data_api `
+- ` jaqs_fxdayu.data.Dataview.data_api `
 
 **简要描述：**
 
@@ -2355,12 +1795,12 @@ dv.data_api
 
 
 
-    <jaqs.data.dataservice.RemoteDataService at 0x1aa2a4340f0>
+    <jaqs.data.dataservice.RemoteDataService at 0x7fa0d418f588>
 
 
 
 ### add_comp_info
-- ` jaqs.data.Dataview.add_comp_info(index,data_api=None) `
+- ` jaqs_fxdayu.data.Dataview.add_comp_info(index,data_api=None) `
 
 **简要描述：**
 
@@ -2584,7 +2024,7 @@ dv.get_ts("000016.SH_weight").head()
 
 
 ### add_field
-- ` jaqs.data.Dataview.add_field(field_name, data_api=None) `
+- ` jaqs_fxdayu.data.Dataview.add_field(field_name, data_api=None) `
 
 **简要描述：**
 
@@ -2607,11 +2047,11 @@ dv.add_field("volume")
     Query data - query...
     NOTE: price adjust method is [post adjust]
     当前请求daily...
-    {'adjust_mode': None, 'fields': 'vwap,trade_date,volume,symbol,low,open,high,close,trade_status'}
+    {'adjust_mode': None, 'fields': 'symbol,vwap,low,open,trade_date,trade_status,high,volume,close'}
     当前请求daily...
-    {'adjust_mode': 'post', 'fields': 'vwap,trade_date,volume,symbol,low,open,high,close,trade_status'}
+    {'adjust_mode': 'post', 'fields': 'symbol,vwap,low,open,trade_date,trade_status,high,volume,close'}
     Query data - daily fields prepared.
-    
+
 
 
 
@@ -2823,7 +2263,7 @@ dv.get_ts("volume").head()
 
 ### add_formula
 
-- ` jaqs.data.Dataview.add_formula(field_name,formula,is_quarterly,add_data=False,overwrite=True,formula_func_name_style='camel',data_api=None,register_funcs = None,within_index=True)  `
+- ` jaqs_fxdayu.data.Dataview.add_formula(field_name,formula,is_quarterly,add_data=False,overwrite=True,formula_func_name_style='camel',data_api=None,register_funcs = None,within_index=True)  `
 
 
 **简要描述：**
@@ -3467,7 +2907,7 @@ dv.add_formula("double_SMA","SMA(SMA(close_adj,3,1),3,1)",
 
 
 ### func_doc
-- ` jaqs.data.Dataview.func_doc `
+- ` jaqs_fxdayu.data.Dataview.func_doc `
 
 **简要描述：**
 
@@ -3844,11 +3284,13 @@ dv.func_doc.search_by_func("Tan",precise=False)
 
 ### append_df
 
-- ` jaqs.data.Dataview.append_df(df, field_name, is_quarterly=False, overwrite=True) `
+- ` jaqs_fxdayu.data.Dataview.append_df(df, field_name, is_quarterly=False, overwrite=True) `
 
 **简要描述：**
 
 - 外部构造一个pandas.DataFrame,作为新增字段通过此方法添加到数据集中(更灵活的定义因子的方式)
+- 注：该方法通常只用于添加**日度**数据（设置is_qurterly=False），若通过该方法添加季度数据（is_qurterly=True）,则添加的数据无法自动对齐到日级别，也无法通过get_ts方法访问到。
+- 如需添加季度数据并将其自动对齐到日级别，请使用append_df_quarter方法
 
 **参数：**
 
@@ -4066,12 +3508,12 @@ dv.get_ts("close-high").head()
 
 ### append_df_quarter
 
-- ` jaqs.data.Dataview.append_df_quarter(df, field_name, overwrite=True) `
+- ` jaqs_fxdayu.data.Dataview.append_df_quarter(df, field_name, overwrite=True) `
 
 **简要描述：**
 
 - 外部构造一个pandas.DataFrame,且DataFrame中为**季度数据**,作为新增字段通过此方法添加到数据集中(更灵活的定义因子的方式)
-> 与jaqs.data.Dataview.append_df(df, field_name, is_quanterly=True)不同之处在于:该方法为自动将所添加的季度也增加到日度数据中，相当于将数据对齐到日线为新数据df_daily后，再调用一次jaqs.data.Dataview.append_df(df_daily, field_name, is_quanterly=False)。这样可以方便加入季度，然后统一在日线周期下获取数据进行研究。
+> 与jaqs_fxdayu.data.Dataview.append_df(df, field_name, is_quarterly=True)不同之处在于:该方法为自动将所添加的季度也增加到日度数据中，相当于将数据对齐到日线为新数据df_daily后，再调用一次jaqs_fxdayu.data.Dataview.append_df(df_daily, field_name, is_quarterly=False)。这样可以方便加入季度，然后统一在日线周期下获取数据进行研究。
 
 **参数：**
 
@@ -4089,13 +3531,12 @@ dv.add_field("roe")
 roe = dv.get_ts_quarter('roe')
 df = roe.diff()
 dv.append_df_quarter(df, "d-roe")
-dv.get_ts_quarter("d-roe").head() # 查询季度数据
+dv.get_ts_quarter("d-roe").dropna().head() # 查询季度数据
 ```
 
     Query data - query...
     Query data - quarterly fields prepared.
-    Field [roe] is overwritten.
-    
+
 
 
 
@@ -4167,128 +3608,104 @@ dv.get_ts_quarter("d-roe").head() # 查询季度数据
   </thead>
   <tbody>
     <tr>
-      <th>20140930</th>
-      <td>NaN</td>
-      <td>NaN</td>
-      <td>NaN</td>
-      <td>NaN</td>
-      <td>NaN</td>
-      <td>NaN</td>
-      <td>NaN</td>
-      <td>NaN</td>
-      <td>NaN</td>
-      <td>NaN</td>
+      <th>20160331</th>
+      <td>-11.4660</td>
+      <td>-18.4105</td>
+      <td>-10.4000</td>
+      <td>-18.7879</td>
+      <td>-8.1359</td>
+      <td>-6.3414</td>
+      <td>-3.7253</td>
+      <td>-0.3387</td>
+      <td>-7.6121</td>
+      <td>-12.4472</td>
       <td>...</td>
-      <td>NaN</td>
-      <td>NaN</td>
-      <td>NaN</td>
-      <td>NaN</td>
-      <td>NaN</td>
-      <td>NaN</td>
-      <td>NaN</td>
-      <td>NaN</td>
-      <td>NaN</td>
-      <td>NaN</td>
+      <td>-10.4562</td>
+      <td>4.8409</td>
+      <td>-5.4368</td>
+      <td>-20.6642</td>
+      <td>-10.7903</td>
+      <td>-9.0602</td>
+      <td>-30.5938</td>
+      <td>-58.5293</td>
+      <td>-26.3598</td>
+      <td>-3.9513</td>
     </tr>
     <tr>
-      <th>20150331</th>
-      <td>NaN</td>
-      <td>NaN</td>
-      <td>NaN</td>
-      <td>NaN</td>
-      <td>NaN</td>
-      <td>NaN</td>
-      <td>NaN</td>
-      <td>NaN</td>
-      <td>NaN</td>
-      <td>NaN</td>
+      <th>20160630</th>
+      <td>3.4734</td>
+      <td>4.5853</td>
+      <td>0.7098</td>
+      <td>0.9384</td>
+      <td>3.0494</td>
+      <td>-2.7715</td>
+      <td>1.3095</td>
+      <td>0.5910</td>
+      <td>2.0323</td>
+      <td>2.5554</td>
       <td>...</td>
-      <td>NaN</td>
-      <td>NaN</td>
-      <td>NaN</td>
-      <td>NaN</td>
-      <td>NaN</td>
-      <td>NaN</td>
-      <td>NaN</td>
-      <td>NaN</td>
-      <td>NaN</td>
-      <td>NaN</td>
+      <td>3.4989</td>
+      <td>0.9899</td>
+      <td>4.2848</td>
+      <td>4.8958</td>
+      <td>3.8221</td>
+      <td>-0.2508</td>
+      <td>17.8033</td>
+      <td>5.4220</td>
+      <td>0.5424</td>
+      <td>2.1448</td>
     </tr>
     <tr>
-      <th>20150630</th>
-      <td>NaN</td>
-      <td>NaN</td>
-      <td>NaN</td>
-      <td>NaN</td>
-      <td>NaN</td>
-      <td>NaN</td>
-      <td>NaN</td>
-      <td>NaN</td>
-      <td>NaN</td>
-      <td>NaN</td>
+      <th>20170331</th>
+      <td>-9.3964</td>
+      <td>-19.0699</td>
+      <td>-11.4174</td>
+      <td>-4.4972</td>
+      <td>-5.7008</td>
+      <td>-0.1440</td>
+      <td>-1.5022</td>
+      <td>-1.7294</td>
+      <td>9.6676</td>
+      <td>-15.1272</td>
       <td>...</td>
-      <td>NaN</td>
-      <td>NaN</td>
-      <td>NaN</td>
-      <td>NaN</td>
-      <td>NaN</td>
-      <td>NaN</td>
-      <td>NaN</td>
-      <td>NaN</td>
-      <td>NaN</td>
-      <td>NaN</td>
+      <td>-8.8577</td>
+      <td>-0.7407</td>
+      <td>-5.5384</td>
+      <td>-16.3442</td>
+      <td>-8.9765</td>
+      <td>-5.5680</td>
+      <td>-37.6522</td>
+      <td>-16.1615</td>
+      <td>-17.3611</td>
+      <td>-2.3932</td>
     </tr>
     <tr>
-      <th>20150930</th>
-      <td>NaN</td>
-      <td>NaN</td>
-      <td>NaN</td>
-      <td>NaN</td>
-      <td>NaN</td>
-      <td>NaN</td>
-      <td>NaN</td>
-      <td>NaN</td>
-      <td>NaN</td>
-      <td>NaN</td>
+      <th>20170630</th>
+      <td>3.0383</td>
+      <td>5.8485</td>
+      <td>0.7553</td>
+      <td>1.0343</td>
+      <td>1.3482</td>
+      <td>0.9739</td>
+      <td>3.5654</td>
+      <td>0.1076</td>
+      <td>2.8533</td>
+      <td>2.1882</td>
       <td>...</td>
-      <td>NaN</td>
-      <td>NaN</td>
-      <td>NaN</td>
-      <td>NaN</td>
-      <td>NaN</td>
-      <td>NaN</td>
-      <td>NaN</td>
-      <td>NaN</td>
-      <td>NaN</td>
-      <td>NaN</td>
-    </tr>
-    <tr>
-      <th>20151231</th>
-      <td>NaN</td>
-      <td>NaN</td>
-      <td>NaN</td>
-      <td>NaN</td>
-      <td>NaN</td>
-      <td>NaN</td>
-      <td>NaN</td>
-      <td>NaN</td>
-      <td>NaN</td>
-      <td>NaN</td>
-      <td>...</td>
-      <td>NaN</td>
-      <td>NaN</td>
-      <td>NaN</td>
-      <td>NaN</td>
-      <td>NaN</td>
-      <td>NaN</td>
-      <td>NaN</td>
-      <td>NaN</td>
-      <td>NaN</td>
-      <td>NaN</td>
+      <td>3.9847</td>
+      <td>0.5797</td>
+      <td>3.1304</td>
+      <td>4.2815</td>
+      <td>3.2946</td>
+      <td>0.6141</td>
+      <td>10.4661</td>
+      <td>3.7218</td>
+      <td>2.6678</td>
+      <td>1.3230</td>
     </tr>
   </tbody>
 </table>
-<p>5 rows × 330 columns</p>
+<p>4 rows × 330 columns</p>
 </div>
 
 
@@ -4296,7 +3713,7 @@ dv.get_ts_quarter("d-roe").head() # 查询季度数据
 
 ```python
 # 对应的日度数据
-dv.get_ts("d-roe").head()
+dv.get_ts("d-roe").dropna().head()
 ```
 
 
@@ -4370,123 +3787,123 @@ dv.get_ts("d-roe").head()
   <tbody>
     <tr>
       <th>20170502</th>
-      <td>NaN</td>
-      <td>NaN</td>
-      <td>NaN</td>
-      <td>NaN</td>
-      <td>NaN</td>
-      <td>NaN</td>
-      <td>NaN</td>
-      <td>NaN</td>
-      <td>NaN</td>
-      <td>NaN</td>
+      <td>-9.3964</td>
+      <td>-19.0699</td>
+      <td>-11.4174</td>
+      <td>-4.4972</td>
+      <td>-5.7008</td>
+      <td>-0.144</td>
+      <td>-1.5022</td>
+      <td>-1.7294</td>
+      <td>9.6676</td>
+      <td>-15.1272</td>
       <td>...</td>
-      <td>NaN</td>
-      <td>NaN</td>
-      <td>NaN</td>
-      <td>NaN</td>
-      <td>NaN</td>
-      <td>NaN</td>
-      <td>NaN</td>
-      <td>NaN</td>
-      <td>NaN</td>
-      <td>NaN</td>
+      <td>-8.8577</td>
+      <td>-0.7407</td>
+      <td>-5.5384</td>
+      <td>-16.3442</td>
+      <td>-8.9765</td>
+      <td>-5.568</td>
+      <td>-37.6522</td>
+      <td>-16.1615</td>
+      <td>-17.3611</td>
+      <td>-2.3932</td>
     </tr>
     <tr>
       <th>20170503</th>
-      <td>NaN</td>
-      <td>NaN</td>
-      <td>NaN</td>
-      <td>NaN</td>
-      <td>NaN</td>
-      <td>NaN</td>
-      <td>NaN</td>
-      <td>NaN</td>
-      <td>NaN</td>
-      <td>NaN</td>
+      <td>-9.3964</td>
+      <td>-19.0699</td>
+      <td>-11.4174</td>
+      <td>-4.4972</td>
+      <td>-5.7008</td>
+      <td>-0.144</td>
+      <td>-1.5022</td>
+      <td>-1.7294</td>
+      <td>9.6676</td>
+      <td>-15.1272</td>
       <td>...</td>
-      <td>NaN</td>
-      <td>NaN</td>
-      <td>NaN</td>
-      <td>NaN</td>
-      <td>NaN</td>
-      <td>NaN</td>
-      <td>NaN</td>
-      <td>NaN</td>
-      <td>NaN</td>
-      <td>NaN</td>
+      <td>-8.8577</td>
+      <td>-0.7407</td>
+      <td>-5.5384</td>
+      <td>-16.3442</td>
+      <td>-8.9765</td>
+      <td>-5.568</td>
+      <td>-37.6522</td>
+      <td>-16.1615</td>
+      <td>-17.3611</td>
+      <td>-2.3932</td>
     </tr>
     <tr>
       <th>20170504</th>
-      <td>NaN</td>
-      <td>NaN</td>
-      <td>NaN</td>
-      <td>NaN</td>
-      <td>NaN</td>
-      <td>NaN</td>
-      <td>NaN</td>
-      <td>NaN</td>
-      <td>NaN</td>
-      <td>NaN</td>
+      <td>-9.3964</td>
+      <td>-19.0699</td>
+      <td>-11.4174</td>
+      <td>-4.4972</td>
+      <td>-5.7008</td>
+      <td>-0.144</td>
+      <td>-1.5022</td>
+      <td>-1.7294</td>
+      <td>9.6676</td>
+      <td>-15.1272</td>
       <td>...</td>
-      <td>NaN</td>
-      <td>NaN</td>
-      <td>NaN</td>
-      <td>NaN</td>
-      <td>NaN</td>
-      <td>NaN</td>
-      <td>NaN</td>
-      <td>NaN</td>
-      <td>NaN</td>
-      <td>NaN</td>
+      <td>-8.8577</td>
+      <td>-0.7407</td>
+      <td>-5.5384</td>
+      <td>-16.3442</td>
+      <td>-8.9765</td>
+      <td>-5.568</td>
+      <td>-37.6522</td>
+      <td>-16.1615</td>
+      <td>-17.3611</td>
+      <td>-2.3932</td>
     </tr>
     <tr>
       <th>20170505</th>
-      <td>NaN</td>
-      <td>NaN</td>
-      <td>NaN</td>
-      <td>NaN</td>
-      <td>NaN</td>
-      <td>NaN</td>
-      <td>NaN</td>
-      <td>NaN</td>
-      <td>NaN</td>
-      <td>NaN</td>
+      <td>-9.3964</td>
+      <td>-19.0699</td>
+      <td>-11.4174</td>
+      <td>-4.4972</td>
+      <td>-5.7008</td>
+      <td>-0.144</td>
+      <td>-1.5022</td>
+      <td>-1.7294</td>
+      <td>9.6676</td>
+      <td>-15.1272</td>
       <td>...</td>
-      <td>NaN</td>
-      <td>NaN</td>
-      <td>NaN</td>
-      <td>NaN</td>
-      <td>NaN</td>
-      <td>NaN</td>
-      <td>NaN</td>
-      <td>NaN</td>
-      <td>NaN</td>
-      <td>NaN</td>
+      <td>-8.8577</td>
+      <td>-0.7407</td>
+      <td>-5.5384</td>
+      <td>-16.3442</td>
+      <td>-8.9765</td>
+      <td>-5.568</td>
+      <td>-37.6522</td>
+      <td>-16.1615</td>
+      <td>-17.3611</td>
+      <td>-2.3932</td>
     </tr>
     <tr>
       <th>20170508</th>
-      <td>NaN</td>
-      <td>NaN</td>
-      <td>NaN</td>
-      <td>NaN</td>
-      <td>NaN</td>
-      <td>NaN</td>
-      <td>NaN</td>
-      <td>NaN</td>
-      <td>NaN</td>
-      <td>NaN</td>
+      <td>-9.3964</td>
+      <td>-19.0699</td>
+      <td>-11.4174</td>
+      <td>-4.4972</td>
+      <td>-5.7008</td>
+      <td>-0.144</td>
+      <td>-1.5022</td>
+      <td>-1.7294</td>
+      <td>9.6676</td>
+      <td>-15.1272</td>
       <td>...</td>
-      <td>NaN</td>
-      <td>NaN</td>
-      <td>NaN</td>
-      <td>NaN</td>
-      <td>NaN</td>
-      <td>NaN</td>
-      <td>NaN</td>
-      <td>NaN</td>
-      <td>NaN</td>
-      <td>NaN</td>
+      <td>-8.8577</td>
+      <td>-0.7407</td>
+      <td>-5.5384</td>
+      <td>-16.3442</td>
+      <td>-8.9765</td>
+      <td>-5.568</td>
+      <td>-37.6522</td>
+      <td>-16.1615</td>
+      <td>-17.3611</td>
+      <td>-2.3932</td>
     </tr>
   </tbody>
 </table>
@@ -4497,7 +3914,7 @@ dv.get_ts("d-roe").head()
 
 ###  append_df_symbol
 
-- ` jaqs.data.Dataview.append_df(df, symbol_name, overwrite=False) `
+- ` jaqs_fxdayu.data.Dataview.append_df(df, symbol_name, overwrite=False) `
 
 **简要描述：**
 
@@ -4521,11 +3938,14 @@ df.columns = df.columns.droplevel("symbol")
 dv.append_df_symbol(df=df,symbol_name="000001.SZ",overwrite=True)
 ```
 
+    Symbol [000001.SZ] is overwritten.
+
+
 ## 删除数据
 
 ### remove_field
 
-- ` jaqs.data.Dataview.remove_field(field_names) `
+- ` jaqs_fxdayu.data.Dataview.remove_field(field_names) `
 
 **简要描述：**
 
@@ -4547,9 +3967,13 @@ dv.remove_field("open")
 print("open" in dv.fields)
 ```
 
+    True
+    False
+
+
 ### remove_symbol
 
-- ` jaqs.data.Dataview.remove_symbol(symbols) `
+- ` jaqs_fxdayu.data.Dataview.remove_symbol(symbols) `
 
 **简要描述：**
 
@@ -4571,11 +3995,15 @@ dv.remove_symbol("000001.SZ")
 print("000001.SZ" in dv.symbol)
 ```
 
+    True
+    False
+
+
 ## 数据落地
 
 ### save_dataview
 
-- ` jaqs.data.Dataview.save_dataview(folder_path) `
+- ` jaqs_fxdayu.data.Dataview.save_dataview(folder_path) `
 
 **简要描述：**
 
@@ -4597,8 +4025,6 @@ dataview_folder = './data'
 
 if not (os.path.isdir(dataview_folder)):
     os.makedirs(dataview_folder)
-    
-
 ```
 
 
@@ -4609,14 +4035,14 @@ dv.save_dataview(dataview_folder)
     
     Store data...
     Dataview has been successfully saved to:
-    E:\Users\BurdenBear\Documents\PycharmProjects\JAQS-fxdayu\docs\_source\data
+    /home/xinger/Desktop/jaqs_plus/jaqs-fxdayu/docs/_source/data
     
-    You can load it with load_dataview('E:\Users\BurdenBear\Documents\PycharmProjects\JAQS-fxdayu\docs\_source\data')
-    
+    You can load it with load_dataview('/home/xinger/Desktop/jaqs_plus/jaqs-fxdayu/docs/_source/data')
+
 
 ### load_dataview
 
-- ` jaqs.data.Dataview.load_dataview(folder_path) `
+- ` jaqs_fxdayu.data.Dataview.load_dataview(folder_path) `
 
 **简要描述：**
 
@@ -4638,4 +4064,4 @@ dv.load_dataview(dataview_folder)
 ```
 
     Dataview loaded successfully.
-    
+
