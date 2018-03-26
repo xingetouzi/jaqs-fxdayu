@@ -45,7 +45,7 @@ standardize(factor_df = dv.get_ts("pe"), index_member = dv.get_ts("index_member"
 ```
 
     Dataview loaded successfully.
-    
+
 
 
 

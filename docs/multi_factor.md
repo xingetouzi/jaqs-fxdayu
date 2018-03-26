@@ -33,9 +33,7 @@ warnings.filterwarnings('ignore')
 
 
 ```python
-import jaqs_fxdayu
-jaqs_fxdayu.patch_all()
-from jaqs.data import DataView
+from jaqs_fxdayu.data import DataView
 from jaqs_fxdayu.research.signaldigger.multi_factor import orthogonalize
 
 # 加载dataview数据集
@@ -52,7 +50,7 @@ new_factors = orthogonalize(factors_dict=factors_dict,
 ```
 
     Dataview loaded successfully.
-    
+
 
 
 ```python
@@ -61,7 +59,7 @@ new_factors["pe"].head()
 ```
 
     dict_keys(['pb', 'pe'])
-    
+
 
 
 
@@ -260,7 +258,7 @@ new_factors["pe"].head()
 
 
 ## get_factors_ic_df
-- ` jaqs.research.signaldigger.multi_factor.get_factors_ic_df(*args, **kwargs) `
+- ` jaqs_fxdayu.research.signaldigger.multi_factor.get_factors_ic_df(*args, **kwargs) `
 
 **简要描述：**
 
@@ -326,7 +324,7 @@ factor_ic_df.dropna(how="all").head()
 
     Nan Data Count (should be zero) : 0;  Percentage of effective data: 99%
     Nan Data Count (should be zero) : 0;  Percentage of effective data: 99%
-    
+
 
 
 
@@ -464,7 +462,7 @@ comb_factor.dropna(how="all").head()
 
     Nan Data Count (should be zero) : 0;  Percentage of effective data: 99%
     Nan Data Count (should be zero) : 0;  Percentage of effective data: 99%
-    
+
 
 
 

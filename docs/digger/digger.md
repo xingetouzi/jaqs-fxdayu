@@ -11,7 +11,13 @@ SignalDigger是digger模块中的一个核心类，使用SigalDigger可以分析
 
 
 ```python
-from jaqs.research import SignalDigger
+import warnings
+warnings.filterwarnings('ignore')
+```
+
+
+```python
+from jaqs_fxdayu.research import SignalDigger
 
 # step 1：实例化SignalDigger 通过output_folder和output_format指定因子绩效表现的输出路径和输出格式
 sd = SignalDigger(output_folder=".", output_format='pdf')
@@ -21,7 +27,7 @@ sd = SignalDigger(output_folder=".", output_format='pdf')
 
 ## process_signal_before_analysis
 
-- ` jaqs.research.signaldigger.digger.SignalDigger.process_signal_before_analysis(*args, **kwargs) `
+- ` jaqs_fxdayu.research.signaldigger.digger.SignalDigger.process_signal_before_analysis(*args, **kwargs) `
 
 **简要描述：**
 
@@ -53,7 +59,7 @@ sd = SignalDigger(output_folder=".", output_format='pdf')
 
 ```python
 import numpy as np
-from jaqs.data import DataView
+from jaqs_fxdayu.data import DataView
 
 # 加载dataview数据集
 dv = DataView()
@@ -103,7 +109,7 @@ sd.process_signal_before_analysis(signal=dv.get_ts("pe"),
 
 ## signal_data
 
-- ` jaqs.research.signaldigger.digger.SignalDigger.signal_data `
+- ` jaqs_fxdayu.research.signaldigger.digger.SignalDigger.signal_data `
 
 **简要描述：**
 
@@ -216,7 +222,7 @@ sd.signal_data.head()
 
 ## benchmark_ret
 
-- ` jaqs.research.signaldigger.digger.SignalDigger.benchmark_ret `
+- ` jaqs_fxdayu.research.signaldigger.digger.SignalDigger.benchmark_ret `
 
 **简要描述：**
 
@@ -287,7 +293,7 @@ sd.benchmark_ret.tail()
 
 ## ret
 
-- ` jaqs.research.signaldigger.digger.SignalDigger.ret `
+- ` jaqs_fxdayu.research.signaldigger.digger.SignalDigger.ret `
 
 **简要描述：**
 
@@ -507,7 +513,7 @@ sd.ret["return"].head()
 
 ## create_information_report
 
-- ` jaqs.research.signaldigger.digger.create_information_report() `
+- ` jaqs_fxdayu.research.signaldigger.digger.create_information_report() `
 
 **简要描述：**
 
@@ -531,24 +537,24 @@ sd.create_information_report()
     IC Mean     -0.022
     IC Std.      0.228
     t-stat(IC)  -0.978
-    p-value(IC)  0.330
+    p-value(IC)  0.331
     IC Skew      0.052
     IC Kurtosis -1.054
     Ann. IR     -0.097
-    Figure saved: /home/xinger/Desktop/docs/information_report.pdf
+    Figure saved: /home/xinger/Desktop/jaqs_plus/jaqs-fxdayu/docs/_source/information_report.pdf
 
 
 
-    <matplotlib.figure.Figure at 0x7f388c6004e0>
+    <matplotlib.figure.Figure at 0x7fcb9a277ac8>
 
 
 
-![png](output_13_2.png)
+![png](output_14_2.png)
 
 
 ## ic_report_data
 
-- ` jaqs.research.signaldigger.digger.ic_report_data `
+- ` jaqs_fxdayu.research.signaldigger.digger.ic_report_data `
 
 **简要描述：**
 
@@ -627,7 +633,7 @@ sd.ic_report_data["daily_ic"].head()
 
 ## create_returns_report
 
-- ` jaqs.research.signaldigger.digger.create_returns_report() `
+- ` jaqs_fxdayu.research.signaldigger.digger.create_returns_report() `
 
 **简要描述：**
 
@@ -645,20 +651,20 @@ sd.ic_report_data["daily_ic"].head()
 sd.create_returns_report()
 ```
 
-    Figure saved: /home/xinger/Desktop/docs/returns_report.pdf
+    Figure saved: /home/xinger/Desktop/jaqs_plus/jaqs-fxdayu/docs/_source/returns_report.pdf
 
 
 
-    <matplotlib.figure.Figure at 0x7f388c637f60>
+    <matplotlib.figure.Figure at 0x7fcb6b38a550>
 
 
 
-![png](output_17_2.png)
+![png](output_18_2.png)
 
 
 ## returns_report_data
 
-- ` jaqs.research.signaldigger.digger.returns_report_data `
+- ` jaqs_fxdayu.research.signaldigger.digger.returns_report_data `
 
 **简要描述：**
 
@@ -766,7 +772,7 @@ sd.returns_report_data['cum_quantile_ret'].head()
 
 ## create_full_report
 
-- ` jaqs.research.signaldigger.digger.create_full_report() `
+- ` jaqs_fxdayu.research.signaldigger.digger.create_full_report() `
 
 **简要描述：**
 
