@@ -1,4 +1,4 @@
-from .dataview import DataView as DataView
+from .dataview import DataView
 from .py_expression_eval import Parser
 
 # we do not expose align and basic

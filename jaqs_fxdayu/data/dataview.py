@@ -1,4 +1,8 @@
+import os
+from copy import copy
+
 import pandas as pd
+from jaqs import util as jutil
 from jaqs.data.align import align
 from jaqs.data.dataview import DataView as OriginDataView
 from jaqs.data.dataservice import RemoteDataService
@@ -12,6 +16,16 @@ try:
     basestring
 except NameError:
     basestring = str
+
+bcolz = None
+
+
+def _ensure_import_bcolz():
+    global bcolz
+    if bcolz is None:
+        import bcolz as bz
+        bcolz = bz
+
 
 PF = "prepare_fields"
 
@@ -31,7 +45,7 @@ class BaseDataView(OriginDataView):
         super(BaseDataView, self).init_from_config(props, data_api)
 
     def prepare_data(self):
-        super().prepare_data()
+        super(BaseDataView, self).prepare_data()
         self.fields = []
         if (self.data_d is not None) and self.data_d.size != 0:
             self.fields += list(self.data_d.columns.levels[1])
@@ -510,7 +524,7 @@ class BcolzDataViewMixin(OriginDataView):
 
         print("Dataview loaded successfully.")
 
-    def load_dataview(self, folder_path='.', use_bcolz=None):
+    def load_dataview(self, folder_path='.', use_bcolz=None, **kwargs):
         """
         Load data from local file.
 
@@ -524,25 +538,13 @@ class BcolzDataViewMixin(OriginDataView):
         if use_bcolz is None:
             use_bcolz = self._use_bcolz
         if use_bcolz:
+            _ensure_import_bcolz()
             self.load_bcolz(folder_path=folder_path)
             return
+        else:
+            return super(BcolzDataViewMixin, self).load_dataview(folder_path, **kwargs)
 
-        path_meta_data = os.path.join(folder_path, 'meta_data.json')
-        path_data = os.path.join(folder_path, 'data.hd5')
-        if not (os.path.exists(path_meta_data) and os.path.exists(path_data)):
-            raise IOError("There is no data file under directory {}".format(folder_path))
-
-        meta_data = jutil.read_json(path_meta_data)
-        dic = self._load_h5(path_data)
-        self.data_d = dic.get('/data_d', None)
-        self.data_q = dic.get('/data_q', None)
-        self._data_benchmark = dic.get('/data_benchmark', None)
-        self._data_inst = dic.get('/data_inst', None)
-        self.__dict__.update(meta_data)
-
-        print("Dataview loaded successfully.")
-
-    def save_dataview(self, folder_path, use_bcolz=True):
+    def save_dataview(self, folder_path, use_bcolz=True, **kwargs):
         """
         Save data and meta_data_to_store to a single hd5 file.
         Store at output/sub_folder
@@ -557,25 +559,11 @@ class BcolzDataViewMixin(OriginDataView):
         if use_bcolz is None:
             use_bcolz = self._use_bcolz
         if use_bcolz:
+            _ensure_import_bcolz()
             self.save_bcolz(folder_path=folder_path)
             return
-
-        abs_folder = os.path.abspath(folder_path)
-        meta_path = os.path.join(folder_path, 'meta_data.json')
-        data_path = os.path.join(folder_path, 'data.hd5')
-
-        data_to_store = {'data_d': self.data_d, 'data_q': self.data_q,
-                         'data_benchmark': self.data_benchmark, 'data_inst': self.data_inst}
-        data_to_store = {k: v for k, v in data_to_store.items() if v is not None}
-        meta_data_to_store = {key: self.__dict__[key] for key in self.meta_data_list}
-
-        print("\nStore data...")
-        jutil.save_json(meta_data_to_store, meta_path)
-        self._save_h5(data_path, data_to_store)
-
-        print("Dataview has been successfully saved to:\n"
-              + abs_folder + "\n\n"
-              + "You can load it with load_dataview('{:s}')".format(abs_folder))
+        else:
+            return super(BcolzDataViewMixin, self).save_dataview(folder_path, **kwargs)
 
 
 @auto_register_patch(parent_level=1)

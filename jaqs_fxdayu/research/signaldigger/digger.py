@@ -13,6 +13,7 @@ from .analysis import compute_downside_returns, compute_upside_returns
 from . import performance as pfm
 from . import plotting
 
+
 @auto_register_patch(parent_level=2)
 class SignalDigger(OriginSignalDigger):
     def __init__(self, *args, **kwargs):
