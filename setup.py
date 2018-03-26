@@ -12,18 +12,21 @@ def readme():
     with codecs.open('README.md', 'r', encoding='utf-8') as f:
         return f.read()
 
-with open(join(dirname(__file__), 'VERSION.txt'), 'rb') as f:
-    version = f.read().decode('ascii').strip()
+
+def version():
+    with open(join(dirname(__file__), 'jaqs_fxdayu', 'VERSION.txt'), 'rb') as f:
+        return f.read().decode('ascii').strip()
+
 
 requirements = [str(ir.req) for ir in parse_requirements("requirements.txt", session=False)]
 setup(
     name='jaqs_fxdayu',
-    version=version,
+    version=version(),
     packages=find_packages(exclude=["examples", "tests", "tests.*", "docs"]),
     author='xingetouzi',
     author_email='public@fxdayu.com',
     license='Apache License v2',
-    package_data={'': ['*.csv']},
+    package_data={'': ['*.csv', '*.txt']},
     url='https://github.com/xingetouzi/jaqs_fxdayu',
     keywords="quantiatitive trading research finance",
     install_requires=requirements,
