@@ -577,7 +577,7 @@ class BcolzDataViewMixin(OriginDataView):
 
         print("Dataview loaded successfully.")
 
-    def load_dataview(self, folder_path='.', use_bcolz=None, **kwargs):
+    def load_dataview(self, folder_path='.', *args, use_bcolz=None, **kwargs):
         """
         Load data from local file.
 
@@ -595,9 +595,9 @@ class BcolzDataViewMixin(OriginDataView):
             self.load_bcolz(folder_path=folder_path)
             return
         else:
-            return super(BcolzDataViewMixin, self).load_dataview(folder_path, **kwargs)
+            return super(BcolzDataViewMixin, self).load_dataview(folder_path, *args, **kwargs)
 
-    def save_dataview(self, folder_path, use_bcolz=None, **kwargs):
+    def save_dataview(self, folder_path, *args, use_bcolz=None, **kwargs):
         """
         Save data and meta_data_to_store to a single hd5 file.
         Store at output/sub_folder
@@ -616,7 +616,7 @@ class BcolzDataViewMixin(OriginDataView):
             self.save_bcolz(folder_path=folder_path)
             return
         else:
-            return super(BcolzDataViewMixin, self).save_dataview(folder_path, **kwargs)
+            return super(BcolzDataViewMixin, self).save_dataview(folder_path, *args, **kwargs)
 
 
 @auto_register_patch(parent_level=1)

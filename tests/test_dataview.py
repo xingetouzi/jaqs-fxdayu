@@ -1,6 +1,8 @@
 # encoding: utf-8
-
 from __future__ import print_function
+
+import jaqs_fxdayu
+jaqs_fxdayu.patch_all()
 from jaqs.data import RemoteDataService
 from jaqs.data import DataView
 from .data_config import data_config

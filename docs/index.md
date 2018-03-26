@@ -34,9 +34,19 @@
 
 ## 安装和更新
 ### 依赖
-该模块基于JAQS进行拓展，且只支持`python3`，需要安装：`jaqs>=0.6.10`
+该模块基于JAQS进行拓展，且只支持`python3`，需要安装：`jaqs>=0.6.11`
 
 jaqs的安装可以参考[JAQS官方安装指南](http://jaqs.readthedocs.io/zh_CN/latest/install.html)
+
+- 如果未安装过jaqs，从pip安装:
+```bash
+$ pip install jaqs
+```
+
+- 如果已安装过jaqs,进行更新:
+```bash
+$ pip install -U --no-deps jaqs
+```
 
 ### 安装
 ```bash
