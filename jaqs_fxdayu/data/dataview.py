@@ -4,7 +4,7 @@ from copy import copy
 import pandas as pd
 from jaqs import util as jutil
 from jaqs.data.align import align
-from jaqs.data.dataview import DataView as OriginDataView
+from jaqs.data.dataview import DataView as OriginDataView, EventDataView
 from jaqs.data.dataservice import RemoteDataService
 from jaqs.data.dataapi import DataApi
 from jaqs.data.py_expression_eval import Parser
@@ -544,7 +544,7 @@ class BcolzDataViewMixin(OriginDataView):
         else:
             return super(BcolzDataViewMixin, self).load_dataview(folder_path, **kwargs)
 
-    def save_dataview(self, folder_path, use_bcolz=True, **kwargs):
+    def save_dataview(self, folder_path, use_bcolz=None, **kwargs):
         """
         Save data and meta_data_to_store to a single hd5 file.
         Store at output/sub_folder
