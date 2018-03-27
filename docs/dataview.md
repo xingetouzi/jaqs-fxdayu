@@ -104,7 +104,7 @@ dv.prepare_data()
 |adjust_mode |'post' |string |行情数据复权类型，默认后复权,目前只支持后复权|
 
 ### fields可选字段查询方式
-dataview的底层数据api提供了字段的文档，可供查阅。目前,只提供了**A股财务数据**的相关字段文档。更过品种、行情相关字段文档请关注[jaqs官方数据文档](http://jaqs.readthedocs.io/zh_CN/latest/)
+dataview的底层数据api提供了字段的文档，可供查阅。目前,只提供了**A股财务数据**的相关字段文档。更多品种、行情相关字段文档请关注[jaqs官方数据文档](http://jaqs.readthedocs.io/zh_CN/latest/)
 
 
 ```python
