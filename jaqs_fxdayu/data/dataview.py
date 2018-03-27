@@ -718,26 +718,39 @@ class DataView(BaseDataView, BcolzDataViewMixin):
         l = list(s)
         return l
 
-    def get_factor(self, symbol, start, end, fields):
+    def get_factor(self, symbol, start, end, fields, limit=500000):
         if isinstance(symbol, list):
             symbol = ",".join(symbol)
         if isinstance(fields, list):
             fields = ",".join(fields)
 
-        api = get_api(self.data_api)
-        data, msg = api.query(
-            "factor",
-            "symbol={}&start={}&end={}".format(symbol, start, end),
-            fields
-        )
+        data ,msg = self.distributed_query("query",
+                                           symbol,
+                                           start_date=start,
+                                           end_date=end, limit=limit,
+                                           fields = fields,
+                                           view = "factor")
         if msg == "0,":
-            data["symbol"] = data["symbol"].apply(lambda s: s[:6] + ".SH" if s.startswith("6") else s[:6] + ".SZ")
+            data["symbol"] = data["symbol"].apply(lambda s: s[:6]+".SH" if s.startswith("6") else s[:6]+".SZ")
             data.rename_axis({"datetime": "trade_date"}, 1, inplace=True)
             return data
         else:
             raise Exception(msg)
 
     def distributed_query(self, query_func_name, symbol, start_date, end_date, limit=100000, **kwargs):
+
+        def query(api, query_func_name, symbol, start_date, end_date, **kwargs):
+            if query_func_name == "query":
+                df, msg = api.query(
+                    filter = "symbol={}&start={}&end={}".format(symbol, start_date, end_date),
+                    **kwargs
+                )
+            else:
+                df, msg = getattr(self.data_api, query_func_name)(symbol=symbol,
+                                                                  start_date=start_date, end_date=end_date,
+                                                                  **kwargs)
+            return df, msg
+
         sep = ','
         symbol = symbol.split(sep)
         n_symbols = len(symbol)
@@ -747,29 +760,33 @@ class DataView(BaseDataView, BcolzDataViewMixin):
         print("当前请求%s..." % (query_func_name,))
         print(kwargs)
         if n_symbols * n_days > limit:
-            n = limit // n_days  # 每次取n只股票
+            n = limit // n_days # 每次取n只股票
 
             df_list = []
             i = 0
             pos1, pos2 = n * i, n * (i + 1)
             while pos2 <= n_symbols:
-                df, msg = getattr(self.data_api, query_func_name)(symbol=sep.join(symbol[pos1:pos2]),
-                                                                  start_date=dates[0], end_date=dates[-1],
-                                                                  **kwargs)
+                df, msg = query(self.data_api, query_func_name,
+                                symbol=sep.join(symbol[pos1:pos2]),
+                                start_date=dates[0], end_date=dates[-1],
+                                **kwargs
+                                )
                 df_list.append(df)
                 print("下载进度%s/%s." % (pos2, n_symbols))
                 i += 1
                 pos1, pos2 = n * i, n * (i + 1)
             if pos1 < n_symbols:
-                df, msg = getattr(self.data_api, query_func_name)(symbol=sep.join(symbol[pos1:]),
-                                                                  start_date=dates[0], end_date=dates[-1],
-                                                                  **kwargs)
+                df, msg = query(self.data_api, query_func_name,
+                                symbol=sep.join(symbol[pos1:]),
+                                start_date=dates[0], end_date=dates[-1],
+                                **kwargs)
                 df_list.append(df)
             df = pd.concat(df_list, axis=0)
         else:
-            df, msg = getattr(self.data_api, query_func_name)(symbol=sep.join(symbol),
-                                                              start_date=start_date, end_date=end_date,
-                                                              **kwargs)
+            df, msg = query(self.data_api, query_func_name,
+                            symbol=sep.join(symbol),
+                            start_date=start_date, end_date=end_date,
+                            **kwargs)
         return df, msg
 
     def _query_data(self, symbol, fields):
@@ -834,7 +851,7 @@ class DataView(BaseDataView, BcolzDataViewMixin):
             # ----------------------------- query factor -----------------------------
             factor_fields = self._get_fields("factor", fields)
             if factor_fields:
-                df_factor = self.get_factor(symbol, self.extended_start_date_d, self.end_date, factor_fields)
+                df_factor = self.get_factor(symbol, self.extended_start_date_d, self.end_date, factor_fields, limit=limit)
                 daily_list.append(df_factor)
 
             # ----------------------------- query factor -----------------------------
