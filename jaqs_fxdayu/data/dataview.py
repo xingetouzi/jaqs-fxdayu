@@ -892,3 +892,28 @@ class DataView(BaseDataView, BcolzDataViewMixin):
         else:
             raise NotImplementedError("freq = {}".format(self.freq))
         return daily_list, quarterly_list
+
+    def _fill_missing_idx_col(self, df, index=None, symbols=None):
+        if index is None:
+            index = df.index
+        if symbols is None:
+            symbols = self.symbol
+        fields = df.columns.levels[1]
+
+        if len(fields) * len(self.symbol) != len(df.columns) or len(index) != len(df.index):
+            cols_multi = pd.MultiIndex.from_product([symbols, fields], names=['symbol', 'field'])
+            cols_multi = cols_multi.sort_values()
+            # df_final = pd.DataFrame(index=index, columns=cols_multi, data=np.nan)
+            df_final = pd.DataFrame(df, index=index, columns=cols_multi)
+            df_final.index.name = df.index.name
+            # 取消了生成空表并update的步骤（速度太慢），改为直接扩展索引生成表
+            # df_final.update(df)
+
+            # idx_diff = sorted(set(df_final.index) - set(df.index))
+            col_diff = sorted(set(df_final.columns.levels[0].values) - set(df.columns.levels[0].values))
+            print("WARNING: some data is unavailable: "
+                  # + "\n    At index " + ', '.join(idx_diff)
+                  + "\n    At fields " + ', '.join(col_diff))
+            return df_final
+        else:
+            return df
