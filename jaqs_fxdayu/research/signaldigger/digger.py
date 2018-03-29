@@ -86,31 +86,47 @@ class SignalDigger(OriginSignalDigger):
 
         # ensure inputs are aligned
         if mask is not None:
-            assert np.all(signal.index == mask.index)
-            assert np.all(signal.columns == mask.columns)
+            try:
+                assert np.all(signal.index == mask.index)
+                assert np.all(signal.columns == mask.columns)
+            except:
+                print("Warning: signal与mask的index/columns不一致,请检查输入参数!")
+                mask = mask.reindex_like(signal)
             mask = jutil.fillinf(mask)
             mask = mask.astype(int).fillna(0).astype(bool)  # dtype of mask could be float. So we need to convert.
         else:
             mask = pd.DataFrame(index=signal.index, columns=signal.columns, data=False)
         if can_enter is not None:
-            assert np.all(signal.index == can_enter.index)
-            assert np.all(signal.columns == can_enter.columns)
+            try:
+                assert np.all(signal.index == can_enter.index)
+                assert np.all(signal.columns == can_enter.columns)
+            except:
+                print("Warning: signal与can_enter的index/columns不一致,请检查输入参数!")
+                can_enter = can_enter.reindex_like(signal)
             can_enter = jutil.fillinf(can_enter)
             can_enter = can_enter.astype(int).fillna(0).astype(
                 bool)  # dtype of can_enter could be float. So we need to convert.
         else:
             can_enter = pd.DataFrame(index=signal.index, columns=signal.columns, data=True)
         if can_exit is not None:
-            assert np.all(signal.index == can_exit.index)
-            assert np.all(signal.columns == can_exit.columns)
+            try:
+                assert np.all(signal.index == can_exit.index)
+                assert np.all(signal.columns == can_exit.columns)
+            except:
+                print("Warning: signal与can_exit的index/columns不一致,请检查输入参数!")
+                can_exit = can_exit.reindex_like(signal)
             can_exit = jutil.fillinf(can_exit)
             can_exit = can_exit.astype(int).fillna(0).astype(
                 bool)  # dtype of can_exit could be float. So we need to convert.
         else:
             can_exit = pd.DataFrame(index=signal.index, columns=signal.columns, data=True)
         if group is not None:
-            assert np.all(signal.index == group.index)
-            assert np.all(signal.columns == group.columns)
+            try:
+                assert np.all(signal.index == group.index)
+                assert np.all(signal.columns == group.columns)
+            except:
+                print("Warning: signal与group的index/columns不一致,请检查输入参数!")
+                group = group.reindex_like(signal)
 
         signal = jutil.fillinf(signal)
 
@@ -124,8 +140,12 @@ class SignalDigger(OriginSignalDigger):
         upside_ret = None
         downside_ret = None
         if price is not None:
-            assert np.all(signal.index == price.index)
-            assert np.all(signal.columns == price.columns)
+            try:
+                assert np.all(signal.index == price.index)
+                assert np.all(signal.columns == price.columns)
+            except:
+                print("Warning: signal与price的index/columns不一致,请检查输入参数!")
+                price = price.reindex_like(signal)
             price = jutil.fillinf(price)
             can_enter = np.logical_and(price != np.NaN, can_enter)
             df_ret = pfm.price2ret(price, period=self.period, axis=0, compound=True)
@@ -145,15 +165,23 @@ class SignalDigger(OriginSignalDigger):
             residual_ret -= commission
             # 计算潜在上涨空间和潜在下跌空间
             if high is not None:
-                assert np.all(signal.index == high.index)
-                assert np.all(signal.columns == high.columns)
+                try:
+                    assert np.all(signal.index == high.index)
+                    assert np.all(signal.columns == high.columns)
+                except:
+                    print("Warning: signal与high的index/columns不一致,请检查输入参数!")
+                    high = high.reindex_like(signal)
                 high = jutil.fillinf(high)
                 upside_ret = compute_upside_returns(price, high, can_exit, self.period, compound=True)
                 upside_ret = jutil.fillinf(upside_ret)
                 upside_ret -= commission
             if low is not None:
-                assert np.all(signal.index == low.index)
-                assert np.all(signal.columns == low.columns)
+                try:
+                    assert np.all(signal.index == low.index)
+                    assert np.all(signal.columns == low.columns)
+                except:
+                    print("Warning: signal与low的index/columns不一致,请检查输入参数!")
+                    low = low.reindex_like(signal)
                 low = jutil.fillinf(low)
                 downside_ret = compute_downside_returns(price, low, can_exit, self.period, compound=True)
                 downside_ret = jutil.fillinf(downside_ret)
