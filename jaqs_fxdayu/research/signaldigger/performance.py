@@ -169,12 +169,65 @@ def price2ret(prices, period=5, axis=None, compound=True):
     return ret
 
 
+@auto_register_patch()
+def period_wise_ret_to_cum(ret, period, compound=True):
+    """
+    Calculate cumulative returns from N-periods returns, no compounding.
+    When 'period' N is greater than 1 the cumulative returns plot is computed
+    building and averaging the cumulative returns of N interleaved portfolios
+    (started at subsequent periods 1,2,3,...,N) each one rebalancing every N
+    periods.
+
+    Parameters
+    ----------
+    ret: pd.Series or pd.DataFrame
+        pd.Series containing N-periods returns
+    period: integer
+        Period for which the returns are computed
+    compound : bool
+        Whether calculate using compound return.
+
+    Returns
+    -------
+    pd.Series
+        Cumulative returns series starting from zero.
+
+    """
+    if isinstance(ret, pd.DataFrame):
+        # deal with each column recursively
+        return ret.apply(period_wise_ret_to_cum, axis=0, args=(period,))
+    elif isinstance(ret, pd.Series):
+        if period == 1:
+            return ret.add(1).cumprod().sub(1.0)
+
+        # invest in each portfolio separately
+
+        periods_index = np.arange(len(ret.index)) // period
+        period_portfolios = ret.groupby(by=periods_index, axis=0).apply(lambda ser: pd.DataFrame(np.diag(ser))).fillna(0)
+        period_portfolios.index = ret.index
+
+
+        # cumulate returns separately
+        if compound:
+            cum_returns = period_portfolios.add(1).cumprod().sub(1.0)
+        else:
+            cum_returns = period_portfolios.cumsum()
+
+        # since capital of all portfolios are the same, return in all equals average return
+        res = cum_returns.mean(axis=1)
+
+        return res
+    else:
+        raise NotImplementedError("ret must be Series or DataFrame.")
+
+
 _calc_signal_ic = calc_signal_ic
 _mean_information_coefficient = mean_information_coefficient
 _calc_ic_stats_table = calc_ic_stats_table
 _calc_quantile_return_mean_std = calc_quantile_return_mean_std
 _daily_ret_to_cum = daily_ret_to_cum
 _price2ret = price2ret
+_period_wise_ret_to_cum = period_wise_ret_to_cum
 
 from jaqs.research.signaldigger.performance import *
 
@@ -184,3 +237,4 @@ calc_quantile_return_mean_std = _calc_quantile_return_mean_std
 daily_ret_to_cum = _daily_ret_to_cum
 price2ret = _price2ret
 calc_ic_stats_table = _calc_ic_stats_table
+period_wise_ret_to_cum = _period_wise_ret_to_cum
