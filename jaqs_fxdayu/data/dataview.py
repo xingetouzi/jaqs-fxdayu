@@ -917,3 +917,53 @@ class DataView(BaseDataView, BcolzDataViewMixin):
             return df_final
         else:
             return df
+
+    @staticmethod
+    def _merge_data(dfs, index_name='trade_date'):
+        """
+        Merge data from different APIs into one DataFrame.
+
+        Parameters
+        ----------
+        dfs : list of pd.DataFrame
+
+        Returns
+        -------
+        merge : pd.DataFrame or None
+            If dfs is empty, return None
+
+        Notes
+        -----
+        Align on date index, concatenate on columns (symbol and fields)
+
+        """
+        # dfs = [df for df in dfs if df is not None]
+
+        # 这里用优化后的快速concat方法取代原生pandas的concat方法，在columns较长的情况下有明显提速
+        # merge = pd.concat(dfs, axis=1, join='outer')
+        merge = quick_concat(dfs, ['symbol', 'field'])
+
+        # drop duplicated columns. ONE LINE EFFICIENT version
+        mask_duplicated = merge.columns.duplicated()
+        if np.any(mask_duplicated):
+            # print("Duplicated columns found. Dropped.")
+            merge = merge.loc[:, ~mask_duplicated]
+
+            # if merge.isnull().sum().sum() > 0:
+            # print "WARNING: nan in final merged data. NO fill"
+            # merge.fillna(method='ffill', inplace=True)
+
+        merge = merge.sort_index(axis=1, level=['symbol', 'field'])
+        merge.index.name = index_name
+
+        return merge
+
+
+import numpy as np
+
+
+def quick_concat(dfs, level):
+    joined_index = pd.Index(np.concatenate([df.index.values for df in dfs])).sort_values().drop_duplicates()
+    joined_columns = pd.MultiIndex.from_tuples(np.concatenate([df.columns.values for df in dfs]), names=level)
+    result = [pd.DataFrame(df, joined_index).values for df in dfs]
+    return pd.DataFrame(np.concatenate(result, axis=1), joined_index, joined_columns)
