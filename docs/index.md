@@ -7,9 +7,13 @@
 主要包括:
 
 ### 基础：
+- dataservice
+
+对jaqs底层dataapi的一个高级封装，提供了一些常用数据的快捷查询方法——如K线、交易日历、指数成分信息、行业分类信息等。 
+
 - dataview
 
-可视为一个基于pandas的针对因子场景的数据库,方便因子的设计实现.大鱼金融fork版改进了官方版本,提供更便捷灵活的因子数据查询和操作功能
+可视为一个基于pandas的针对因子场景的数据库,方便因子的设计实现.jaqs_fxdayu改进了官方版本,提供更便捷灵活的因子数据查询和操作功能
 
 - digger
 
@@ -46,7 +50,7 @@
 ### 依赖
 该模块基于JAQS进行拓展，且只支持`python3`，需要安装：`jaqs>=0.6.11`
 
-jaqs的安装可以参考[JAQS官方安装指南](http://jaqs.readthedocs.io/zh_CN/latest/install.html)
+jaqs的安装可以参考[JAQS官方文档](http://jaqs.readthedocs.io/zh_CN/latest/install.html)
 
 - 如果未安装过jaqs，从pip安装:
 ```bash
@@ -119,6 +123,10 @@ from jaqs_fxdayu.research import Optimizer
 [详细文档地址](http://jaqs-fxdayu.readthedocs.io/zh_CN/latest/)
 
 ## 最新功能
+
+### 2018/3/26
+新增dataservice文档.dataservice是对jaqs底层dataapi的一个高级封装，提供了一些常用数据的快捷查询方法——如K线、交易日历、指数成分信息、行业分类信息等。 
+
 ### 2018/3/26
 
 新增模块dp,针对A股因子研究和交易分析场景，提供了常用的小工具，如查询历史的交易日，历史的行业分类表等
