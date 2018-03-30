@@ -1,6 +1,6 @@
 import os
 from copy import copy
-
+import numpy as np
 import pandas as pd
 from jaqs import util as jutil
 from jaqs.data.align import align
@@ -39,13 +39,42 @@ def get_api(data_api):
         raise TypeError("Type of data_api should be jaqs.data.RemoteDataService or jaqs.data.DataApi")
 
 
-class BaseDataView(OriginDataView):
-    def init_from_config(self, props, data_api):
-        self.adjust_mode = props.get("adjust_mode", "post")
-        super(BaseDataView, self).init_from_config(props, data_api)
+def quick_concat(dfs, level):
+    joined_index = pd.Index(np.concatenate([df.index.values for df in dfs])).sort_values().drop_duplicates()
+    joined_columns = pd.MultiIndex.from_tuples(np.concatenate([df.columns.values for df in dfs]), names=level)
+    result = [pd.DataFrame(df, joined_index).values for df in dfs]
+    return pd.DataFrame(np.concatenate(result, axis=1), joined_index, joined_columns)
 
+
+class BaseDataView(OriginDataView):
     def prepare_data(self):
-        super(BaseDataView, self).prepare_data()
+        """Prepare data for the FIRST time."""
+        # prepare benchmark and group
+        print("Query data...")
+        data_d, data_q = self._prepare_daily_quarterly(self.fields)
+        self.data_d, self.data_q = data_d, data_q
+        if self.data_q is not None:
+            self._prepare_report_date()
+        self._align_and_merge_q_into_d()
+
+        print("Query instrument info...")
+        self._prepare_inst_info()
+
+        print("Query adj_factor...")
+        self._prepare_adj_factor()
+
+        if self.benchmark:
+            print("Query benchmark...")
+            self._data_benchmark = self._prepare_benchmark()
+        if self.universe:
+            print("Query benchmar member info...")
+            self._prepare_comp_info()
+
+        group_fields = self._get_fields('group', self.fields)
+        if group_fields:
+            print("Query groups (industry)...")
+            self._prepare_group(group_fields)
+
         self.fields = []
         if (self.data_d is not None) and self.data_d.size != 0:
             self.fields += list(self.data_d.columns.levels[1])
@@ -53,127 +82,9 @@ class BaseDataView(OriginDataView):
             self.fields += list(self.data_q.columns.levels[1])
         self.fields = list(set(self.fields))
 
-    def add_comp_info(self, index, data_api=None):
-        """
-        Query and append index components info.
+        print("Data has been successfully prepared.")
 
-        Parameters
-        ----------
-        data_api : BaseDataServer
-        index : str
-            Index code separated by ','.
-
-        Returns
-        -------
-        bool
-            whether add successfully.
-
-        """
-        if data_api is None:
-            if self.data_api is None:
-                print("Add field failed. No data_api available. Please specify one in parameter.")
-                return False
-        else:
-            self.data_api = data_api
-
-        # if a symbol is index member of any one universe, its value of index_member will be 1.0
-        universe = index.split(',')
-
-        exist_symbols = self.data_d.columns.levels[0]
-        exist_fields = self.data_d.columns.levels[1]
-
-        for univ in universe:
-            if univ + '_member' not in exist_fields:
-                df = self.data_api.query_index_member_daily(univ, self.extended_start_date_d, self.end_date)
-
-                if len(set(exist_symbols) - set(df.columns)) > 0:
-                    symbols = list(set(exist_symbols) & set(df.columns))
-                    df = df.loc[:, symbols]
-
-                self.append_df(df, univ + '_member', is_quarterly=False)
-
-                # use weights of the first universe
-                df_weights = self.data_api.query_index_weights_daily(univ, self.extended_start_date_d, self.end_date)
-
-                if len(set(exist_symbols) - set(df_weights.columns)) > 0:
-                    symbols = list(set(exist_symbols) & set(df_weights.columns))
-                    df_weights = df_weights.loc[:, symbols]
-
-                self.append_df(df_weights, univ + '_weight', is_quarterly=False)
-
-    def _add_symbol(self, symbol_name):
-        if symbol_name in self.symbol:
-            print("symbol [{:s}] already exists, add_symbol failed.".format(symbol_name))
-            return
-        self.symbol.append(symbol_name)
-
-    def append_df_symbol(self, df, symbol_name, overwrite=False):
-        """
-        Append DataFrame to existing multi-index DataFrame and add corresponding field name.
-
-        Parameters
-        ----------
-        df : pd.DataFrame or pd.Series
-        symbol_name : str
-        overwrite : bool, optional
-            Whether overwrite existing field. True by default.
-        Notes
-        -----
-        append_df does not support overwrite. To overwrite a field, you must first do self.remove_fields(),
-        then append_df() again.
-
-        """
-        if symbol_name in self.symbol:
-            if overwrite:
-                self.remove_symbol(symbol_name)
-                print("Symbol [{:s}] is overwritten.".format(symbol_name))
-            else:
-                print("Append symbol failed: symbol [{:s}] exist. ".format(symbol_name))
-                return
-
-        df = df.copy()
-        if isinstance(df, pd.DataFrame):
-            pass
-        elif isinstance(df, pd.Series):
-            df = pd.DataFrame(df)
-        else:
-            raise ValueError("Data to be appended must be pandas format. But we have {}".format(type(df)))
-
-        the_data = self.data_d
-
-        exist_fields = the_data.columns.levels[1]
-        if len(set(exist_fields) - set(df.columns)):
-            # if set(df.columns) < set(exist_fields):
-            df2 = pd.DataFrame(index=df.index, columns=exist_fields, data=np.nan)
-            df2.update(df)
-            df = df2
-        multi_idx = pd.MultiIndex.from_product([[symbol_name], exist_fields])
-        df.columns = multi_idx
-
-        # the_data = apply_in_subprocess(pd.merge, args=(the_data, df),
-        #                            kwargs={'left_index': True, 'right_index': True, 'how': 'left'})  # runs in *only* one process
-        the_data = pd.merge(the_data, df, left_index=True, right_index=True, how='left')
-        the_data = the_data.sort_index(axis=1)
-        # merge = the_data.join(df, how='left')  # left: keep index of existing data unchanged
-        # sort_columns(the_data)
-
-        self.data_d = the_data
-        self._add_symbol(symbol_name)
-
-    def append_df_quarter(self, df, field_name, overwrite=True):
-        if field_name in self.fields:
-            if overwrite:
-                self.remove_field(field_name)
-                print("Field [{:s}] is overwritten.".format(field_name))
-            else:
-                print("Append df failed: name [{:s}] exist. Try another name.".format(field_name))
-                return
-        super(BaseDataView, self).append_df(df, field_name, is_quarterly=True)
-        df_ann = self._get_ann_df()
-        df_expanded = align(df, df_ann, self.dates)
-        super(BaseDataView, self).append_df(df_expanded, field_name, is_quarterly=False)
-
-    def append_df(self, df, field_name, is_quarterly=False, overwrite=True):
+    def append_df(self, df, field_name, is_quarterly=False):
         """
         Append DataFrame to existing multi-index DataFrame and add corresponding field name.
 
@@ -191,13 +102,6 @@ class BaseDataView(OriginDataView):
         then append_df() again.
 
         """
-        if field_name in self.fields:
-            if overwrite:
-                self.remove_field(field_name)
-                print("Field [{:s}] is overwritten.".format(field_name))
-            else:
-                print("Append df failed: name [{:s}] exist. Try another name.".format(field_name))
-                return
         # 季度添加至data_q　日度添加至data_d
         df = df.copy()
         if isinstance(df, pd.DataFrame):
@@ -235,50 +139,6 @@ class BaseDataView(OriginDataView):
         else:
             self.data_d = the_data
         self._add_field(field_name, is_quarterly)
-
-    def remove_symbol(self, symbols):
-        """
-
-        Parameters
-        ----------
-        symbols : str or list
-            The (custom) symbols to be removed from dataview.
-
-        Returns
-        -------
-        bool
-            whether remove successfully.
-
-        """
-        if isinstance(symbols, basestring):
-            symbols = symbols.split(',')
-        elif isinstance(symbols, (list, tuple)):
-            pass
-        else:
-            raise ValueError("symbols must be str or list of str.")
-
-        for symbol in symbols:
-            # parameter validation
-            if symbol not in self.symbol:
-                print("symbol [{:s}] does not exist.".format(symbol))
-                continue
-
-            # remove symbol data
-            if self.data_d is not None:
-                self.data_d = self.data_d.drop(symbol, axis=1, level=0)
-
-            if self.data_q is not None:
-                self.data_q = self.data_q.drop(symbol, axis=1, level=0)
-
-            # remove symbol from list
-            self.symbol.remove(symbol)
-
-        # change column index
-        if self.data_d is not None:
-            self.data_d.columns = self.data_d.columns.remove_unused_levels()
-
-        if self.data_q is not None:
-            self.data_q.columns = self.data_q.columns.remove_unused_levels()
 
     # Add/Remove Fields&Formulas
     def _add_field(self, field_name, is_quarterly=None):
@@ -350,127 +210,14 @@ class BaseDataView(OriginDataView):
         # whether contain only trade days is decided by existing data.
 
         # 季度添加至data_q　日度添加至data_d
-        super().append_df(df, field_name, is_quarterly=is_quarterly)
+        self.append_df(df, field_name, is_quarterly=is_quarterly)
 
         if is_quarterly:
             df_ann = merge.loc[:, pd.IndexSlice[:, self.ANN_DATE_FIELD_NAME]]
             df_ann.columns = df_ann.columns.droplevel(level='field')
             df_expanded = align(df, df_ann, self.dates)
-            super().append_df(df_expanded, field_name, is_quarterly=False)
+            self.append_df(df_expanded, field_name, is_quarterly=False)
         return True
-
-    def add_formula(self, field_name, formula, is_quarterly,
-                    add_data=False,
-                    overwrite=True,
-                    formula_func_name_style='camel', data_api=None,
-                    register_funcs=None,
-                    within_index=True):
-        """
-        Add a new field, which is calculated using existing fields.
-
-        Parameters
-        ----------
-        formula : str or unicode
-            A formula contains operations and function calls.
-        field_name : str or unicode
-            A custom name for the new field.
-        is_quarterly : bool
-            Whether df is quarterly data (like quarterly financial statement) or daily data.
-        add_data: bool
-            Whether add new data to the data set or return directly.
-        overwrite : bool, optional
-            Whether overwrite existing field. True by default.
-        formula_func_name_style : {'upper', 'lower'}, optional
-        data_api : RemoteDataService, optional
-        register_funcs :Dict of functions you definite by yourself like {"name1":func1},
-                        optional
-        within_index : bool
-            When do cross-section operatioins, whether just do within index components.
-
-        Notes
-        -----
-        Time cost of this function:
-            For a simple formula (like 'a + 1'), almost all time is consumed by append_df;
-            For a complex formula (like 'GroupRank'), half of time is consumed by evaluation and half by append_df.
-        """
-        if data_api is not None:
-            self.data_api = data_api
-
-        if add_data:
-            if field_name in self.fields:
-                if overwrite:
-                    self.remove_field(field_name)
-                    print("Field [{:s}] is overwritten.".format(field_name))
-                else:
-                    raise ValueError("Add formula failed: name [{:s}] exist. Try another name.".format(field_name))
-            elif self._is_predefined_field(field_name):
-                raise ValueError("[{:s}] is alread a pre-defined field. Please use another name.".format(field_name))
-
-        parser = Parser()
-        parser.set_capital(formula_func_name_style)
-
-        # 注册自定义函数
-        if register_funcs is not None:
-            for func in register_funcs.keys():
-                if func in parser.ops1 or func in parser.ops2 or func in parser.functions or \
-                                func in parser.consts or func in parser.values:
-                    raise ValueError("注册的自定义函数名%s与内置的函数名称重复,请更换register_funcs中定义的相关函数名称." % (func,))
-                parser.functions[func] = register_funcs[func]
-
-        expr = parser.parse(formula)
-
-        var_df_dic = dict()
-        var_list = expr.variables()
-
-        # TODO: users do not need to prepare data before add_formula
-        if not self.fields:
-            self.fields.extend(var_list)
-            self.prepare_data()
-        else:
-            for var in var_list:
-                if var not in self.fields:
-                    print("Variable [{:s}] is not recognized (it may be wrong)," \
-                          "try to fetch from the server...".format(var))
-                    success = self.add_field(var)
-                    if not success:
-                        return
-
-        for var in var_list:
-            if self._is_quarter_field(var):
-                df_var = self.get_ts_quarter(var, start_date=self.extended_start_date_q)
-            else:
-                # must use extended date. Default is start_date
-                df_var = self.get_ts(var, start_date=self.extended_start_date_d, end_date=self.end_date)
-
-            var_df_dic[var] = df_var
-
-        # TODO: send ann_date into expr.evaluate. We assume that ann_date of all fields of a symbol is the same
-        df_ann = self._get_ann_df()
-        if within_index:
-            df_index_member = self.get_ts('index_member', start_date=self.extended_start_date_d, end_date=self.end_date)
-            if df_index_member.size == 0:
-                df_index_member = None
-            df_eval = parser.evaluate(var_df_dic, ann_dts=df_ann, trade_dts=self.dates, index_member=df_index_member)
-        else:
-            df_eval = parser.evaluate(var_df_dic, ann_dts=df_ann, trade_dts=self.dates)
-
-        if add_data:
-            if is_quarterly:
-                self.append_df_quarter(df_eval, field_name)
-            else:
-                self.append_df(df_eval, field_name, is_quarterly=False,)
-
-        if is_quarterly:
-            df_ann = self._get_ann_df()
-            df_expanded = align(df_eval, df_ann, self.dates)
-            return df_expanded.loc[self.start_date:self.end_date]
-        else:
-            return df_eval.loc[self.start_date:self.end_date]
-
-    @property
-    def func_doc(self):
-        search = FuncDoc()
-        return search
 
 
 class BcolzDataViewMixin(OriginDataView):
@@ -645,9 +392,21 @@ class BcolzDataViewMixin(OriginDataView):
         if use_bcolz:
             _ensure_import_bcolz()
             self.load_bcolz(folder_path=folder_path)
-            return
         else:
-            return super(BcolzDataViewMixin, self).load_dataview(folder_path, *args, **kwargs)
+            path_meta_data = os.path.join(folder_path, 'meta_data.json')
+            path_data = os.path.join(folder_path, 'data.hd5')
+            if not (os.path.exists(path_meta_data) and os.path.exists(path_data)):
+                raise IOError("There is no data file under directory {}".format(folder_path))
+
+            meta_data = jutil.read_json(path_meta_data)
+            dic = self._load_h5(path_data)
+            self.data_d = dic.get('/data_d', None)
+            self.data_q = dic.get('/data_q', None)
+            self._data_benchmark = dic.get('/data_benchmark', None)
+            self._data_inst = dic.get('/data_inst', None)
+            self.__dict__.update(meta_data)
+
+            print("Dataview loaded successfully.")
 
     def save_dataview(self, folder_path, *args, use_bcolz=None, **kwargs):
         """
@@ -666,7 +425,6 @@ class BcolzDataViewMixin(OriginDataView):
         if use_bcolz:
             _ensure_import_bcolz()
             self.save_bcolz(folder_path=folder_path)
-            return
         else:
             return super(BcolzDataViewMixin, self).save_dataview(folder_path, *args, **kwargs)
 
@@ -678,6 +436,7 @@ class DataView(BaseDataView, BcolzDataViewMixin):
         self.factor_fields = set()
 
     def init_from_config(self, props, data_api):
+        self.adjust_mode = props.get("adjust_mode", "post")
         _props = props.copy()
         if _props.pop(PF, False):
             self.prepare_fields(data_api)
@@ -690,68 +449,6 @@ class DataView(BaseDataView, BcolzDataViewMixin):
         if msg == "0,":
             self.factor_fields = set(table["param"])
             self.custom_daily_fields.extend(self.factor_fields)
-
-    def _get_fields(self, field_type, fields, complement=False, append=False):
-        """
-        Get list of fields that are in ref_quarterly_fields.
-        Parameters
-        ----------
-        field_type : {'market_daily', 'ref_daily', 'income', 'balance_sheet', 'cash_flow', 'daily', 'quarterly'
-        fields : list of str
-        complement : bool, optional
-            If True, get fields that are NOT in ref_quarterly_fields.
-        Returns
-        -------
-        list
-        """
-        pool_map = {'market_daily': self.market_daily_fields,
-                    'ref_daily': self.reference_daily_fields,
-                    'income': self.fin_stat_income,
-                    'balance_sheet': self.fin_stat_balance_sheet,
-                    'cash_flow': self.fin_stat_cash_flow,
-                    'fin_indicator': self.fin_indicator,
-                    'group': self.group_fields,
-                    'factor': self.factor_fields}
-        pool_map['daily'] = set.union(pool_map['market_daily'],
-                                      pool_map['ref_daily'],
-                                      pool_map['group'],
-                                      self.custom_daily_fields)
-        pool_map['quarterly'] = set.union(pool_map['income'],
-                                          pool_map['balance_sheet'],
-                                          pool_map['cash_flow'],
-                                          pool_map['fin_indicator'],
-                                          self.custom_quarterly_fields)
-
-        pool = pool_map.get(field_type, None)
-        if pool is None:
-            raise NotImplementedError("field_type = {:s}".format(field_type))
-
-        s = set.intersection(set(pool), set(fields))
-        if not s:
-            return []
-
-        if complement:
-            s = set(fields) - s
-
-        if field_type == 'market_daily' and self.all_price:
-            # turnover will not be adjusted
-            s.update({'open', 'high', 'close', 'low', 'vwap'})
-
-        if append:
-            s.add('symbol')
-            if field_type == 'market_daily' or field_type == 'ref_daily':
-                s.add('trade_date')
-                if field_type == 'market_daily':
-                    s.add(self.TRADE_STATUS_FIELD_NAME)
-            elif (field_type == 'income'
-                  or field_type == 'balance_sheet'
-                  or field_type == 'cash_flow'
-                  or field_type == 'fin_indicator'):
-                s.add(self.ANN_DATE_FIELD_NAME)
-                s.add(self.REPORT_DATE_FIELD_NAME)
-
-        l = list(s)
-        return l
 
     def get_factor(self, symbol, start, end, fields, limit=500000):
         if isinstance(symbol, list):
@@ -993,12 +690,289 @@ class DataView(BaseDataView, BcolzDataViewMixin):
 
         return merge
 
+    def append_df(self, df, field_name, is_quarterly=False, overwrite=True):
+        if field_name in self.fields:
+            if overwrite:
+                self.remove_field(field_name)
+                print("Field [{:s}] is overwritten.".format(field_name))
+            else:
+                print("Append df failed: name [{:s}] exist. Try another name.".format(field_name))
+                return
+        super().append_df(df, field_name, is_quarterly=is_quarterly)
 
-import numpy as np
+    def append_df_quarter(self, df, field_name, overwrite=True):
+        if field_name in self.fields:
+            if overwrite:
+                self.remove_field(field_name)
+                print("Field [{:s}] is overwritten.".format(field_name))
+            else:
+                print("Append df failed: name [{:s}] exist. Try another name.".format(field_name))
+                return
+        super().append_df(df, field_name, is_quarterly=True)
+        df_ann = self._get_ann_df()
+        df_expanded = align(df, df_ann, self.dates)
+        super().append_df(df_expanded, field_name, is_quarterly=False)
 
+    def add_comp_info(self, index, data_api=None):
+        """
+        Query and append index components info.
 
-def quick_concat(dfs, level):
-    joined_index = pd.Index(np.concatenate([df.index.values for df in dfs])).sort_values().drop_duplicates()
-    joined_columns = pd.MultiIndex.from_tuples(np.concatenate([df.columns.values for df in dfs]), names=level)
-    result = [pd.DataFrame(df, joined_index).values for df in dfs]
-    return pd.DataFrame(np.concatenate(result, axis=1), joined_index, joined_columns)
+        Parameters
+        ----------
+        data_api : BaseDataServer
+        index : str
+            Index code separated by ','.
+
+        Returns
+        -------
+        bool
+            whether add successfully.
+
+        """
+        if data_api is None:
+            if self.data_api is None:
+                print("Add field failed. No data_api available. Please specify one in parameter.")
+                return False
+        else:
+            self.data_api = data_api
+
+        # if a symbol is index member of any one universe, its value of index_member will be 1.0
+        universe = index.split(',')
+
+        exist_symbols = self.data_d.columns.levels[0]
+        exist_fields = self.data_d.columns.levels[1]
+
+        for univ in universe:
+            if univ + '_member' not in exist_fields:
+                df = self.data_api.query_index_member_daily(univ, self.extended_start_date_d, self.end_date)
+
+                if len(set(exist_symbols) - set(df.columns)) > 0:
+                    symbols = list(set(exist_symbols) & set(df.columns))
+                    df = df.loc[:, symbols]
+
+                self.append_df(df, univ + '_member', is_quarterly=False)
+
+                # use weights of the first universe
+                df_weights = self.data_api.query_index_weights_daily(univ, self.extended_start_date_d, self.end_date)
+
+                if len(set(exist_symbols) - set(df_weights.columns)) > 0:
+                    symbols = list(set(exist_symbols) & set(df_weights.columns))
+                    df_weights = df_weights.loc[:, symbols]
+
+                self.append_df(df_weights, univ + '_weight', is_quarterly=False)
+
+    def _add_symbol(self, symbol_name):
+        if symbol_name in self.symbol:
+            print("symbol [{:s}] already exists, add_symbol failed.".format(symbol_name))
+            return
+        self.symbol.append(symbol_name)
+
+    def append_df_symbol(self, df, symbol_name, overwrite=False):
+        """
+        Append DataFrame to existing multi-index DataFrame and add corresponding field name.
+
+        Parameters
+        ----------
+        df : pd.DataFrame or pd.Series
+        symbol_name : str
+        overwrite : bool, optional
+            Whether overwrite existing field. True by default.
+        Notes
+        -----
+        append_df does not support overwrite. To overwrite a field, you must first do self.remove_fields(),
+        then append_df() again.
+
+        """
+        if symbol_name in self.symbol:
+            if overwrite:
+                self.remove_symbol(symbol_name)
+                print("Symbol [{:s}] is overwritten.".format(symbol_name))
+            else:
+                print("Append symbol failed: symbol [{:s}] exist. ".format(symbol_name))
+                return
+
+        df = df.copy()
+        if isinstance(df, pd.DataFrame):
+            pass
+        elif isinstance(df, pd.Series):
+            df = pd.DataFrame(df)
+        else:
+            raise ValueError("Data to be appended must be pandas format. But we have {}".format(type(df)))
+
+        the_data = self.data_d
+
+        exist_fields = the_data.columns.levels[1]
+        if len(set(exist_fields) - set(df.columns)):
+            # if set(df.columns) < set(exist_fields):
+            df2 = pd.DataFrame(index=df.index, columns=exist_fields, data=np.nan)
+            df2.update(df)
+            df = df2
+        multi_idx = pd.MultiIndex.from_product([[symbol_name], exist_fields])
+        df.columns = multi_idx
+
+        # the_data = apply_in_subprocess(pd.merge, args=(the_data, df),
+        #                            kwargs={'left_index': True, 'right_index': True, 'how': 'left'})  # runs in *only* one process
+        the_data = pd.merge(the_data, df, left_index=True, right_index=True, how='left')
+        the_data = the_data.sort_index(axis=1)
+        # merge = the_data.join(df, how='left')  # left: keep index of existing data unchanged
+        # sort_columns(the_data)
+
+        self.data_d = the_data
+        self._add_symbol(symbol_name)
+
+    def remove_symbol(self, symbols):
+        """
+
+        Parameters
+        ----------
+        symbols : str or list
+            The (custom) symbols to be removed from dataview.
+
+        Returns
+        -------
+        bool
+            whether remove successfully.
+
+        """
+        if isinstance(symbols, basestring):
+            symbols = symbols.split(',')
+        elif isinstance(symbols, (list, tuple)):
+            pass
+        else:
+            raise ValueError("symbols must be str or list of str.")
+
+        for symbol in symbols:
+            # parameter validation
+            if symbol not in self.symbol:
+                print("symbol [{:s}] does not exist.".format(symbol))
+                continue
+
+            # remove symbol data
+            if self.data_d is not None:
+                self.data_d = self.data_d.drop(symbol, axis=1, level=0)
+
+            if self.data_q is not None:
+                self.data_q = self.data_q.drop(symbol, axis=1, level=0)
+
+            # remove symbol from list
+            self.symbol.remove(symbol)
+
+        # change column index
+        if self.data_d is not None:
+            self.data_d.columns = self.data_d.columns.remove_unused_levels()
+
+        if self.data_q is not None:
+            self.data_q.columns = self.data_q.columns.remove_unused_levels()
+
+    def add_formula(self, field_name, formula, is_quarterly,
+                    add_data=False,
+                    overwrite=True,
+                    formula_func_name_style='camel', data_api=None,
+                    register_funcs=None,
+                    within_index=True):
+        """
+        Add a new field, which is calculated using existing fields.
+
+        Parameters
+        ----------
+        formula : str or unicode
+            A formula contains operations and function calls.
+        field_name : str or unicode
+            A custom name for the new field.
+        is_quarterly : bool
+            Whether df is quarterly data (like quarterly financial statement) or daily data.
+        add_data: bool
+            Whether add new data to the data set or return directly.
+        overwrite : bool, optional
+            Whether overwrite existing field. True by default.
+        formula_func_name_style : {'upper', 'lower'}, optional
+        data_api : RemoteDataService, optional
+        register_funcs :Dict of functions you definite by yourself like {"name1":func1},
+                        optional
+        within_index : bool
+            When do cross-section operatioins, whether just do within index components.
+
+        Notes
+        -----
+        Time cost of this function:
+            For a simple formula (like 'a + 1'), almost all time is consumed by append_df;
+            For a complex formula (like 'GroupRank'), half of time is consumed by evaluation and half by append_df.
+        """
+        if data_api is not None:
+            self.data_api = data_api
+
+        if add_data:
+            if field_name in self.fields:
+                if overwrite:
+                    self.remove_field(field_name)
+                    print("Field [{:s}] is overwritten.".format(field_name))
+                else:
+                    raise ValueError("Add formula failed: name [{:s}] exist. Try another name.".format(field_name))
+            elif self._is_predefined_field(field_name):
+                raise ValueError("[{:s}] is alread a pre-defined field. Please use another name.".format(field_name))
+
+        parser = Parser()
+        parser.set_capital(formula_func_name_style)
+
+        # 注册自定义函数
+        if register_funcs is not None:
+            for func in register_funcs.keys():
+                if func in parser.ops1 or func in parser.ops2 or func in parser.functions or \
+                                func in parser.consts or func in parser.values:
+                    raise ValueError("注册的自定义函数名%s与内置的函数名称重复,请更换register_funcs中定义的相关函数名称." % (func,))
+                parser.functions[func] = register_funcs[func]
+
+        expr = parser.parse(formula)
+
+        var_df_dic = dict()
+        var_list = expr.variables()
+
+        # TODO: users do not need to prepare data before add_formula
+        if not self.fields:
+            self.fields.extend(var_list)
+            self.prepare_data()
+        else:
+            for var in var_list:
+                if var not in self.fields:
+                    print("Variable [{:s}] is not recognized (it may be wrong)," \
+                          "try to fetch from the server...".format(var))
+                    success = self.add_field(var)
+                    if not success:
+                        return
+
+        for var in var_list:
+            if self._is_quarter_field(var):
+                df_var = self.get_ts_quarter(var, start_date=self.extended_start_date_q)
+            else:
+                # must use extended date. Default is start_date
+                df_var = self.get_ts(var, start_date=self.extended_start_date_d, end_date=self.end_date)
+
+            var_df_dic[var] = df_var
+
+        # TODO: send ann_date into expr.evaluate. We assume that ann_date of all fields of a symbol is the same
+        df_ann = self._get_ann_df()
+        if within_index:
+            df_index_member = self.get_ts('index_member', start_date=self.extended_start_date_d, end_date=self.end_date)
+            if df_index_member.size == 0:
+                df_index_member = None
+            df_eval = parser.evaluate(var_df_dic, ann_dts=df_ann, trade_dts=self.dates, index_member=df_index_member)
+        else:
+            df_eval = parser.evaluate(var_df_dic, ann_dts=df_ann, trade_dts=self.dates)
+
+        if add_data:
+            if is_quarterly:
+                self.append_df_quarter(df_eval, field_name)
+            else:
+                self.append_df(df_eval, field_name, is_quarterly=False)
+
+        if is_quarterly:
+            df_ann = self._get_ann_df()
+            df_expanded = align(df_eval, df_ann, self.dates)
+            return df_expanded.loc[self.start_date:self.end_date]
+        else:
+            return df_eval.loc[self.start_date:self.end_date]
+
+    @property
+    def func_doc(self):
+        search = FuncDoc()
+        return search
