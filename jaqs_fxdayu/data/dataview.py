@@ -39,8 +39,8 @@ def get_api(data_api):
         raise TypeError("Type of data_api should be jaqs.data.RemoteDataService or jaqs.data.DataApi")
 
 
-def quick_concat(dfs, level):
-    joined_index = pd.Index(np.concatenate([df.index.values for df in dfs])).sort_values().drop_duplicates()
+def quick_concat(dfs, level, index_name="trade_date"):
+    joined_index = pd.Index(np.concatenate([df.index.values for df in dfs]), name=index_name).sort_values().drop_duplicates()
     joined_columns = pd.MultiIndex.from_tuples(np.concatenate([df.columns.values for df in dfs]), names=level)
     result = [pd.DataFrame(df, joined_index).values for df in dfs]
     return pd.DataFrame(np.concatenate(result, axis=1), joined_index, joined_columns)
