@@ -199,7 +199,42 @@ class BaseDataView(OriginDataView):
                 print("Append df failed: name [{:s}] exist. Try another name.".format(field_name))
                 return
         # 季度添加至data_q　日度添加至data_d
-        super().append_df(df, field_name, is_quarterly=is_quarterly)
+        df = df.copy()
+        if isinstance(df, pd.DataFrame):
+            pass
+        elif isinstance(df, pd.Series):
+            df = pd.DataFrame(df)
+        else:
+            raise ValueError("Data to be appended must be pandas format. But we have {}".format(type(df)))
+
+        if is_quarterly:
+            the_data = self.data_q
+        else:
+            the_data = self.data_d
+
+        exist_symbols = the_data.columns.levels[0]
+        if len(df.columns) < len(exist_symbols):
+            df2 = pd.DataFrame(index=df.index, columns=exist_symbols, data=np.nan)
+            df2.update(df)
+            df = df2
+        elif len(df.columns) > len(exist_symbols):
+            df = df.loc[:, exist_symbols]
+        multi_idx = pd.MultiIndex.from_product([exist_symbols, [field_name]])
+        df.columns = multi_idx
+
+        #the_data = apply_in_subprocess(pd.merge, args=(the_data, df),
+        #                            kwargs={'left_index': True, 'right_index': True, 'how': 'left'})  # runs in *only* one process
+        # the_data = pd.merge(the_data, df, left_index=True, right_index=True, how='left')
+        the_data = quick_concat([the_data, df], ["symbol", "field"])
+        the_data = the_data.sort_index(axis=1)
+        #merge = the_data.join(df, how='left')  # left: keep index of existing data unchanged
+        #sort_columns(the_data)
+
+        if is_quarterly:
+            self.data_q = the_data
+        else:
+            self.data_d = the_data
+        self._add_field(field_name, is_quarterly)
 
     def remove_symbol(self, symbols):
         """
