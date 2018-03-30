@@ -32,7 +32,7 @@ api.login(username=data_config["remote.data.username"],
 
 
 ## trade_days
-- ` jaqs_fxdayu.utils.dp.trade_days(api, start, end) `
+- ` jaqs_fxdayu.util.dp.trade_days(api, start, end) `
 
 **简要描述：**
 
@@ -54,7 +54,7 @@ api.login(username=data_config["remote.data.username"],
 
 
 ```python
-from jaqs_fxdayu.utils.dp import trade_days
+from jaqs_fxdayu.util.dp import trade_days
 trade_days(api, 20170101, 20180101)
 ```
 
@@ -71,7 +71,7 @@ trade_days(api, 20170101, 20180101)
 
 
 ## index_cons
-- ` jaqs_fxdayu.utils.dp.index_cons(api, index_code, start, end) `
+- ` jaqs_fxdayu.util.dp.index_cons(api, index_code, start, end) `
 
 **简要描述：**
 
@@ -96,7 +96,7 @@ trade_days(api, 20170101, 20180101)
 
 
 ```python
-from jaqs_fxdayu.utils.dp import index_cons
+from jaqs_fxdayu.util.dp import index_cons
 index_cons(api, "000300.SH", 20170101, 20170501).head()
 ```
 
@@ -170,7 +170,7 @@ index_cons(api, "000300.SH", 20170101, 20170501).head()
 
 
 ## daily_index_cons
-- ` jaqs_fxdayu.utils.dp.daily_index_cons(api, index_code, start, end) `
+- ` jaqs_fxdayu.util.dp.daily_index_cons(api, index_code, start, end) `
 
 **简要描述：**
 
@@ -189,7 +189,7 @@ index_cons(api, "000300.SH", 20170101, 20170501).head()
 
 
 ```python
-from jaqs_fxdayu.utils.dp import daily_index_cons
+from jaqs_fxdayu.util.dp import daily_index_cons
 daily_index_cons(api, "000300.SH", 20170101, 20170501).head()
 ```
 
@@ -390,7 +390,7 @@ daily_index_cons(api, "000300.SH", 20170101, 20170501).head()
 
 
 ## daily_sec_industry
-- ` jaqs_fxdayu.utils.dp.daily_sec_industry(api, symbol, start, end, source="sw", value="industry1_code") `
+- ` jaqs_fxdayu.util.dp.daily_sec_industry(api, symbol, start, end, source="sw", value="industry1_code") `
 
 **简要描述：**
 
@@ -411,7 +411,7 @@ daily_index_cons(api, "000300.SH", 20170101, 20170501).head()
 
 
 ```python
-from jaqs_fxdayu.utils.dp import daily_sec_industry
+from jaqs_fxdayu.util.dp import daily_sec_industry
 symbol_id = index_cons(api, "000300.SH", 20170501, 20171001,)["symbol"].dropna()
 symbols = ",".join(symbol_id)
 group = daily_sec_industry(api, symbols, 20170501, 20171001, source='zjh', value="industry1_name")
