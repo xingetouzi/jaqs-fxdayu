@@ -521,6 +521,68 @@ class DataView(BaseDataView, BcolzDataViewMixin):
                             **kwargs)
         return df, msg
 
+    def _get_fields(self, field_type, fields, complement=False, append=False):
+        """
+        Get list of fields that are in ref_quarterly_fields.
+        Parameters
+        ----------
+        field_type : {'market_daily', 'ref_daily', 'income', 'balance_sheet', 'cash_flow', 'daily', 'quarterly'
+        fields : list of str
+        complement : bool, optional
+            If True, get fields that are NOT in ref_quarterly_fields.
+        Returns
+        -------
+        list
+        """
+        pool_map = {'market_daily': self.market_daily_fields,
+                    'ref_daily': self.reference_daily_fields,
+                    'income': self.fin_stat_income,
+                    'balance_sheet': self.fin_stat_balance_sheet,
+                    'cash_flow': self.fin_stat_cash_flow,
+                    'fin_indicator': self.fin_indicator,
+                    'group': self.group_fields,
+                    'factor': self.factor_fields}
+        pool_map['daily'] = set.union(pool_map['market_daily'],
+                                      pool_map['ref_daily'],
+                                      pool_map['group'],
+                                      self.custom_daily_fields)
+        pool_map['quarterly'] = set.union(pool_map['income'],
+                                          pool_map['balance_sheet'],
+                                          pool_map['cash_flow'],
+                                          pool_map['fin_indicator'],
+                                          self.custom_quarterly_fields)
+
+        pool = pool_map.get(field_type, None)
+        if pool is None:
+            raise NotImplementedError("field_type = {:s}".format(field_type))
+
+        s = set.intersection(set(pool), set(fields))
+        if not s:
+            return []
+
+        if complement:
+            s = set(fields) - s
+
+        if field_type == 'market_daily' and self.all_price:
+            # turnover will not be adjusted
+            s.update({'open', 'high', 'close', 'low', 'vwap'})
+
+        if append:
+            s.add('symbol')
+            if field_type == 'market_daily' or field_type == 'ref_daily':
+                s.add('trade_date')
+                if field_type == 'market_daily':
+                    s.add(self.TRADE_STATUS_FIELD_NAME)
+            elif (field_type == 'income'
+                  or field_type == 'balance_sheet'
+                  or field_type == 'cash_flow'
+                  or field_type == 'fin_indicator'):
+                s.add(self.ANN_DATE_FIELD_NAME)
+                s.add(self.REPORT_DATE_FIELD_NAME)
+
+        l = list(s)
+        return l
+
     def _query_data(self, symbol, fields):
         """
         Query data using different APIs, then store them in dict.
