@@ -79,7 +79,7 @@ def test_add_formula_directly():
              'freq': 1}
     dv.init_from_config(props, data_api=ds)
     dv.prepare_data()
-    
+
     dv.add_formula("myfactor", 'close / open', is_quarterly=False)
     assert dv.data_d.shape == (281, 36)
 
@@ -115,7 +115,7 @@ def test_dataview_universe():
     
     dv.init_from_config(props, ds)
     dv.prepare_data()
-    
+
     data_bench = dv.data_benchmark.copy()
     dv.data_benchmark = data_bench
     

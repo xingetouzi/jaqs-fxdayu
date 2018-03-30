@@ -753,7 +753,11 @@ class DataView(BaseDataView, BcolzDataViewMixin):
         return merge
 
     def append_df(self, df, field_name, is_quarterly=False, overwrite=True):
-        if field_name in self.fields:
+        if is_quarterly:
+            exist_fields = self.data_q.columns.levels[1]
+        else:
+            exist_fields = self.data_d.columns.levels[1]
+        if field_name in exist_fields:
             if overwrite:
                 self.remove_field(field_name)
                 print("Field [{:s}] is overwritten.".format(field_name))
