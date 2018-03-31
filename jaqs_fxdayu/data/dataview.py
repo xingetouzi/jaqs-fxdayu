@@ -39,11 +39,12 @@ def get_api(data_api):
         raise TypeError("Type of data_api should be jaqs.data.RemoteDataService or jaqs.data.DataApi")
 
 
-def quick_concat(dfs, level, index_name="trade_date"):
-    joined_index = pd.Index(np.concatenate([df.index.values for df in dfs]), name=index_name).sort_values().drop_duplicates()
-    joined_columns = pd.MultiIndex.from_tuples(np.concatenate([df.columns.values for df in dfs]), names=level)
-    result = [pd.DataFrame(df, joined_index).values for df in dfs]
-    return pd.DataFrame(np.concatenate(result, axis=1), joined_index, joined_columns)
+# def quick_concat(dfs, level, index_name="trade_date"):
+#     joined_index = pd.Index(np.concatenate([df.index.values for df in dfs]), name=index_name).sort_values().drop_duplicates()
+#     joined_columns = pd.MultiIndex.from_tuples(np.concatenate([df.columns.values for df in dfs]), names=level)
+#     result = [pd.DataFrame(df, joined_index).values for df in dfs]
+#     return pd.DataFrame(np.concatenate(result, axis=1), joined_index, joined_columns)
+from jaqs_fxdayu.util.concat import quick_concat
 
 
 class BaseDataView(OriginDataView):
@@ -129,7 +130,7 @@ class BaseDataView(OriginDataView):
         #the_data = apply_in_subprocess(pd.merge, args=(the_data, df),
         #                            kwargs={'left_index': True, 'right_index': True, 'how': 'left'})  # runs in *only* one process
         # the_data = pd.merge(the_data, df, left_index=True, right_index=True, how='left')
-        the_data = quick_concat([the_data, df], ["symbol", "field"])
+        the_data = quick_concat([the_data, df], ["symbol", "field"], how="inner")
         the_data = the_data.sort_index(axis=1)
         #merge = the_data.join(df, how='left')  # left: keep index of existing data unchanged
         #sort_columns(the_data)
