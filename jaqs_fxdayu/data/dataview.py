@@ -778,10 +778,10 @@ class DataView(BaseDataView, BcolzDataViewMixin):
             else:
                 print("Append df failed: name [{:s}] exist. Try another name.".format(field_name))
                 return
-        super().append_df(df, field_name, is_quarterly=True)
+        self.append_df(df, field_name, is_quarterly=True)
         df_ann = self._get_ann_df()
         df_expanded = align(df, df_ann, self.dates)
-        super().append_df(df_expanded, field_name, is_quarterly=False)
+        self.append_df(df_expanded, field_name, is_quarterly=False)
 
     def add_comp_info(self, index, data_api=None):
         """
