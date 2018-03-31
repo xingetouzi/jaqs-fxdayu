@@ -806,8 +806,8 @@ class DataView(BcolzDataViewMixin):
         # if a symbol is index member of any one universe, its value of index_member will be 1.0
         universe = index.split(',')
 
-        exist_symbols = self.data_d.remove_unused_levels().columns.levels[0]
-        exist_fields = self.data_d.remove_unused_levels().columns.levels[1]
+        exist_symbols = self.data_d.columns.remove_unused_levels().levels[0]
+        exist_fields = self.data_d.columns.remove_unused_levels().levels[1]
 
         for univ in universe:
             if univ + '_member' not in exist_fields:
