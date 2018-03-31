@@ -47,180 +47,6 @@ def get_api(data_api):
 from jaqs_fxdayu.util.concat import quick_concat
 
 
-class BaseDataView(OriginDataView):
-    def prepare_data(self):
-        """Prepare data for the FIRST time."""
-        # prepare benchmark and group
-        print("Query data...")
-        data_d, data_q = self._prepare_daily_quarterly(self.fields)
-        self.data_d, self.data_q = data_d, data_q
-        if self.data_q is not None:
-            self._prepare_report_date()
-        self._align_and_merge_q_into_d()
-
-        print("Query instrument info...")
-        self._prepare_inst_info()
-
-        print("Query adj_factor...")
-        self._prepare_adj_factor()
-
-        if self.benchmark:
-            print("Query benchmark...")
-            self._data_benchmark = self._prepare_benchmark()
-        if self.universe:
-            print("Query benchmar member info...")
-            self._prepare_comp_info()
-
-        group_fields = self._get_fields('group', self.fields)
-        if group_fields:
-            print("Query groups (industry)...")
-            self._prepare_group(group_fields)
-
-        self.fields = []
-        if (self.data_d is not None) and self.data_d.size != 0:
-            self.fields += list(self.data_d.columns.levels[1])
-        if (self.data_q is not None) and self.data_q.size != 0:
-            self.fields += list(self.data_q.columns.levels[1])
-        self.fields = list(set(self.fields))
-
-        print("Data has been successfully prepared.")
-
-    def append_df(self, df, field_name, is_quarterly=False):
-        """
-        Append DataFrame to existing multi-index DataFrame and add corresponding field name.
-
-        Parameters
-        ----------
-        df : pd.DataFrame or pd.Series
-        field_name : str or unicode
-        is_quarterly : bool
-            Whether df is quarterly data (like quarterly financial statement) or daily data.
-        overwrite : bool, optional
-            Whether overwrite existing field. True by default.
-        Notes
-        -----
-        append_df does not support overwrite. To overwrite a field, you must first do self.remove_fields(),
-        then append_df() again.
-
-        """
-        # 季度添加至data_q　日度添加至data_d
-        df = df.copy()
-        if isinstance(df, pd.DataFrame):
-            pass
-        elif isinstance(df, pd.Series):
-            df = pd.DataFrame(df)
-        else:
-            raise ValueError("Data to be appended must be pandas format. But we have {}".format(type(df)))
-
-        if is_quarterly:
-            the_data = self.data_q
-        else:
-            the_data = self.data_d
-
-        exist_symbols = the_data.columns.levels[0]
-        if len(df.columns) < len(exist_symbols):
-            df2 = pd.DataFrame(index=df.index, columns=exist_symbols, data=np.nan)
-            df2.update(df)
-            df = df2
-        elif len(df.columns) > len(exist_symbols):
-            df = df.loc[:, exist_symbols]
-        multi_idx = pd.MultiIndex.from_product([exist_symbols, [field_name]])
-        df.columns = multi_idx
-
-        #the_data = apply_in_subprocess(pd.merge, args=(the_data, df),
-        #                            kwargs={'left_index': True, 'right_index': True, 'how': 'left'})  # runs in *only* one process
-        # the_data = pd.merge(the_data, df, left_index=True, right_index=True, how='left')
-        the_data = quick_concat([the_data, df], ["symbol", "field"], how="inner")
-        the_data = the_data.sort_index(axis=1)
-        #merge = the_data.join(df, how='left')  # left: keep index of existing data unchanged
-        #sort_columns(the_data)
-
-        if is_quarterly:
-            self.data_q = the_data
-        else:
-            self.data_d = the_data
-        self._add_field(field_name, is_quarterly)
-
-    # Add/Remove Fields&Formulas
-    def _add_field(self, field_name, is_quarterly=None):
-        if field_name not in self.fields:
-            self.fields.append(field_name)
-        if not self._is_predefined_field(field_name):
-            if is_quarterly is None:
-                raise ValueError("Field [{:s}] is not a predefined field, but no frequency information is provided.")
-            if is_quarterly:
-                self.custom_quarterly_fields.append(field_name)
-            else:
-                self.custom_daily_fields.append(field_name)
-
-    def add_field(self, field_name, data_api=None):
-        """
-        Query and append new field to DataView.
-
-        Parameters
-        ----------
-        data_api : BaseDataServer
-        field_name : str
-            Must be a known field name (which is given in documents).
-
-        Returns
-        -------
-        bool
-            whether add successfully.
-
-        """
-        if data_api is None:
-            if self.data_api is None:
-                print("Add field failed. No data_api available. Please specify one in parameter.")
-                return False
-        else:
-            self.data_api = data_api
-
-        if field_name in self.fields:
-            print("Field name [{:s}] already exists.".format(field_name))
-            return False
-
-        if not self._is_predefined_field(field_name):
-            print("Field name [{}] not valid, ignore.".format(field_name))
-            return False
-
-        # prepare group type
-        group_map = ['sw1',
-                     'sw2',
-                     'sw3',
-                     'sw4',
-                     'zz1',
-                     'zz2']
-        if field_name in group_map:
-            self._prepare_group([field_name])
-            return True
-
-        if self._is_daily_field(field_name):
-            if self.data_d is None:
-                raise ValueError("Please prepare [{:s}] first.".format(field_name))
-            merge, _ = self._prepare_daily_quarterly([field_name])
-            is_quarterly = False
-        else:
-            if self.data_q is None:
-                raise ValueError("Please prepare [{:s}] first.".format(field_name))
-            _, merge = self._prepare_daily_quarterly([field_name])
-            is_quarterly = True
-
-        df = merge.loc[:, pd.IndexSlice[:, field_name]]
-        df.columns = df.columns.droplevel(level=1)
-        # whether contain only trade days is decided by existing data.
-
-        # 季度添加至data_q　日度添加至data_d
-        self.append_df(df, field_name, is_quarterly=is_quarterly)
-
-        if is_quarterly:
-            df_ann = merge.loc[:, pd.IndexSlice[:, self.ANN_DATE_FIELD_NAME]]
-            df_ann.columns = df_ann.columns.droplevel(level='field')
-            df_expanded = align(df, df_ann, self.dates)
-            self.append_df(df_expanded, field_name, is_quarterly=False)
-        return True
-
-
 class BcolzDataViewMixin(OriginDataView):
     _use_bcolz = False
 
@@ -431,7 +257,7 @@ class BcolzDataViewMixin(OriginDataView):
 
 
 @auto_register_patch(parent_level=1)
-class DataView(BaseDataView, BcolzDataViewMixin):
+class DataView(BcolzDataViewMixin):
     def __init__(self):
         super(DataView, self).__init__()
         self.factor_fields = set()
@@ -753,11 +579,148 @@ class DataView(BaseDataView, BcolzDataViewMixin):
 
         return merge
 
-    def append_df(self, df, field_name, is_quarterly=False, overwrite=True):
-        if is_quarterly:
-            exist_fields = self.data_q.columns.levels[1]
+    def prepare_data(self):
+        """Prepare data for the FIRST time."""
+        # prepare benchmark and group
+        print("Query data...")
+        data_d, data_q = self._prepare_daily_quarterly(self.fields)
+        self.data_d, self.data_q = data_d, data_q
+        if self.data_q is not None:
+            self._prepare_report_date()
+        self._align_and_merge_q_into_d()
+
+        print("Query instrument info...")
+        self._prepare_inst_info()
+
+        print("Query adj_factor...")
+        self._prepare_adj_factor()
+
+        if self.benchmark:
+            print("Query benchmark...")
+            self._data_benchmark = self._prepare_benchmark()
+        if self.universe:
+            print("Query benchmar member info...")
+            self._prepare_comp_info()
+
+        group_fields = self._get_fields('group', self.fields)
+        if group_fields:
+            print("Query groups (industry)...")
+            self._prepare_group(group_fields)
+
+        self.fields = []
+        if (self.data_d is not None) and self.data_d.size != 0:
+            self.fields += list(self.data_d.columns.levels[1])
+        if (self.data_q is not None) and self.data_q.size != 0:
+            self.fields += list(self.data_q.columns.levels[1])
+        self.fields = list(set(self.fields))
+
+        print("Data has been successfully prepared.")
+
+    # Add/Remove Fields&Formulas
+    def _add_field(self, field_name, is_quarterly=None):
+        if field_name not in self.fields:
+            self.fields.append(field_name)
+        if not self._is_predefined_field(field_name):
+            if is_quarterly is None:
+                raise ValueError("Field [{:s}] is not a predefined field, but no frequency information is provided.")
+            if is_quarterly:
+                self.custom_quarterly_fields.append(field_name)
+            else:
+                self.custom_daily_fields.append(field_name)
+
+    def add_field(self, field_name, data_api=None):
+        """
+        Query and append new field to DataView.
+
+        Parameters
+        ----------
+        data_api : BaseDataServer
+        field_name : str
+            Must be a known field name (which is given in documents).
+
+        Returns
+        -------
+        bool
+            whether add successfully.
+
+        """
+        if data_api is None:
+            if self.data_api is None:
+                print("Add field failed. No data_api available. Please specify one in parameter.")
+                return False
         else:
-            exist_fields = self.data_d.columns.levels[1]
+            self.data_api = data_api
+
+        if field_name in self.fields:
+            print("Field name [{:s}] already exists.".format(field_name))
+            return False
+
+        if not self._is_predefined_field(field_name):
+            print("Field name [{}] not valid, ignore.".format(field_name))
+            return False
+
+        # prepare group type
+        group_map = ['sw1',
+                     'sw2',
+                     'sw3',
+                     'sw4',
+                     'zz1',
+                     'zz2']
+        if field_name in group_map:
+            self._prepare_group([field_name])
+            return True
+
+        if self._is_daily_field(field_name):
+            if self.data_d is None:
+                raise ValueError("Please prepare [{:s}] first.".format(field_name))
+            merge, _ = self._prepare_daily_quarterly([field_name])
+            is_quarterly = False
+        else:
+            if self.data_q is None:
+                raise ValueError("Please prepare [{:s}] first.".format(field_name))
+            _, merge = self._prepare_daily_quarterly([field_name])
+            is_quarterly = True
+
+        df = merge.loc[:, pd.IndexSlice[:, field_name]]
+        df.columns = df.columns.droplevel(level=1)
+        # whether contain only trade days is decided by existing data.
+
+        # 季度添加至data_q　日度添加至data_d
+        self.append_df(df, field_name, is_quarterly=is_quarterly)
+
+        if is_quarterly:
+            df_ann = merge.loc[:, pd.IndexSlice[:, self.ANN_DATE_FIELD_NAME]]
+            df_ann.columns = df_ann.columns.droplevel(level='field')
+            df_expanded = align(df, df_ann, self.dates)
+            self.append_df(df_expanded, field_name, is_quarterly=False)
+        return True
+
+    def append_df(self, df, field_name, is_quarterly=False, overwrite=True):
+        """
+        Append DataFrame to existing multi-index DataFrame and add corresponding field name.
+
+        Parameters
+        ----------
+        df : pd.DataFrame or pd.Series
+        field_name : str or unicode
+        is_quarterly : bool
+            Whether df is quarterly data (like quarterly financial statement) or daily data.
+        overwrite : bool, optional
+            Whether overwrite existing field. True by default.
+        Notes
+        -----
+        append_df does not support overwrite. To overwrite a field, you must first do self.remove_fields(),
+        then append_df() again.
+
+        """
+        if is_quarterly:
+            if self.data_q is None:
+                raise ValueError("append_df前需要先确保季度数据集data_q不为空！")
+            exist_fields = self.data_q.columns.remove_unused_levels().levels[1]
+        else:
+            if self.data_d is None:
+                raise ValueError("append_df前需要先确保日度数据集data_d不为空！")
+            exist_fields = self.data_d.columns.remove_unused_levels().levels[1]
         if field_name in exist_fields:
             if overwrite:
                 self.remove_field(field_name)
@@ -765,7 +728,44 @@ class DataView(BaseDataView, BcolzDataViewMixin):
             else:
                 print("Append df failed: name [{:s}] exist. Try another name.".format(field_name))
                 return
-        super().append_df(df, field_name, is_quarterly=is_quarterly)
+
+        # 季度添加至data_q　日度添加至data_d
+        df = df.copy()
+        if isinstance(df, pd.DataFrame):
+            pass
+        elif isinstance(df, pd.Series):
+            df = pd.DataFrame(df)
+        else:
+            raise ValueError("Data to be appended must be pandas format. But we have {}".format(type(df)))
+
+        if is_quarterly:
+            the_data = self.data_q
+        else:
+            the_data = self.data_d
+
+        exist_symbols = the_data.columns.levels[0]
+        if len(df.columns) < len(exist_symbols):
+            df2 = pd.DataFrame(index=df.index, columns=exist_symbols, data=np.nan)
+            df2.update(df)
+            df = df2
+        elif len(df.columns) > len(exist_symbols):
+            df = df.loc[:, exist_symbols]
+        multi_idx = pd.MultiIndex.from_product([exist_symbols, [field_name]])
+        df.columns = multi_idx
+
+        # the_data = apply_in_subprocess(pd.merge, args=(the_data, df),
+        #                            kwargs={'left_index': True, 'right_index': True, 'how': 'left'})  # runs in *only* one process
+        # the_data = pd.merge(the_data, df, left_index=True, right_index=True, how='left')
+        the_data = quick_concat([the_data, df], ["symbol", "field"], how="inner")
+        the_data = the_data.sort_index(axis=1)
+        # merge = the_data.join(df, how='left')  # left: keep index of existing data unchanged
+        # sort_columns(the_data)
+
+        if is_quarterly:
+            self.data_q = the_data
+        else:
+            self.data_d = the_data
+        self._add_field(field_name, is_quarterly)
 
     def append_df_quarter(self, df, field_name, overwrite=True):
         if field_name in self.fields:
@@ -775,10 +775,10 @@ class DataView(BaseDataView, BcolzDataViewMixin):
             else:
                 print("Append df failed: name [{:s}] exist. Try another name.".format(field_name))
                 return
-        super().append_df(df, field_name, is_quarterly=True)
+        self.append_df(df, field_name, is_quarterly=True)
         df_ann = self._get_ann_df()
         df_expanded = align(df, df_ann, self.dates)
-        super().append_df(df_expanded, field_name, is_quarterly=False)
+        self.append_df(df_expanded, field_name, is_quarterly=False)
 
     def add_comp_info(self, index, data_api=None):
         """
@@ -806,8 +806,8 @@ class DataView(BaseDataView, BcolzDataViewMixin):
         # if a symbol is index member of any one universe, its value of index_member will be 1.0
         universe = index.split(',')
 
-        exist_symbols = self.data_d.columns.levels[0]
-        exist_fields = self.data_d.columns.levels[1]
+        exist_symbols = self.data_d.remove_unused_levels().columns.levels[0]
+        exist_fields = self.data_d.remove_unused_levels().columns.levels[1]
 
         for univ in universe:
             if univ + '_member' not in exist_fields:
