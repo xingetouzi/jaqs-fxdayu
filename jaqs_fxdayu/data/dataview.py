@@ -754,9 +754,13 @@ class DataView(BaseDataView, BcolzDataViewMixin):
 
     def append_df(self, df, field_name, is_quarterly=False, overwrite=True):
         if is_quarterly:
-            exist_fields = self.data_q.columns.levels[1]
+            if self.data_q is None:
+                raise ValueError("append_df前需要先确保季度数据集data_q不为空！")
+            exist_fields = self.data_q.columns.remove_unused_levels().levels[1]
         else:
-            exist_fields = self.data_d.columns.levels[1]
+            if self.data_d is None:
+                raise ValueError("append_df前需要先确保日度数据集data_d不为空！")
+            exist_fields = self.data_d.columns.remove_unused_levels().levels[1]
         if field_name in exist_fields:
             if overwrite:
                 self.remove_field(field_name)
@@ -805,8 +809,8 @@ class DataView(BaseDataView, BcolzDataViewMixin):
         # if a symbol is index member of any one universe, its value of index_member will be 1.0
         universe = index.split(',')
 
-        exist_symbols = self.data_d.columns.levels[0]
-        exist_fields = self.data_d.columns.levels[1]
+        exist_symbols = self.data_d.columns.remove_unused_levels().levels[0]
+        exist_fields = self.data_d.columns.remove_unused_levels().levels[1]
 
         for univ in universe:
             if univ + '_member' not in exist_fields:
