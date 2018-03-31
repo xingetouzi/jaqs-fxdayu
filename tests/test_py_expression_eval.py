@@ -154,7 +154,7 @@ def test_variables():
 
 def test_product():
     # parser.set_capital('lower')
-    expression = parser.parse('Product(open,2)')
+    expression = parser.parse('Ts_Product(open,2)')
     res = parser.evaluate({'close': dfy, 'open': dfx})
     # parser.set_capital('upper')
 
