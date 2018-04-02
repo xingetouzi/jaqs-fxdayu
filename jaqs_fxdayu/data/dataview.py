@@ -136,22 +136,34 @@ class DataViewMixin(OriginDataView):
         tb = bcolz.open(path)
 
         if ret == 'data_d':
-            fields = [x for x in self.fields if x in tb.cols.names]
-            exp = '(trade_date>{})&(trade_date<{})'.format(self.start_date,self.end_date)     
+            fields = [x for x in self.fields if x in tb.cols.names] + ['trade_date','symbol']
+            exp = '((trade_date>{})&(trade_date<{}))'.format(self.start_date,self.end_date)     
             symbol = [x for x in self.symbol if x in tb.attrs['index'].keys()]
 
-            if len(symbol) < 100:
+            if len(symbol) <= 1000: 
+                exp1 = ''
                 for sb in symbol:
                     s,e = tb.attrs['index'][sb].split(',')
-                    exp += '|(index>{})&(index<{})'.format(s,e)    
+                    exp1 += '|((index>{})&(index<{}))'.format(s,e)    
+                    
+                exp = exp + '&' + '(' + exp1[1:] + ')'   
             
-            data = tb.fetchwhere(exp,outcols=fields + ['trade_date','symbol']).todataframe()
+            data = tb.fetchwhere(exp,outcols=list(set(fields))).todataframe()
             data = data.set_index(['trade_date','symbol']).unstack('symbol')
             data.columns = pd.MultiIndex.from_arrays([data.columns.get_level_values(1),data.columns.get_level_values(0)],names=['symbol','fields'])
             return data.sort_index(axis=1)
             
         elif ret == 'data_q':
             exp = '(report_date>{})&(report_date<{})'.format(self.start_date,self.end_date)     
+            symbol = [x for x in self.symbol if x in tb.attrs['index'].keys()]
+
+            if len(symbol) <= 1000: 
+                exp1 = ''
+                for sb in symbol:
+                    s,e = tb.attrs['index'][sb].split(',')
+                    exp1 += '|((index>{})&(index<{}))'.format(s,e)    
+                    
+                exp = exp + '&' + exp1[1:]   
                 
             data = tb.fetchwhere(exp).todataframe()
             data = data.set_index(['report_date','symbol']).unstack('symbol')
@@ -218,13 +230,13 @@ class DataViewMixin(OriginDataView):
                                       WHERE report_date>%s 
                                       AND report_date<%s 
                                       AND symbol IN %s 
-                                      AND report_type = %s'''%(','.join(fld),key,self.extended_start_date_q,self.end_date,symbols,'"408001000"'))
+                                      AND report_type = "%s"'''%(','.join(fld),key,self.extended_start_date_q,self.end_date,symbols,self.report_type))
                         
                     data = pd.DataFrame([list(i) for i in c.fetchall()],columns=fld)
                     dt.append(data)
                 if len(dt) > 1:
                     from functools import reduce
-                    data = reduce(lambda x,y:pd.merge(x,y,on=[i for i in x.columns if i in y.columns],how='inner',sort=True),dt)
+                    data = reduce(lambda x,y:pd.merge(x,y,on=[i for i in x.columns if i in y.columns],how='outer',sort=True),dt)
                 elif len(dt) == 1:
                     data = dt[0]
             
@@ -252,7 +264,7 @@ class DataViewMixin(OriginDataView):
             data = pd.DataFrame([list(i) for i in c.fetchall()])
             return data
         
-        conn.slose()
+        conn.close()
             
     def load_dataview(self, folder_path='.', *args, use_hdf5=False, **kwargs):
         """
@@ -268,7 +280,6 @@ class DataViewMixin(OriginDataView):
         if use_hdf5 is None:
             use_hdf5 = self._use_hdf5
         if use_hdf5:
-            _ensure_import_bcolz()
             
             path_meta_data = os.path.join(folder_path, 'meta_data.json')
             path_data = os.path.join(folder_path, 'data.hd5')
@@ -281,6 +292,8 @@ class DataViewMixin(OriginDataView):
             self._data_benchmark = dic.get('/data_benchmark', None)
             self._data_inst = dic.get('/data_inst', None)
         else:
+            _ensure_import_bcolz()
+            
             path_meta_data = os.path.join(folder_path, 'meta_data.json')
             if not (os.path.exists(path_meta_data)):
                 raise IOError("There is no meta_data file under directory {}".format(folder_path))
@@ -319,6 +332,7 @@ class DataView(DataViewMixin):
     def __init__(self):
         super(DataView, self).__init__()
         self.factor_fields = set()
+        self.report_type = 408001000
 
     def init_from_config(self, props, data_api):
         self.adjust_mode = props.get("adjust_mode", "post")
