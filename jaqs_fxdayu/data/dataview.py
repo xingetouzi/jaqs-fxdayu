@@ -453,12 +453,14 @@ class DataView(BcolzDataViewMixin):
                 if self.adjust_mode is not None:
                     adjust_fields = list(set(fields_market_daily)&set(["open","high",'low','close',"vwap"]))
                     if len(adjust_fields)!=0:
+                        adjust_fields+= ['symbol', 'trade_date']
                         df_daily_adjust, msg1 = self.distributed_query('daily', symbol_str,
                                                                        start_date=self.extended_start_date_d,
                                                                        end_date=self.end_date,
                                                                        adjust_mode=self.adjust_mode,
                                                                        fields=sep.join(adjust_fields),
                                                                        limit=limit)
+
                         df_daily = pd.merge(df_daily, df_daily_adjust, how='outer',
                                             on=['symbol', 'trade_date'], suffixes=('', '_adj'))
                 daily_list.append(df_daily.loc[:, fields_market_daily])
