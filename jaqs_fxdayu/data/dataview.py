@@ -256,7 +256,7 @@ class DataViewMixin(OriginDataView):
             c.execute('''SELECT close FROM index_d 
                           WHERE trade_date>%s 
                           AND trade_date<%s 
-                          AND symbol IN %s '''%(self.extended_start_date_d,self.end_date,self.universe))
+                          AND symbol = %s '''%(self.extended_start_date_d,self.end_date,self.universe))
 
             data = pd.DataFrame([list(i) for i in c.fetchall()])
             return data
@@ -269,7 +269,7 @@ class DataViewMixin(OriginDataView):
         
         conn.close()
             
-    def load_dataview(self, folder_path='.', *args, use_hdf5=False, **kwargs):
+    def load_dataview(self, folder_path='.', *args, use_hdf5=True, **kwargs):
         """
         Load data from local file.
         
