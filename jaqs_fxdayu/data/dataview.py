@@ -47,15 +47,15 @@ def get_api(data_api):
 from jaqs_fxdayu.util.concat import quick_concat
 
 
-class BcolzDataViewMixin(OriginDataView):
-    _use_bcolz = False
+class DataViewMixin(OriginDataView):
+    _use_hdf5 = False
 
     @classmethod
     def set_persist_format(cls, format):
-        if format == "bcolz":
-            cls._use_bcolz = True
-        elif format == "hdf5":
-            cls._use_bcolz = False
+        if format == "hdf5":
+            cls._use_hdf5 = True
+        elif format == "bcolz":
+            cls._use_hdf5 = False
         else:
             raise RuntimeError("Unsupported persist format: %s" % format)
 
@@ -120,7 +120,7 @@ class BcolzDataViewMixin(OriginDataView):
             else:
                 print('Wrong data type.')
 
-    def _load_bz(self, fp):
+    def _load_bz(self,fp,ret):
         """Load data and meta_data from bcolz file.
 
         Parameters
@@ -128,114 +128,172 @@ class BcolzDataViewMixin(OriginDataView):
         file : str, optional
             File path of bcolz data
 
-        """
-        res = dict()
-        files = os.listdir(fp)
-        files.remove('meta_data.json')
-        for file in files:
-            path = fp + '//' + file
-            tb = bcolz.open(path)
+        """     
+        path = fp + '//' + ret
+        
+        if not os.path.exists(path):
+            return None
+        tb = bcolz.open(path)
+
+        if ret == 'data_d':
+            fields = [x for x in self.fields if x in tb.cols.names]
+            exp = '(trade_date>{})&(trade_date<{})'.format(self.start_date,self.end_date)     
+            symbol = [x for x in self.symbol if x in tb.attrs['index'].keys()]
+
+            if len(symbol) < 100:
+                for sb in symbol:
+                    s,e = tb.attrs['index'][sb].split(',')
+                    exp += '|(index>{})&(index<{})'.format(s,e)    
+            
+            data = tb.fetchwhere(exp,outcols=fields + ['trade_date','symbol']).todataframe()
+            data = data.set_index(['trade_date','symbol']).unstack('symbol')
+            data.columns = pd.MultiIndex.from_arrays([data.columns.get_level_values(1),data.columns.get_level_values(0)],names=['symbol','fields'])
+            return data.sort_index(axis=1)
+            
+        elif ret == 'data_q':
+            exp = '(report_date>{})&(report_date<{})'.format(self.start_date,self.end_date)     
+                
+            data = tb.fetchwhere(exp).todataframe()
+            data = data.set_index(['report_date','symbol']).unstack('symbol')
+            data.columns = pd.MultiIndex.from_arrays([data.columns.get_level_values(1),data.columns.get_level_values(0)],names=['symbol','fields'])
+            return data.sort_index(axis=1)
+            
+        elif ret == 'data_inst':
+            fields = tb.cols.names
+            data = tb.todataframe().set_index('symbol')
+            data = data.loc[self.symbol,:]
+            return data
+            
+        elif ret == 'data_benchmark':
+            return tb.todataframe()
+
+    def _load_sqlite(self,fp,ret):
+        file = fp + '//' + 'data.sqlite'
+        import sqlite3
+        conn = sqlite3.connect(file)
+        c = conn.cursor()
+        
+        symbols =  '("' + '","'.join(self.symbol) + '")'
+        
+        local_d_fields = [list(i)[1] for i in c.execute('PRAGMA table_info([data_])')]
+        local_q_fields ={'income':[list(i)[1] for i in c.execute('PRAGMA table_info([income])')],
+                        'cashFlow':[list(i)[1] for i in c.execute('PRAGMA table_info([cashFlow])')],
+                        'balanceSheet':[list(i)[1] for i in c.execute('PRAGMA table_info([balanceSheet])')],
+                        'finIndicator':[list(i)[1] for i in c.execute('PRAGMA table_info([finIndicator])')],
+                        }
+        
+        if ret == 'data_d':
+            d_fields = [i for i in self.fields in local_d_fields]
+            fld = d_fields + ['symbol','trade_date']
+            
+            c.execute('''SELECT %s FROM data_d 
+                          WHERE trade_date>%s 
+                          AND trade_date<%s 
+                          AND symbol IN %s '''%(','.join(fld),self.extended_start_date_d,self.end_date,symbols))     
+            
+            data = pd.DataFrame([list(i) for i in c.fetchall()],columns = fld)
+            data = data.set_index(['tradedate','symbol']).unstack('symbol')
+            data.columns = pd.MultiIndex.from_arrays([data.columns.get_level_values(1),data.columns.get_level_values(0)],names=['symbol','fields'])
+            return data.sort_index(axis=1)
+
+        elif ret == 'data_q':
+            dt = []
             data = ''
-
-            if file == 'data_d':
-                symbol = [x for x in self.symbol if x in tb.attrs['index'].keys()]
-                fields = [x for x in self.fields if x in tb.cols.names]
-                exp = '(trade_date>{})&(trade_date<{})'.format(self.start_date, self.end_date)
-
-                for sb in symbol:
-                    s, e = tb.attrs['index'][sb].split(',')
-                    exp += '|(index>{})&(index<{})'.format(s, e)
-
-                data = tb.fetchwhere(exp, outcols=fields + ['trade_date', 'symbol']).todataframe()
-                data = data.set_index(['trade_date', 'symbol']).unstack('symbol')
-                data.columns = pd.MultiIndex.from_arrays(
-                    [data.columns.get_level_values(1), data.columns.get_level_values(0)], names=['symbol', 'fields'])
-                '''
-                symbol_ni = set(self.symbol) - set(symbol) 
-                if symbol_ni:
-                    for symbol in symbol_ni:
-                fields_ni = set(self.fields) - set(fields) 
-                 '''
-
-            elif file == 'data_q':
-                symbol = [x for x in self.symbol if x in tb.attrs['index'].keys()]
-                exp = '(report_date>{})&(report_date<{})'.format(self.start_date, self.end_date)
-
-                for sb in symbol:
-                    s, e = tb.attrs['index'][sb].split(',')
-                    exp += '|(index>{})&(index<{})'.format(s, e)
-
-                data = tb.fetchwhere(exp).todataframe()
-                data = data.set_index(['report_date', 'symbol']).unstack('symbol')
-                data.columns = pd.MultiIndex.from_arrays(
-                    [data.columns.get_level_values(1), data.columns.get_level_values(0)], names=['symbol', 'fields'])
-
-            elif file == 'data_inst':
-                fields = tb.cols.names
-                data = tb.todataframe().set_index('symbol')
-                data = data.loc[self.symbol, :]
-
-            res[file] = data.sort_index(axis=1)
-
-        return res
-
-    def load_bcolz(self, folder_path):
-        """
-        Load data from local file.
-
-        Parameters
-        ----------
-        folder_path : str or unicode, optional
-            Folder path to store hd5 file and meta data.
-
-        """
-        path_meta_data = os.path.join(folder_path, 'meta_data_bcolz.json')
-
-        if not (os.path.exists(path_meta_data)):
-            raise IOError("There is no meta_data file under directory {}".format(folder_path))
-        meta_data = jutil.read_json(path_meta_data)
-        dic = self._load_bz(folder_path)
-        self.data_d = dic.get('data_d', None)
-        self.data_q = dic.get('data_q', None)
-        self._data_benchmark = dic.get('data_benchmark', None)
-        self._data_inst = dic.get('data_inst', None)
-        self.__dict__.update(meta_data)
-
-        print("Dataview loaded successfully.")
-
-    def load_dataview(self, folder_path='.', *args, use_bcolz=None, **kwargs):
-        """
-        Load data from local file.
-
-        Parameters
-        ----------
-        folder_path : str or unicode, optional
-            Folder path to store hd5 file and meta data.
-        use_bcolz: bool,
-            if True, using bcol format data, rather than hdf5.
-        """
-        if use_bcolz is None:
-            use_bcolz = self._use_bcolz
-        if use_bcolz:
-            _ensure_import_bcolz()
-            self.load_bcolz(folder_path=folder_path)
+            q_fields = {'income':[i for i in self.fields if i in local_q_fields['income']],
+            'cashFlow':[i for i in self.fields if i in local_q_fields['cashFlow']],
+            'balanceSheet':[i for i in self.fields if i in local_q_fields['balanceSheet']],
+            'finIndicator':[i for i in self.fields if i in local_q_fields['finIndicator']],
+            }
+            
+            for key,value in q_fields.items():
+                if len(value) > 0:
+                    fld = value + ['symbol','report_date']
+                    if key == 'finIndicator':
+                        c.execute('''SELECT %s FROM %s 
+                                  WHERE report_date>%s 
+                                  AND report_date<%s 
+                                  AND symbol IN %s '''%(','.join(fld),key,self.extended_start_date_q,self.end_date,symbols))
+                    else:
+                        c.execute('''SELECT %s FROM %s 
+                                      WHERE report_date>%s 
+                                      AND report_date<%s 
+                                      AND symbol IN %s 
+                                      AND report_type = %s'''%(','.join(fld),key,self.extended_start_date_q,self.end_date,symbols,'"408001000"'))
+                        
+                    data = pd.DataFrame([list(i) for i in c.fetchall()],columns=fld)
+                    dt.append(data)
+                if len(dt) > 1:
+                    from functools import reduce
+                    data = reduce(lambda x,y:pd.merge(x,y,on=[i for i in x.columns if i in y.columns],how='inner',sort=True),dt)
+                elif len(dt) == 1:
+                    data = dt[0]
+            
+            if type(data) != pd.DataFrame:
+                return None
+            data = data.pivot_table(index = 'report_date',columns = 'symbol')
+            data.columns = pd.MultiIndex.from_arrays([data.columns.get_level_values(1),data.columns.get_level_values(0)],names=['symbol','fields'])           
+            return data.sort_index(axis=1)
+        
+        elif ret == 'data_inst':
+            c.execute('''SELECT * FROM data_inst 
+                          WHERE symbol IN %s '''%(symbols))
+            data = pd.DataFrame([list(i) for i in c.fetchall()])
+            return data
+            
+        elif ret == 'data_benchmark':
+            c.execute('''SELECT * FROM data_benchmark
+                          WHERE symbol IN %s '''%(symbols))
+            data = pd.DataFrame([list(i) for i in c.fetchall()])
+            return data
+        
         else:
+            c.execute('''SELECT * FROM %s
+                          WHERE symbol IN %s '''%(ret,symbols))
+            data = pd.DataFrame([list(i) for i in c.fetchall()])
+            return data
+        
+        conn.slose()
+            
+    def load_dataview(self, folder_path='.', *args, use_hdf5=False, **kwargs):
+        """
+        Load data from local file.
+        
+        Parameters
+        ----------
+        folder_path : str or unicode, optional
+            Folder path to store data file and meta data.
+            
+        """
+            
+        if use_hdf5 is None:
+            use_hdf5 = self._use_hdf5
+        if use_hdf5:
+            _ensure_import_bcolz()
+            
             path_meta_data = os.path.join(folder_path, 'meta_data.json')
             path_data = os.path.join(folder_path, 'data.hd5')
             if not (os.path.exists(path_meta_data) and os.path.exists(path_data)):
                 raise IOError("There is no data file under directory {}".format(folder_path))
-
-            meta_data = jutil.read_json(path_meta_data)
+            
             dic = self._load_h5(path_data)
             self.data_d = dic.get('/data_d', None)
             self.data_q = dic.get('/data_q', None)
             self._data_benchmark = dic.get('/data_benchmark', None)
             self._data_inst = dic.get('/data_inst', None)
-            self.__dict__.update(meta_data)
+        else:
+            path_meta_data = os.path.join(folder_path, 'meta_data.json')
+            if not (os.path.exists(path_meta_data)):
+                raise IOError("There is no meta_data file under directory {}".format(folder_path))
+            self.data_d = self._load_bz(folder_path,'data_d')
+            self.data_q = self._load_sqlite(folder_path,'data_q')
+            self._data_benchmark = self._load_bz(folder_path,'data_benchmark')
+            self._data_inst = self._load_bz(folder_path,'data_inst')
+            
+        meta_data = jutil.read_json(path_meta_data)
+        self.__dict__.update(meta_data)
+        print("Dataview loaded successfully.")
 
-            print("Dataview loaded successfully.")
-
-    def save_dataview(self, folder_path, *args, use_bcolz=None, **kwargs):
+    def save_dataview(self, folder_path, *args, use_hdf5=None, **kwargs):
         """
         Save data and meta_data_to_store to a single hd5 file.
         Store at output/sub_folder
@@ -244,20 +302,20 @@ class BcolzDataViewMixin(OriginDataView):
         ----------
         folder_path : str or unicode
             Path to store your data.
-        use_bcolz: bool,
-            if True, using bcol format data, rather than hdf5.
+        use_hdf5: bool,
+            if True, using hdf5 format data, rather than bcolz.
         """
-        if use_bcolz is None:
-            use_bcolz = self._use_bcolz
-        if use_bcolz:
+        
+        if use_hdf5 is None:
+            use_hdf5 = self._use_hdf5
+        if use_hdf5:
+            return super(DataViewMixin, self).save_dataview(folder_path, *args, **kwargs)
+        else:
             _ensure_import_bcolz()
             self.save_bcolz(folder_path=folder_path)
-        else:
-            return super(BcolzDataViewMixin, self).save_dataview(folder_path, *args, **kwargs)
-
 
 @auto_register_patch(parent_level=1)
-class DataView(BcolzDataViewMixin):
+class DataView(DataViewMixin):
     def __init__(self):
         super(DataView, self).__init__()
         self.factor_fields = set()
