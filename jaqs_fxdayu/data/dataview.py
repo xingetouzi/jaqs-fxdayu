@@ -253,8 +253,8 @@ class DataViewMixin(OriginDataView):
             return data
             
         elif ret == 'data_benchmark':
-            c.execute('''SELECT * FROM data_benchmark
-                          WHERE symbol IN %s '''%(symbols))
+            c.execute('''SELECT close FROM index_d
+                          WHERE symbol = "%s" '''%(self.universe))
             data = pd.DataFrame([list(i) for i in c.fetchall()])
             return data
         
@@ -299,7 +299,7 @@ class DataViewMixin(OriginDataView):
                 raise IOError("There is no meta_data file under directory {}".format(folder_path))
             self.data_d = self._load_bz(folder_path,'data_d')
             self.data_q = self._load_sqlite(folder_path,'data_q')
-            self._data_benchmark = self._load_bz(folder_path,'data_benchmark')
+            self._data_benchmark = self._load_sqlite(folder_path,'data_benchmark')
             self._data_inst = self._load_bz(folder_path,'data_inst')
             
         meta_data = jutil.read_json(path_meta_data)
