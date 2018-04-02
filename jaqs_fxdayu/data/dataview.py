@@ -253,8 +253,11 @@ class DataViewMixin(OriginDataView):
             return data
             
         elif ret == 'data_benchmark':
-            c.execute('''SELECT close FROM index_d
-                          WHERE symbol = "%s" '''%(self.universe))
+            c.execute('''SELECT close FROM index_d 
+                          WHERE trade_date>%s 
+                          AND trade_date<%s 
+                          AND symbol IN %s '''%(self.extended_start_date_d,self.end_date,self.universe))
+
             data = pd.DataFrame([list(i) for i in c.fetchall()])
             return data
         
