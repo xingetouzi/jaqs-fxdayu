@@ -390,9 +390,17 @@ class DataView(BcolzDataViewMixin):
         if complement:
             s = set(fields) - s
 
-        if field_type == 'market_daily' and self.all_price:
-            # turnover will not be adjusted
-            s.update({'open', 'high', 'close', 'low', 'vwap'})
+        if field_type == 'market_daily':
+            if self.adjust_mode is not None:
+                tmp = []
+                for field in list(s):
+                    if field in ["open","high",'low','close',"vwap"]:
+                        tmp.append(field)
+                        tmp.append(field+"_adj")
+                    elif field in ["open_adj","high_adj",'low_adj','close_adj',"vwap_adj"]:
+                        tmp.append(field)
+                        tmp.append(field.replace("_adj",""))
+                s.update(tmp)
 
         if append:
             s.add('symbol')
@@ -436,7 +444,7 @@ class DataView(BcolzDataViewMixin):
 
             fields_market_daily = self._get_fields('market_daily', fields, append=True)
             if fields_market_daily:
-                print("NOTE: price adjust method is [{:s} adjust]".format(self.adjust_mode))
+                print("NOTE: price adjust method is [{:s} adjust]".format(self.adjust_mode if self.adjust_mode is not None else "No"))
                 # no adjust prices and other market daily fields
                 df_daily, msg1 = self.distributed_query('daily', symbol_str,
                                                         start_date=self.extended_start_date_d, end_date=self.end_date,
