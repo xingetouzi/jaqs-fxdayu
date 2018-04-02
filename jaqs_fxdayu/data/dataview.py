@@ -442,14 +442,7 @@ class DataView(BcolzDataViewMixin):
                                                         start_date=self.extended_start_date_d, end_date=self.end_date,
                                                         adjust_mode=None, fields=sep.join(fields_market_daily),
                                                         limit=limit)
-                # df_daily, msg1 = self.data_api.daily(symbol_str, start_date=self.extended_start_date_d, end_date=self.end_date,
-                #                                     adjust_mode=None, fields=sep.join(fields_market_daily))
-
-                if self.all_price:
-                    adj_cols = ['open', 'high', 'low', 'close', 'vwap']
-                    # adjusted prices
-                    # df_daily_adjust, msg11 = self.data_api.daily(symbol_str, start_date=self.extended_start_date_d, end_date=self.end_date,
-                    #                                             adjust_mode=self.adjust_mode, fields=','.join(adj_cols))
+                if self.adjust_mode is not None:
                     df_daily_adjust, msg1 = self.distributed_query('daily', symbol_str,
                                                                    start_date=self.extended_start_date_d,
                                                                    end_date=self.end_date,
