@@ -150,7 +150,7 @@ class DataViewMixin(OriginDataView):
             
             data = tb.fetchwhere(exp,outcols=list(set(fields))).todataframe()
             data = data.set_index(['trade_date','symbol']).unstack('symbol')
-            data.columns = pd.MultiIndex.from_arrays([data.columns.get_level_values(1),data.columns.get_level_values(0)],names=['symbol','fields'])
+            data.columns = pd.MultiIndex.from_arrays([data.columns.get_level_values(1),data.columns.get_level_values(0)],names=['symbol','field'])
             return data.sort_index(axis=1)
             
         elif ret == 'data_q':
@@ -167,7 +167,7 @@ class DataViewMixin(OriginDataView):
                 
             data = tb.fetchwhere(exp).todataframe()
             data = data.set_index(['report_date','symbol']).unstack('symbol')
-            data.columns = pd.MultiIndex.from_arrays([data.columns.get_level_values(1),data.columns.get_level_values(0)],names=['symbol','fields'])
+            data.columns = pd.MultiIndex.from_arrays([data.columns.get_level_values(1),data.columns.get_level_values(0)],names=['symbol','field'])
             return data.sort_index(axis=1)
             
         elif ret == 'data_inst':
@@ -205,7 +205,7 @@ class DataViewMixin(OriginDataView):
             
             data = pd.DataFrame([list(i) for i in c.fetchall()],columns = fld)
             data = data.set_index(['tradedate','symbol']).unstack('symbol')
-            data.columns = pd.MultiIndex.from_arrays([data.columns.get_level_values(1),data.columns.get_level_values(0)],names=['symbol','fields'])
+            data.columns = pd.MultiIndex.from_arrays([data.columns.get_level_values(1),data.columns.get_level_values(0)],names=['symbol','field'])
             return data.sort_index(axis=1)
 
         elif ret == 'data_q':
@@ -243,7 +243,7 @@ class DataViewMixin(OriginDataView):
             if type(data) != pd.DataFrame:
                 return None
             data = data.pivot_table(index = 'report_date',columns = 'symbol')
-            data.columns = pd.MultiIndex.from_arrays([data.columns.get_level_values(1),data.columns.get_level_values(0)],names=['symbol','fields'])           
+            data.columns = pd.MultiIndex.from_arrays([data.columns.get_level_values(1),data.columns.get_level_values(0)],names=['symbol','field'])           
             return data.sort_index(axis=1)
         
         elif ret == 'data_inst':
@@ -256,9 +256,17 @@ class DataViewMixin(OriginDataView):
             c.execute('''SELECT close FROM index_d 
                           WHERE trade_date>%s 
                           AND trade_date<%s 
-                          AND symbol IN %s '''%(self.extended_start_date_d,self.end_date,self.universe))
+                          AND symbol = "%s" '''%(self.extended_start_date_d,self.end_date,self.universe))
 
             data = pd.DataFrame([list(i) for i in c.fetchall()])
+            return data
+        
+        elif ret == 'indexCons':
+            c.execute('''SELECT symbol FROM indexCons
+                          WHERE in_date<%s 
+                          AND out_date>%s 
+                          AND index_code == "%s" '''%(self.extended_start_date_d ,self.end_date, self.universe))
+            data = [i[0] for i in c.fetchall()]
             return data
         
         else:
@@ -268,8 +276,9 @@ class DataViewMixin(OriginDataView):
             return data
         
         conn.close()
+        
             
-    def load_dataview(self, folder_path='.', *args, use_hdf5=False, **kwargs):
+    def load_dataview(self, folder_path='.', *args, use_hdf5=True, **kwargs):
         """
         Load data from local file.
         
@@ -278,8 +287,11 @@ class DataViewMixin(OriginDataView):
         folder_path : str or unicode, optional
             Folder path to store data file and meta data.
             
-        """
-            
+        """     
+        if self.uni:
+            univ_list = self.uni.split(',')
+            self.universe = univ_list[0]
+
         if use_hdf5 is None:
             use_hdf5 = self._use_hdf5
         if use_hdf5:
@@ -297,6 +309,9 @@ class DataViewMixin(OriginDataView):
         else:
             _ensure_import_bcolz()
             
+            if self.universe != "":
+                self.symbol = self._load_sqlite(folder_path,'indexCons')
+  
             path_meta_data = os.path.join(folder_path, 'meta_data.json')
             if not (os.path.exists(path_meta_data)):
                 raise IOError("There is no meta_data file under directory {}".format(folder_path))
@@ -329,6 +344,7 @@ class DataViewMixin(OriginDataView):
         else:
             _ensure_import_bcolz()
             self.save_bcolz(folder_path=folder_path)
+        
 
 @auto_register_patch(parent_level=1)
 class DataView(DataViewMixin):
@@ -336,13 +352,32 @@ class DataView(DataViewMixin):
         super(DataView, self).__init__()
         self.factor_fields = set()
         self.report_type = 408001000
+        self.uni = None
 
     def init_from_config(self, props, data_api):
         self.adjust_mode = props.get("adjust_mode", "post")
         _props = props.copy()
+        
+        universe = _props.get('universe', None)
+        if universe:
+            self.uni = _props['universe']
+            _props['symbol'] = 'N'
+            _props.pop('universe')
+            
+        if self.uni:
+            if len(self.uni) > 1:
+                print("More than one universe are used: {}, "
+                                 "use the first one ({}) as index by default. "
+                                 "If you want to use other benchmark, "
+                                 "please specify benchmark in configs.".format(repr(self.uni), self.uni[0]))
+                self.benchmark = self.uni[0]        
+        
         if _props.pop(PF, False):
             self.prepare_fields(data_api)
         super(DataView, self).init_from_config(_props, data_api)
+        fields = self.fields
+        fields.extend(props['fields'].split(','))
+        self.fields = list(set(fields))
 
     def prepare_fields(self, data_api):
         api = get_api(data_api)
