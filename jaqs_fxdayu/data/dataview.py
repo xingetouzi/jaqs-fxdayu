@@ -11,20 +11,12 @@ from jaqs.data.py_expression_eval import Parser
 
 from jaqs_fxdayu.data.search_doc import FuncDoc
 from jaqs_fxdayu.patch_util import auto_register_patch
+#from jaqs_fxdayu.data.dataservice import LocalDataService
 
 try:
     basestring
 except NameError:
     basestring = str
-
-bcolz = None
-
-
-def _ensure_import_bcolz():
-    global bcolz
-    if bcolz is None:
-        import bcolz as bz
-        bcolz = bz
 
 
 PF = "prepare_fields"
@@ -35,8 +27,10 @@ def get_api(data_api):
         return data_api.data_api
     elif isinstance(data_api, DataApi):
         return data_api
+    elif isinstance(data_api, LocalDataService):
+        return data_api  
     else:
-        raise TypeError("Type of data_api should be jaqs.data.RemoteDataService or jaqs.data.DataApi")
+        raise TypeError("Type of data_api should be jaqs.data.RemoteDataService or jaqs.data.DataApi or ")
 
 
 # def quick_concat(dfs, level, index_name="trade_date"):
@@ -47,337 +41,18 @@ def get_api(data_api):
 from jaqs_fxdayu.util.concat import quick_concat
 
 
-class DataViewMixin(OriginDataView):
-    _use_hdf5 = False
-
-    @classmethod
-    def set_persist_format(cls, format):
-        if format == "hdf5":
-            cls._use_hdf5 = True
-        elif format == "bcolz":
-            cls._use_hdf5 = False
-        else:
-            raise RuntimeError("Unsupported persist format: %s" % format)
-
-    def save_bcolz(self, folder_path):
-        """
-        Save data and meta_data_to_store to a bcolz dir.
-        Store at output/sub_folder
-
-        Parameters
-        ----------
-        folder_path : str or unicode
-            Path to store your data.
-
-        """
-        abs_folder = os.path.abspath(folder_path)
-        meta_path = os.path.join(folder_path, 'meta_data_bcolz.json')
-
-        data_to_store = {'data_d': copy(self.data_d), 'data_q': copy(self.data_q),
-                         'data_benchmark': copy(self.data_benchmark), 'data_inst': copy(self.data_inst)}
-        data_to_store = {k: v for k, v in data_to_store.items() if v is not None}
-        meta_data_to_store = {key: self.__dict__[key] for key in self.meta_data_list}
-
-        print("\nStore data...")
-        jutil.save_json(meta_data_to_store, meta_path)
-        self._save_bz(abs_folder, data_to_store)
-
-        print("Dataview has been successfully saved to:\n"
-              + abs_folder + "\n\n"
-              + "You can load it with load_bcolz('{:s}')".format(abs_folder))
-
-    @staticmethod
-    def _save_bz(fp, dic):
-        for key, data in dic.items():
-            path = fp + '\\' + key
-            if type(data.columns) == pd.core.indexes.multi.MultiIndex:
-                data = data.stack(0).reset_index()
-                index = data.index.values
-                data['index'] = index
-                if 'trade_date' in data.columns:
-                    data = data.sort_values(by=['symbol', 'trade_date'])
-                elif 'report_date' in data.columns:
-                    data = data.sort_values(by=['symbol', 'report_date'])
-                data.index = index
-                info = data.groupby('symbol').apply(lambda x: str(x.index[0]) + ',' + str(x.index[-1]))
-
-                tb = bcolz.ctable.fromdataframe(data, rootdir=path)
-
-                tb.attrs['index'] = info.to_dict()
-                tb.flush()
-                tb.free_cachemem()
-                print("Dataview has been successfully saved to {}".format(path))
-
-            elif type(data.columns) == pd.core.indexes.base.Index:
-                if 'product' in data.columns:
-                    data = data.drop('product', axis=1)
-                data = data.reset_index()
-                tb = bcolz.ctable.fromdataframe(data, rootdir=path)
-                tb.flush()
-                tb.free_cachemem()
-                print("Dataview has been successfully saved to {}".format(path))
-
-            else:
-                print('Wrong data type.')
-
-    def _load_bz(self,fp,ret):
-        """Load data and meta_data from bcolz file.
-
-        Parameters
-        ----------
-        file : str, optional
-            File path of bcolz data
-
-        """     
-        path = fp + '//' + ret
-        
-        if not os.path.exists(path):
-            return None
-        tb = bcolz.open(path)
-
-        if ret == 'data_d':
-            fields = [x for x in self.fields if x in tb.cols.names] + ['trade_date','symbol']
-            exp = '((trade_date>{})&(trade_date<{}))'.format(self.start_date,self.end_date)     
-            symbol = [x for x in self.symbol if x in tb.attrs['index'].keys()]
-
-            if len(symbol) <= 1000: 
-                exp1 = ''
-                for sb in symbol:
-                    s,e = tb.attrs['index'][sb].split(',')
-                    exp1 += '|((index>{})&(index<{}))'.format(s,e)    
-                    
-                exp = exp + '&' + '(' + exp1[1:] + ')'   
-            
-            data = tb.fetchwhere(exp,outcols=list(set(fields))).todataframe()
-            data = data.set_index(['trade_date','symbol']).unstack('symbol')
-            data.columns = pd.MultiIndex.from_arrays([data.columns.get_level_values(1),data.columns.get_level_values(0)],names=['symbol','field'])
-            return data.sort_index(axis=1)
-            
-        elif ret == 'data_q':
-            exp = '(report_date>{})&(report_date<{})'.format(self.start_date,self.end_date)     
-            symbol = [x for x in self.symbol if x in tb.attrs['index'].keys()]
-
-            if len(symbol) <= 1000: 
-                exp1 = ''
-                for sb in symbol:
-                    s,e = tb.attrs['index'][sb].split(',')
-                    exp1 += '|((index>{})&(index<{}))'.format(s,e)    
-                    
-                exp = exp + '&' + exp1[1:]   
-                
-            data = tb.fetchwhere(exp).todataframe()
-            data = data.set_index(['report_date','symbol']).unstack('symbol')
-            data.columns = pd.MultiIndex.from_arrays([data.columns.get_level_values(1),data.columns.get_level_values(0)],names=['symbol','field'])
-            return data.sort_index(axis=1)
-            
-        elif ret == 'data_inst':
-            fields = tb.cols.names
-            data = tb.todataframe().set_index('symbol')
-            data = data.loc[self.symbol,:]
-            return data
-            
-        elif ret == 'data_benchmark':
-            return tb.todataframe()
-
-    def _load_sqlite(self,fp,ret):
-        file = fp + '//' + 'data.sqlite'
-        import sqlite3
-        conn = sqlite3.connect(file)
-        c = conn.cursor()
-        
-        symbols =  '("' + '","'.join(self.symbol) + '")'
-        
-        local_d_fields = [list(i)[1] for i in c.execute('PRAGMA table_info([data_])')]
-        local_q_fields ={'income':[list(i)[1] for i in c.execute('PRAGMA table_info([income])')],
-                        'cashFlow':[list(i)[1] for i in c.execute('PRAGMA table_info([cashFlow])')],
-                        'balanceSheet':[list(i)[1] for i in c.execute('PRAGMA table_info([balanceSheet])')],
-                        'finIndicator':[list(i)[1] for i in c.execute('PRAGMA table_info([finIndicator])')],
-                        }
-        
-        if ret == 'data_d':
-            d_fields = [i for i in self.fields in local_d_fields]
-            fld = d_fields + ['symbol','trade_date']
-            
-            c.execute('''SELECT %s FROM data_d 
-                          WHERE trade_date>%s 
-                          AND trade_date<%s 
-                          AND symbol IN %s '''%(','.join(fld),self.extended_start_date_d,self.end_date,symbols))     
-            
-            data = pd.DataFrame([list(i) for i in c.fetchall()],columns = fld)
-            data = data.set_index(['tradedate','symbol']).unstack('symbol')
-            data.columns = pd.MultiIndex.from_arrays([data.columns.get_level_values(1),data.columns.get_level_values(0)],names=['symbol','field'])
-            return data.sort_index(axis=1)
-
-        elif ret == 'data_q':
-            dt = []
-            data = ''
-            q_fields = {'income':[i for i in self.fields if i in local_q_fields['income']],
-            'cashFlow':[i for i in self.fields if i in local_q_fields['cashFlow']],
-            'balanceSheet':[i for i in self.fields if i in local_q_fields['balanceSheet']],
-            'finIndicator':[i for i in self.fields if i in local_q_fields['finIndicator']],
-            }
-            
-            for key,value in q_fields.items():
-                if len(value) > 0:
-                    fld = value + ['symbol','report_date']
-                    if key == 'finIndicator':
-                        c.execute('''SELECT %s FROM %s 
-                                  WHERE report_date>%s 
-                                  AND report_date<%s 
-                                  AND symbol IN %s '''%(','.join(fld),key,self.extended_start_date_q,self.end_date,symbols))
-                    else:
-                        c.execute('''SELECT %s FROM %s 
-                                      WHERE report_date>%s 
-                                      AND report_date<%s 
-                                      AND symbol IN %s 
-                                      AND report_type = "%s"'''%(','.join(fld),key,self.extended_start_date_q,self.end_date,symbols,self.report_type))
-                        
-                    data = pd.DataFrame([list(i) for i in c.fetchall()],columns=fld)
-                    dt.append(data)
-                if len(dt) > 1:
-                    from functools import reduce
-                    data = reduce(lambda x,y:pd.merge(x,y,on=[i for i in x.columns if i in y.columns],how='outer',sort=True),dt)
-                elif len(dt) == 1:
-                    data = dt[0]
-            
-            if type(data) != pd.DataFrame:
-                return None
-            data = data.pivot_table(index = 'report_date',columns = 'symbol')
-            data.columns = pd.MultiIndex.from_arrays([data.columns.get_level_values(1),data.columns.get_level_values(0)],names=['symbol','field'])           
-            return data.sort_index(axis=1)
-        
-        elif ret == 'data_inst':
-            c.execute('''SELECT * FROM data_inst 
-                          WHERE symbol IN %s '''%(symbols))
-            data = pd.DataFrame([list(i) for i in c.fetchall()])
-            return data
-            
-        elif ret == 'data_benchmark':
-            c.execute('''SELECT close FROM index_d 
-                          WHERE trade_date>%s 
-                          AND trade_date<%s 
-                          AND symbol = "%s" '''%(self.extended_start_date_d,self.end_date,self.universe))
-
-            data = pd.DataFrame([list(i) for i in c.fetchall()])
-            return data
-        
-        elif ret == 'indexCons':
-            c.execute('''SELECT symbol FROM indexCons
-                          WHERE in_date<%s 
-                          AND out_date>%s 
-                          AND index_code == "%s" '''%(self.extended_start_date_d ,self.end_date, self.universe))
-            data = [i[0] for i in c.fetchall()]
-            return data
-        
-        else:
-            c.execute('''SELECT * FROM %s
-                          WHERE symbol IN %s '''%(ret,symbols))
-            data = pd.DataFrame([list(i) for i in c.fetchall()])
-            return data
-        
-        conn.close()
-        
-            
-    def load_dataview(self, folder_path='.', *args, use_hdf5=True, **kwargs):
-        """
-        Load data from local file.
-        
-        Parameters
-        ----------
-        folder_path : str or unicode, optional
-            Folder path to store data file and meta data.
-            
-        """     
-        if self.uni:
-            univ_list = self.uni.split(',')
-            self.universe = univ_list[0]
-
-        if use_hdf5 is None:
-            use_hdf5 = self._use_hdf5
-        if use_hdf5:
-            
-            path_meta_data = os.path.join(folder_path, 'meta_data.json')
-            path_data = os.path.join(folder_path, 'data.hd5')
-            if not (os.path.exists(path_meta_data) and os.path.exists(path_data)):
-                raise IOError("There is no data file under directory {}".format(folder_path))
-            
-            dic = self._load_h5(path_data)
-            self.data_d = dic.get('/data_d', None)
-            self.data_q = dic.get('/data_q', None)
-            self._data_benchmark = dic.get('/data_benchmark', None)
-            self._data_inst = dic.get('/data_inst', None)
-        else:
-            _ensure_import_bcolz()
-            
-            if self.universe != "":
-                self.symbol = self._load_sqlite(folder_path,'indexCons')
-  
-            path_meta_data = os.path.join(folder_path, 'meta_data.json')
-            if not (os.path.exists(path_meta_data)):
-                raise IOError("There is no meta_data file under directory {}".format(folder_path))
-            self.data_d = self._load_bz(folder_path,'data_d')
-            self.data_q = self._load_sqlite(folder_path,'data_q')
-            self._data_benchmark = self._load_sqlite(folder_path,'data_benchmark')
-            self._data_inst = self._load_bz(folder_path,'data_inst')
-            
-        meta_data = jutil.read_json(path_meta_data)
-        self.__dict__.update(meta_data)
-        print("Dataview loaded successfully.")
-
-    def save_dataview(self, folder_path, *args, use_hdf5=None, **kwargs):
-        """
-        Save data and meta_data_to_store to a single hd5 file.
-        Store at output/sub_folder
-
-        Parameters
-        ----------
-        folder_path : str or unicode
-            Path to store your data.
-        use_hdf5: bool,
-            if True, using hdf5 format data, rather than bcolz.
-        """
-        
-        if use_hdf5 is None:
-            use_hdf5 = self._use_hdf5
-        if use_hdf5:
-            return super(DataViewMixin, self).save_dataview(folder_path, *args, **kwargs)
-        else:
-            _ensure_import_bcolz()
-            self.save_bcolz(folder_path=folder_path)
-        
-
 @auto_register_patch(parent_level=1)
-class DataView(DataViewMixin):
+class DataView(OriginDataView):
     def __init__(self):
         super(DataView, self).__init__()
         self.factor_fields = set()
-        self.report_type = 408001000
-        self.uni = None
 
     def init_from_config(self, props, data_api):
         self.adjust_mode = props.get("adjust_mode", "post")
         _props = props.copy()
-        
-        universe = _props.get('universe', None)
-        if universe:
-            self.uni = _props['universe']
-            _props['symbol'] = 'N'
-            _props.pop('universe')
-            
-        if self.uni:
-            if len(self.uni) > 1:
-                print("More than one universe are used: {}, "
-                                 "use the first one ({}) as index by default. "
-                                 "If you want to use other benchmark, "
-                                 "please specify benchmark in configs.".format(repr(self.uni), self.uni[0]))
-                self.benchmark = self.uni[0]        
-        
         if _props.pop(PF, False):
             self.prepare_fields(data_api)
         super(DataView, self).init_from_config(_props, data_api)
-        fields = self.fields
-        fields.extend(props['fields'].split(','))
-        self.fields = list(set(fields))
 
     def prepare_fields(self, data_api):
         api = get_api(data_api)
@@ -500,9 +175,17 @@ class DataView(DataViewMixin):
         if complement:
             s = set(fields) - s
 
-        if field_type == 'market_daily' and self.all_price:
-            # turnover will not be adjusted
-            s.update({'open', 'high', 'close', 'low', 'vwap'})
+        if field_type == 'market_daily':
+            if self.adjust_mode is not None:
+                tmp = []
+                for field in list(s):
+                    if field in ["open","high",'low','close',"vwap"]:
+                        tmp.append(field)
+                        tmp.append(field+"_adj")
+                    elif field in ["open_adj","high_adj",'low_adj','close_adj',"vwap_adj"]:
+                        tmp.append(field)
+                        tmp.append(field.replace("_adj",""))
+                s.update(tmp)
 
         if append:
             s.add('symbol')
@@ -546,28 +229,25 @@ class DataView(DataViewMixin):
 
             fields_market_daily = self._get_fields('market_daily', fields, append=True)
             if fields_market_daily:
-                print("NOTE: price adjust method is [{:s} adjust]".format(self.adjust_mode))
+                print("NOTE: price adjust method is [{:s} adjust]".format(self.adjust_mode if self.adjust_mode is not None else "No"))
                 # no adjust prices and other market daily fields
                 df_daily, msg1 = self.distributed_query('daily', symbol_str,
                                                         start_date=self.extended_start_date_d, end_date=self.end_date,
                                                         adjust_mode=None, fields=sep.join(fields_market_daily),
                                                         limit=limit)
-                # df_daily, msg1 = self.data_api.daily(symbol_str, start_date=self.extended_start_date_d, end_date=self.end_date,
-                #                                     adjust_mode=None, fields=sep.join(fields_market_daily))
+                if self.adjust_mode is not None:
+                    adjust_fields = list(set(fields_market_daily)&set(["open","high",'low','close',"vwap"]))
+                    if len(adjust_fields)!=0:
+                        adjust_fields+= ['symbol', 'trade_date']
+                        df_daily_adjust, msg1 = self.distributed_query('daily', symbol_str,
+                                                                       start_date=self.extended_start_date_d,
+                                                                       end_date=self.end_date,
+                                                                       adjust_mode=self.adjust_mode,
+                                                                       fields=sep.join(adjust_fields),
+                                                                       limit=limit)
 
-                if self.all_price:
-                    adj_cols = ['open', 'high', 'low', 'close', 'vwap']
-                    # adjusted prices
-                    # df_daily_adjust, msg11 = self.data_api.daily(symbol_str, start_date=self.extended_start_date_d, end_date=self.end_date,
-                    #                                             adjust_mode=self.adjust_mode, fields=','.join(adj_cols))
-                    df_daily_adjust, msg1 = self.distributed_query('daily', symbol_str,
-                                                                   start_date=self.extended_start_date_d,
-                                                                   end_date=self.end_date,
-                                                                   adjust_mode=self.adjust_mode,
-                                                                   fields=sep.join(fields_market_daily),
-                                                                   limit=limit)
-                    df_daily = pd.merge(df_daily, df_daily_adjust, how='outer',
-                                        on=['symbol', 'trade_date'], suffixes=('', '_adj'))
+                        df_daily = pd.merge(df_daily, df_daily_adjust, how='outer',
+                                            on=['symbol', 'trade_date'], suffixes=('', '_adj'))
                 daily_list.append(df_daily.loc[:, fields_market_daily])
 
             fields_ref_daily = self._get_fields('ref_daily', fields, append=True)
