@@ -5,13 +5,12 @@ import pandas as pd
 from jaqs import util as jutil
 from jaqs.data.align import align
 from jaqs.data.dataview import DataView as OriginDataView, EventDataView
-from jaqs.data.dataservice import RemoteDataService
 from jaqs.data.dataapi import DataApi
-from jaqs.data.py_expression_eval import Parser
 
 from jaqs_fxdayu.data.search_doc import FuncDoc
 from jaqs_fxdayu.patch_util import auto_register_patch
-from jaqs_fxdayu.data.dataservice import LocalDataService
+from jaqs_fxdayu.data.dataservice import LocalDataService,RemoteDataService
+from jaqs_fxdayu.data.py_expression_eval import Parser
 
 try:
     basestring
@@ -33,11 +32,10 @@ def get_api(data_api):
         raise TypeError("Type of data_api should be jaqs.data.RemoteDataService or jaqs.data.DataApi or ")
 
 
-# def quick_concat(dfs, level, index_name="trade_date"):
-#     joined_index = pd.Index(np.concatenate([df.index.values for df in dfs]), name=index_name).sort_values().drop_duplicates()
-#     joined_columns = pd.MultiIndex.from_tuples(np.concatenate([df.columns.values for df in dfs]), names=level)
-#     result = [pd.DataFrame(df, joined_index).values for df in dfs]
-#     return pd.DataFrame(np.concatenate(result, axis=1), joined_index, joined_columns)
+# def quick_concat(dfs, level, index_name="trade_date"): joined_index = pd.Index(np.concatenate([df.index.values for
+# df in dfs]), name=index_name).sort_values().drop_duplicates() joined_columns = pd.MultiIndex.from_tuples(
+# np.concatenate([df.columns.values for df in dfs]), names=level) result = [pd.DataFrame(df, joined_index).values for
+#  df in dfs] return pd.DataFrame(np.concatenate(result, axis=1), joined_index, joined_columns)
 from jaqs_fxdayu.util.concat import quick_concat
 
 
