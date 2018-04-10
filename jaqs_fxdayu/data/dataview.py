@@ -11,7 +11,7 @@ from jaqs.data.py_expression_eval import Parser
 
 from jaqs_fxdayu.data.search_doc import FuncDoc
 from jaqs_fxdayu.patch_util import auto_register_patch
-#from jaqs_fxdayu.data.dataservice import LocalDataService
+from jaqs_fxdayu.data.dataservice import LocalDataService
 
 try:
     basestring
