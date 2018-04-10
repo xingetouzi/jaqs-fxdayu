@@ -833,3 +833,45 @@ class DataView(OriginDataView):
     def func_doc(self):
         search = FuncDoc()
         return search
+
+    def load_dataview(self, folder_path='.', *args, **kwargs):
+        """
+        Load data from local file.
+        Parameters
+        ----------
+        folder_path : str or unicode, optional
+            Folder path to store hd5 file and meta data.
+        """
+
+        path_meta_data = os.path.join(folder_path, 'meta_data.json')
+        path_data = os.path.join(folder_path, 'data.hd5')
+        if not (os.path.exists(path_meta_data) and os.path.exists(path_data)):
+            raise IOError("There is no data file under directory {}".format(folder_path))
+
+        meta_data = jutil.read_json(path_meta_data)
+        dic = self._load_h5(path_data)
+        self.data_d = dic.get('/data_d', None)
+        self.data_q = dic.get('/data_q', None)
+        self._data_benchmark = dic.get('/data_benchmark', None)
+        self._data_inst = dic.get('/data_inst', None)
+        self.__dict__.update(meta_data)
+
+        print("Dataview loaded successfully.")
+
+    # def refresh_data(self, end_date=None, data_api=None):
+    #     if self.end_date < end_date:
+    #         if data_api is not None:
+    #             self.data_api = data_api
+    #         if self.data_api is None:
+    #             raise ValueError("You must provide the data_api to refresh data.")
+    #         start = self.end_date+1
+    #         end = end_date
+    #         fields = self.fields
+    #         tmp_dv = DataView()
+    #         tmp_dv.init_from_config(data_api=self.data_api,
+    #                                 props={
+    #                                     "start_date":start,
+    #                                     "end_date":end,
+    #                                     'fields':fields,
+    #                                     "adjust_mode":self.adjust_mode,
+    #                                 })
