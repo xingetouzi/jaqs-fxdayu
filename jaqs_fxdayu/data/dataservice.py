@@ -300,53 +300,39 @@ class LocalDataService():
             fields = fields.split(',')
             
         symbols = [x for x in symbol if x in self.tb.attrs['index'].keys()]
+        fld = [x for x in fields if x in self.tb.cols.names] + ['trade_date','symbol']
+        
+        need_dates = self.query_trade_dates(start_date, end_date)
+        start = need_dates[0]
+        end = need_dates[-1]
         
         if symbols == []:
             return self.index_daily(symbol, start_date, end_date , ','.join(fields))
         
-        else:
-            exp = '((trade_date>={})&(trade_date<={}))'.format(start_date,end_date) 
+        if adjust_mode == 'post':
+            fld.extend(['open_adj', 'high_adj', 'low_adj', 'close_adj'])
+            fld = list(set(fld) - set(['open','high','low','close']))
+
+        index = self.tb.attrs['index']
+        dates = np.array(list(set(self.tb['trade_date'])))
+        dates.sort()
+        _s = np.argwhere(dates == start)[0][0]
+        _e = np.argwhere(dates == end)[0][0]
+        
+        def func(df,symbol):
+            s,e = index[symbol].split(',')
+            begin = int(s) + _s
+            finish = int(s) + _e
+            return df[begin:finish]
             
-            fld = [x for x in fields if x in self.tb.cols.names] + ['trade_date','symbol']
+        res = {}
+        for f in fld:
+            df = self.tb[f]
+            res[f] = np.concatenate([func(df,sb) for sb in symbols])                             
+
+        return pd.DataFrame(res) , "0,"
     
-            if adjust_mode == 'post':
-                fld.extend(['open_adj', 'high_adj', 'low_adj', 'close_adj'])
-                fld = list(set(fld) - set(['open','high','low','close']))
     
-            if len(symbols) <= 600 and len(symbols) > 0: 
-                exp1 = ''
-                for sb in symbols:
-                    s,e = self.tb.attrs['index'][sb].split(',')
-                    exp1 += '|((index>={})&(index<={}))'.format(s,e)    
-                    
-                exp = exp + '&' + '(' + exp1[1:] + ')'   
-     
-                data = self.tb.fetchwhere(exp,outcols=list(set(fld))).todataframe()
-                return data , "0,"
-           
-            elif len(symbols) > 600 and len(symbols) < 1800: 
-                
-                def func(start,end):
-                    if start < len(symbols):
-                        exp1 = ''
-                        for sb in symbols[start:end]:
-                            
-                            s,e = self.tb.attrs['index'][sb].split(',')
-                            exp1 += '|((index>={})&(index<={}))'.format(s,e)    
-                            
-                        exp2 = exp + '&' + '(' + exp1[1:] + ')'            
-                        df = self.tb.fetchwhere(exp2,outcols=list(set(fld))).todataframe()
-                        self.tb.free_cachemem()
-                        return df
-                
-                start_list = [0,600,1200]
-                end_list = [600,1200,1800]
-                data = pd.concat([func(start_list[i],end_list[i]) for i in range(len(start_list))])
-                return data , "0,"
-            else:
-                data = self.tb.fetchwhere(exp,outcols=list(set(fld))).todataframe()
-                return data , "0,"
-            
     def query_industry_raw(self, symbol_str, type_='ZZ', level=1):
         """
         Get daily industry of securities from ShenWanZhiShu or ZhongZhengZhiShu.
