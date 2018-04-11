@@ -856,20 +856,31 @@ class DataView(OriginDataView):
 
         print("Dataview loaded successfully.")
 
-    # def refresh_data(self, end_date=None, data_api=None):
-    #     if self.end_date < end_date:
-    #         if data_api is not None:
-    #             self.data_api = data_api
-    #         if self.data_api is None:
-    #             raise ValueError("You must provide the data_api to refresh data.")
-    #         start = self.end_date+1
-    #         end = end_date
-    #         fields = self.fields
-    #         tmp_dv = DataView()
-    #         tmp_dv.init_from_config(data_api=self.data_api,
-    #                                 props={
-    #                                     "start_date":start,
-    #                                     "end_date":end,
-    #                                     'fields':fields,
-    #                                     "adjust_mode":self.adjust_mode,
-    #                                 })
+    def refresh_data(self, end_date=None, data_api=None):
+        if self.end_date < end_date:
+            if data_api is not None:
+                self.data_api = data_api
+            if self.data_api is None:
+                raise ValueError("You must provide the data_api to refresh data.")
+            start = self.end_date
+            end = end_date
+            tmp_dv = DataView()
+            tmp_dv.init_from_config(data_api=self.data_api,
+                                    props={
+                                        "start_date":start,
+                                        "end_date":end,
+                                        "symbol":",".join(self.symbol),
+                                        'fields':",".join(self.fields),
+                                        "adjust_mode":self.adjust_mode,
+                                    })
+            tmp_dv.benchmark = self.benchmark
+            tmp_dv.universe = self.universe
+            tmp_dv.prepare_data()
+            if self.data_d is not None:
+                self.data_d = pd.concat([self.data_d,tmp_dv.data_d.loc[self.end_date+1:]],axis=0)
+            if self.data_q is not None:
+                self.data_q = pd.concat([self.data_q,tmp_dv.data_q.loc[self.end_date+1:]],axis=0)
+
+            if self.benchmark:
+                self._data_benchmark = pd.concat([self._data_benchmark,tmp_dv._data_benchmark.loc[self.end_date+1:]],axis=0)
+            self.end_date = end_date
