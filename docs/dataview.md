@@ -71,11 +71,11 @@ dv.prepare_data()
     Query data - query...
     NOTE: price adjust method is [post adjust]
     当前请求daily...
-    {'adjust_mode': None, 'fields': 'symbol,low_adj,high_adj,vwap,low,open,open_adj,trade_date,trade_status,close_adj,high,vwap_adj,close'}
+    {'adjust_mode': None, 'fields': 'symbol,open,high,low,close_adj,close,vwap,trade_date,high_adj,trade_status,open_adj,vwap_adj,low_adj'}
     当前请求daily...
-    {'adjust_mode': 'post', 'fields': 'symbol,low_adj,high_adj,vwap,low,open,open_adj,trade_date,trade_status,close_adj,high,vwap_adj,close'}
+    {'adjust_mode': 'post', 'fields': 'open,high,low,close,vwap,symbol,trade_date'}
     当前请求query_lb_dailyindicator...
-    {'fields': 'trade_date,pb,symbol,pe'}
+    {'fields': 'pb,pe,trade_date,symbol'}
     WARNING: some data is unavailable: 
         At fields 
     Query data - daily fields prepared.
@@ -85,7 +85,6 @@ dv.prepare_data()
     Query benchmark...
     Query benchmar member info...
     Query groups (industry)...
-    Field [sw1] is overwritten.
     Data has been successfully prepared.
 
 
@@ -104,7 +103,7 @@ dv.prepare_data()
 |adjust_mode |'post' |string |行情数据复权类型，默认后复权,目前只支持后复权|
 
 ### fields可选字段查询方式
-dataview的底层数据api提供了字段的文档，可供查阅。目前,只提供了**A股财务数据**的相关字段文档。更多品种、行情相关字段文档请关注[jaqs官方数据文档](http://jaqs.readthedocs.io/zh_CN/latest/)
+dataview的底层数据api提供了字段的文档，可供查阅。目前,只提供了**A股财务数据**的相关字段文档。更过品种、行情相关字段文档请关注[jaqs官方数据文档](http://jaqs.readthedocs.io/zh_CN/latest/)
 
 
 ```python
@@ -379,29 +378,27 @@ dv.fields
 
 
 
-    ['sw1',
-     'low_adj',
-     'high_adj',
-     'pe',
-     'quarter',
+    ['open',
      'low',
-     'oper_exp',
-     'open_adj',
-     'trade_status',
-     'close_adj',
-     'index_weight',
-     'pb',
-     'total_oper_rev',
-     'open',
-     'high',
-     '_limit',
      'ann_date',
-     'vwap',
      'vwap_adj',
-     'close',
-     'adjust_factor',
      'index_member',
-     '_daily_adjust_factor']
+     'pb',
+     'close_adj',
+     'total_oper_rev',
+     'high_adj',
+     'open_adj',
+     'pe',
+     'low_adj',
+     'high',
+     'adjust_factor',
+     'vwap',
+     'oper_exp',
+     'quarter',
+     'sw1',
+     'close',
+     'index_weight',
+     'trade_status']
 
 
 
@@ -425,7 +422,7 @@ dv._get_fields('quarterly',dv.fields) # 查询数据集的字段里有哪些是�
 
 
 
-    ['quarter', 'total_oper_rev', 'ann_date', 'oper_exp']
+    ['quarter', 'oper_exp', 'total_oper_rev', 'ann_date']
 
 
 
@@ -753,8 +750,6 @@ dv.data_d.head()
     </tr>
     <tr>
       <th>field</th>
-      <th>_daily_adjust_factor</th>
-      <th>_limit</th>
       <th>adjust_factor</th>
       <th>ann_date</th>
       <th>close</th>
@@ -763,6 +758,8 @@ dv.data_d.head()
       <th>high_adj</th>
       <th>index_member</th>
       <th>index_weight</th>
+      <th>low</th>
+      <th>low_adj</th>
       <th>...</th>
       <th>open_adj</th>
       <th>oper_exp</th>
@@ -803,8 +800,6 @@ dv.data_d.head()
   <tbody>
     <tr>
       <th>20170306</th>
-      <td>NaN</td>
-      <td>NaN</td>
       <td>100.523</td>
       <td>20161021.0</td>
       <td>9.45</td>
@@ -813,6 +808,8 @@ dv.data_d.head()
       <td>950.94758</td>
       <td>1.0</td>
       <td>0.008449</td>
+      <td>9.39</td>
+      <td>943.91097</td>
       <td>...</td>
       <td>15.685408</td>
       <td>0.0</td>
@@ -827,8 +824,6 @@ dv.data_d.head()
     </tr>
     <tr>
       <th>20170307</th>
-      <td>NaN</td>
-      <td>NaN</td>
       <td>100.523</td>
       <td>20161021.0</td>
       <td>9.45</td>
@@ -837,6 +832,8 @@ dv.data_d.head()
       <td>950.94758</td>
       <td>1.0</td>
       <td>0.008449</td>
+      <td>9.40</td>
+      <td>944.91620</td>
       <td>...</td>
       <td>15.974097</td>
       <td>0.0</td>
@@ -851,8 +848,6 @@ dv.data_d.head()
     </tr>
     <tr>
       <th>20170308</th>
-      <td>NaN</td>
-      <td>NaN</td>
       <td>100.523</td>
       <td>20161021.0</td>
       <td>9.42</td>
@@ -861,6 +856,8 @@ dv.data_d.head()
       <td>949.94235</td>
       <td>1.0</td>
       <td>0.008449</td>
+      <td>9.40</td>
+      <td>944.91620</td>
       <td>...</td>
       <td>15.557102</td>
       <td>0.0</td>
@@ -875,8 +872,6 @@ dv.data_d.head()
     </tr>
     <tr>
       <th>20170309</th>
-      <td>NaN</td>
-      <td>NaN</td>
       <td>100.523</td>
       <td>20161021.0</td>
       <td>9.38</td>
@@ -885,6 +880,8 @@ dv.data_d.head()
       <td>947.93189</td>
       <td>1.0</td>
       <td>0.008449</td>
+      <td>9.36</td>
+      <td>940.89528</td>
       <td>...</td>
       <td>15.781638</td>
       <td>0.0</td>
@@ -899,8 +896,6 @@ dv.data_d.head()
     </tr>
     <tr>
       <th>20170310</th>
-      <td>NaN</td>
-      <td>NaN</td>
       <td>100.523</td>
       <td>20161021.0</td>
       <td>9.40</td>
@@ -909,6 +904,8 @@ dv.data_d.head()
       <td>945.92143</td>
       <td>1.0</td>
       <td>0.008449</td>
+      <td>9.36</td>
+      <td>940.89528</td>
       <td>...</td>
       <td>15.525026</td>
       <td>0.0</td>
@@ -923,7 +920,7 @@ dv.data_d.head()
     </tr>
   </tbody>
 </table>
-<p>5 rows × 7590 columns</p>
+<p>5 rows × 6930 columns</p>
 </div>
 
 
@@ -996,7 +993,7 @@ dv.data_q.head()
       <th>total_oper_rev</th>
     </tr>
     <tr>
-      <th>report_date</th>
+      <th>trade_date</th>
       <th></th>
       <th></th>
       <th></th>
@@ -1624,7 +1621,7 @@ dv.get_ts_quarter('total_oper_rev').head()
       <th>603993.SH</th>
     </tr>
     <tr>
-      <th>report_date</th>
+      <th>trade_date</th>
       <th></th>
       <th></th>
       <th></th>
@@ -1795,7 +1792,308 @@ dv.data_api
 
 
 
-    <jaqs.data.dataservice.RemoteDataService at 0x7fa0d418f588>
+    <jaqs.data.dataservice.RemoteDataService at 0x7f3e5e3a5780>
+
+
+
+### refresh_data
+- ` jaqs_fxdayu.data.Dataview.refresh_data(end_date,data_api=None) `
+
+**简要描述：**
+
+- 将数据集中的数据更新至end_date
+- 自定义的数据（通过add_formula计算或append_df加入数据集的）无法更新
+
+**参数：**
+
+|参数名|必选|类型|说明|
+|:----    |:---|:----- |-----   |
+|end_date |是  |int|更新到的截止日期，如20180411|
+|data_api |否  |jaqs.data.dataservice.RemoteDataService|DataService远程数据服务类|
+
+**示例：**
+
+
+```python
+dv.get_ts("close").tail(2)
+```
+
+
+
+
+<div>
+<style>
+    .dataframe thead tr:only-child th {
+        text-align: right;
+    }
+
+    .dataframe thead th {
+        text-align: left;
+    }
+
+    .dataframe tbody tr th {
+        vertical-align: top;
+    }
+</style>
+<table border="1" class="dataframe">
+  <thead>
+    <tr style="text-align: right;">
+      <th>symbol</th>
+      <th>000001.SZ</th>
+      <th>000002.SZ</th>
+      <th>000008.SZ</th>
+      <th>000009.SZ</th>
+      <th>000027.SZ</th>
+      <th>000039.SZ</th>
+      <th>000060.SZ</th>
+      <th>000061.SZ</th>
+      <th>000063.SZ</th>
+      <th>000069.SZ</th>
+      <th>...</th>
+      <th>601988.SH</th>
+      <th>601989.SH</th>
+      <th>601992.SH</th>
+      <th>601997.SH</th>
+      <th>601998.SH</th>
+      <th>603000.SH</th>
+      <th>603160.SH</th>
+      <th>603858.SH</th>
+      <th>603885.SH</th>
+      <th>603993.SH</th>
+    </tr>
+    <tr>
+      <th>trade_date</th>
+      <th></th>
+      <th></th>
+      <th></th>
+      <th></th>
+      <th></th>
+      <th></th>
+      <th></th>
+      <th></th>
+      <th></th>
+      <th></th>
+      <th></th>
+      <th></th>
+      <th></th>
+      <th></th>
+      <th></th>
+      <th></th>
+      <th></th>
+      <th></th>
+      <th></th>
+      <th></th>
+      <th></th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr>
+      <th>20170928</th>
+      <td>10.88</td>
+      <td>26.41</td>
+      <td>8.62</td>
+      <td>8.99</td>
+      <td>6.47</td>
+      <td>18.18</td>
+      <td>12.05</td>
+      <td>9.03</td>
+      <td>28.15</td>
+      <td>8.19</td>
+      <td>...</td>
+      <td>4.14</td>
+      <td>6.21</td>
+      <td>6.17</td>
+      <td>14.70</td>
+      <td>6.31</td>
+      <td>13.81</td>
+      <td>93.71</td>
+      <td>67.59</td>
+      <td>14.40</td>
+      <td>7.76</td>
+    </tr>
+    <tr>
+      <th>20170929</th>
+      <td>11.11</td>
+      <td>26.25</td>
+      <td>9.03</td>
+      <td>8.99</td>
+      <td>6.45</td>
+      <td>18.15</td>
+      <td>12.13</td>
+      <td>8.82</td>
+      <td>28.30</td>
+      <td>8.17</td>
+      <td>...</td>
+      <td>4.12</td>
+      <td>6.21</td>
+      <td>6.35</td>
+      <td>14.71</td>
+      <td>6.30</td>
+      <td>13.84</td>
+      <td>95.44</td>
+      <td>67.76</td>
+      <td>14.45</td>
+      <td>7.84</td>
+    </tr>
+  </tbody>
+</table>
+<p>2 rows × 330 columns</p>
+</div>
+
+
+
+
+```python
+dv.refresh_data(20171201)
+dv.get_ts("close").tail(2)
+```
+
+    Field name [{'adjust_factor', 'quarter'}] not valid, ignore.
+    Initialize config success.
+    Query data...
+    Query data - query...
+    NOTE: price adjust method is [post adjust]
+    当前请求daily...
+    {'adjust_mode': None, 'fields': 'symbol,open,index_weight,high,low,close_adj,low_adj,vwap,close,trade_date,high_adj,trade_status,open_adj,vwap_adj,index_member'}
+    当前请求daily...
+    {'adjust_mode': 'post', 'fields': 'open,high,low,close,vwap,symbol,trade_date'}
+    当前请求query_lb_dailyindicator...
+    {'fields': 'pb,pe,trade_date,symbol'}
+    WARNING: some data is unavailable: 
+        At fields 
+    Query data - daily fields prepared.
+    Query data - quarterly fields prepared.
+    Query instrument info...
+    Query adj_factor...
+    Query benchmark...
+    Query benchmar member info...
+    Field [index_member] is overwritten.
+    Field [index_weight] is overwritten.
+    Query groups (industry)...
+    Data has been successfully prepared.
+
+
+
+
+
+<div>
+<style>
+    .dataframe thead tr:only-child th {
+        text-align: right;
+    }
+
+    .dataframe thead th {
+        text-align: left;
+    }
+
+    .dataframe tbody tr th {
+        vertical-align: top;
+    }
+</style>
+<table border="1" class="dataframe">
+  <thead>
+    <tr style="text-align: right;">
+      <th>symbol</th>
+      <th>000001.SZ</th>
+      <th>000002.SZ</th>
+      <th>000008.SZ</th>
+      <th>000009.SZ</th>
+      <th>000027.SZ</th>
+      <th>000039.SZ</th>
+      <th>000060.SZ</th>
+      <th>000061.SZ</th>
+      <th>000063.SZ</th>
+      <th>000069.SZ</th>
+      <th>...</th>
+      <th>601988.SH</th>
+      <th>601989.SH</th>
+      <th>601992.SH</th>
+      <th>601997.SH</th>
+      <th>601998.SH</th>
+      <th>603000.SH</th>
+      <th>603160.SH</th>
+      <th>603858.SH</th>
+      <th>603885.SH</th>
+      <th>603993.SH</th>
+    </tr>
+    <tr>
+      <th>trade_date</th>
+      <th></th>
+      <th></th>
+      <th></th>
+      <th></th>
+      <th></th>
+      <th></th>
+      <th></th>
+      <th></th>
+      <th></th>
+      <th></th>
+      <th></th>
+      <th></th>
+      <th></th>
+      <th></th>
+      <th></th>
+      <th></th>
+      <th></th>
+      <th></th>
+      <th></th>
+      <th></th>
+      <th></th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr>
+      <th>20171130</th>
+      <td>13.38</td>
+      <td>31.22</td>
+      <td>8.48</td>
+      <td>7.60</td>
+      <td>6.12</td>
+      <td>19.49</td>
+      <td>10.83</td>
+      <td>7.69</td>
+      <td>33.08</td>
+      <td>8.89</td>
+      <td>...</td>
+      <td>3.93</td>
+      <td>6.16</td>
+      <td>5.93</td>
+      <td>14.39</td>
+      <td>6.36</td>
+      <td>12.15</td>
+      <td>111.66</td>
+      <td>54.66</td>
+      <td>13.43</td>
+      <td>7.07</td>
+    </tr>
+    <tr>
+      <th>20171201</th>
+      <td>13.00</td>
+      <td>30.73</td>
+      <td>8.59</td>
+      <td>7.58</td>
+      <td>6.10</td>
+      <td>19.81</td>
+      <td>10.92</td>
+      <td>7.72</td>
+      <td>33.56</td>
+      <td>8.85</td>
+      <td>...</td>
+      <td>3.92</td>
+      <td>6.12</td>
+      <td>5.92</td>
+      <td>14.35</td>
+      <td>6.39</td>
+      <td>12.23</td>
+      <td>110.46</td>
+      <td>54.47</td>
+      <td>13.17</td>
+      <td>7.10</td>
+    </tr>
+  </tbody>
+</table>
+<p>2 rows × 330 columns</p>
+</div>
 
 
 
@@ -2047,9 +2345,9 @@ dv.add_field("volume")
     Query data - query...
     NOTE: price adjust method is [post adjust]
     当前请求daily...
-    {'adjust_mode': None, 'fields': 'symbol,vwap,low,open,trade_date,trade_status,high,volume,close'}
+    {'adjust_mode': None, 'fields': 'symbol,close,vwap,volume,trade_date,open,low,high,trade_status'}
     当前请求daily...
-    {'adjust_mode': 'post', 'fields': 'symbol,vwap,low,open,trade_date,trade_status,high,volume,close'}
+    {'adjust_mode': 'post', 'fields': 'symbol,close,vwap,volume,trade_date,open,low,high,trade_status'}
     Query data - daily fields prepared.
 
 
@@ -2493,7 +2791,8 @@ dv.add_formula("momentum", "Return(close_adj, 20)", is_quarterly=False).head()
 
 
 ```python
-dv.add_formula("momentum", "Return(close_adj, 20)", is_quarterly=False, add_data=True).head()
+dv.add_formula("momentum", "Return(close_adj, 20)", is_quarterly=False, add_data=True)
+dv.get_ts("momentum").head()
 ```
 
 
@@ -3582,7 +3881,7 @@ dv.get_ts_quarter("d-roe").dropna().head() # 查询季度数据
       <th>603993.SH</th>
     </tr>
     <tr>
-      <th>report_date</th>
+      <th>trade_date</th>
       <th></th>
       <th></th>
       <th></th>
