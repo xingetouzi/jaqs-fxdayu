@@ -322,7 +322,7 @@ class LocalDataService():
         def func(df,symbol):
             s,e = index[symbol].split(',')
             begin = int(s) + _s
-            finish = int(s) + _e
+            finish = int(s) + _e + 1
             return df[begin:finish]
             
         res = {}
