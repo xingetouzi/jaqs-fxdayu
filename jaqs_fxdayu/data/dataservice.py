@@ -6,7 +6,7 @@ import bcolz
 import numpy as np
 import pandas as pd
 import sqlite3 as sql
-from jaqs.data import align
+from jaqs.data.align import align
 import jaqs.util as jutil
 
 class LocalDataService():
@@ -195,9 +195,11 @@ class LocalDataService():
         data = pd.DataFrame([list(i) for i in self.c.fetchall()],columns = fields.split(','))
         return data.set_index('symbol')   
     
+    def query_lb_dailyindicator(self, symbol, start_date, end_date, fields=""):
+        return self.daily(symbol, start_date, end_date,fields = fields)
 
     def query_adj_factor_daily(self, symbol_str, start_date, end_date, div=False):
-        return self.daily(symbol_str, start_date, end_date,field = 'adjust_factor')
+        return self.daily(symbol_str, start_date, end_date,fields = 'adjust_factor')
 
 
     def query_index_weights_range(self, index, start_date, end_date):
@@ -423,7 +425,7 @@ class LocalDataService():
 
         dates_arr = self.query_trade_dates(start_date, end_date)
         
-        df_industry = align.align(df_value, df_ann, dates_arr) 
+        df_industry = align(df_value, df_ann, dates_arr) 
         
         # TODO before industry classification is available, we assume they belong to their first group.
         df_industry = df_industry.fillna(method='bfill')

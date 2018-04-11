@@ -5,13 +5,12 @@ import pandas as pd
 from jaqs import util as jutil
 from jaqs.data.align import align
 from jaqs.data.dataview import DataView as OriginDataView, EventDataView
-from jaqs.data.dataservice import RemoteDataService
 from jaqs.data.dataapi import DataApi
-from jaqs.data.py_expression_eval import Parser
 
 from jaqs_fxdayu.data.search_doc import FuncDoc
 from jaqs_fxdayu.patch_util import auto_register_patch
-#from jaqs_fxdayu.data.dataservice import LocalDataService
+from jaqs_fxdayu.data.dataservice import LocalDataService,RemoteDataService
+from jaqs_fxdayu.data.py_expression_eval import Parser
 
 try:
     basestring
@@ -33,11 +32,10 @@ def get_api(data_api):
         raise TypeError("Type of data_api should be jaqs.data.RemoteDataService or jaqs.data.DataApi or ")
 
 
-# def quick_concat(dfs, level, index_name="trade_date"):
-#     joined_index = pd.Index(np.concatenate([df.index.values for df in dfs]), name=index_name).sort_values().drop_duplicates()
-#     joined_columns = pd.MultiIndex.from_tuples(np.concatenate([df.columns.values for df in dfs]), names=level)
-#     result = [pd.DataFrame(df, joined_index).values for df in dfs]
-#     return pd.DataFrame(np.concatenate(result, axis=1), joined_index, joined_columns)
+# def quick_concat(dfs, level, index_name="trade_date"): joined_index = pd.Index(np.concatenate([df.index.values for
+# df in dfs]), name=index_name).sort_values().drop_duplicates() joined_columns = pd.MultiIndex.from_tuples(
+# np.concatenate([df.columns.values for df in dfs]), names=level) result = [pd.DataFrame(df, joined_index).values for
+#  df in dfs] return pd.DataFrame(np.concatenate(result, axis=1), joined_index, joined_columns)
 from jaqs_fxdayu.util.concat import quick_concat
 
 
@@ -375,6 +373,8 @@ class DataView(OriginDataView):
         print("Query data...")
         data_d, data_q = self._prepare_daily_quarterly(self.fields)
         self.data_d, self.data_q = data_d, data_q
+        if self.data_d is None:
+            self.data_d, _ = self._prepare_daily_quarterly(["trade_status"])
         if self.data_q is not None:
             self._prepare_report_date()
         self._align_and_merge_q_into_d()
@@ -462,12 +462,19 @@ class DataView(OriginDataView):
 
         if self._is_daily_field(field_name):
             if self.data_d is None:
-                raise ValueError("Please prepare [{:s}] first.".format(field_name))
+                self.data_d, _ = self._prepare_daily_quarterly(["trade_status"])
+                self._add_field("trade_status")
             merge, _ = self._prepare_daily_quarterly([field_name])
             is_quarterly = False
         else:
             if self.data_q is None:
-                raise ValueError("Please prepare [{:s}] first.".format(field_name))
+                _, self.data_q = self._prepare_daily_quarterly(["ann_date"])
+                self._add_field("ann_date")
+                self._prepare_report_date()
+                if self.data_d is None:
+                    self.data_d, _ = self._prepare_daily_quarterly(["trade_status"])
+                    self._add_field("trade_status")
+                self._align_and_merge_q_into_d()
             _, merge = self._prepare_daily_quarterly([field_name])
             is_quarterly = True
 
@@ -833,3 +840,56 @@ class DataView(OriginDataView):
     def func_doc(self):
         search = FuncDoc()
         return search
+
+    def load_dataview(self, folder_path='.', *args, **kwargs):
+        """
+        Load data from local file.
+        Parameters
+        ----------
+        folder_path : str or unicode, optional
+            Folder path to store hd5 file and meta data.
+        """
+
+        path_meta_data = os.path.join(folder_path, 'meta_data.json')
+        path_data = os.path.join(folder_path, 'data.hd5')
+        if not (os.path.exists(path_meta_data) and os.path.exists(path_data)):
+            raise IOError("There is no data file under directory {}".format(folder_path))
+
+        meta_data = jutil.read_json(path_meta_data)
+        dic = self._load_h5(path_data)
+        self.data_d = dic.get('/data_d', None)
+        self.data_q = dic.get('/data_q', None)
+        self._data_benchmark = dic.get('/data_benchmark', None)
+        self._data_inst = dic.get('/data_inst', None)
+        self.__dict__.update(meta_data)
+
+        print("Dataview loaded successfully.")
+
+    def refresh_data(self, end_date=None, data_api=None):
+        if self.end_date < end_date:
+            if data_api is not None:
+                self.data_api = data_api
+            if self.data_api is None:
+                raise ValueError("You must provide the data_api to refresh data.")
+            start = self.end_date
+            end = end_date
+            tmp_dv = DataView()
+            tmp_dv.init_from_config(data_api=self.data_api,
+                                    props={
+                                        "start_date":start,
+                                        "end_date":end,
+                                        "symbol":",".join(self.symbol),
+                                        'fields':",".join(self.fields),
+                                        "adjust_mode":self.adjust_mode,
+                                    })
+            tmp_dv.benchmark = self.benchmark
+            tmp_dv.universe = self.universe
+            tmp_dv.prepare_data()
+            if self.data_d is not None:
+                self.data_d = pd.concat([self.data_d,tmp_dv.data_d.loc[self.end_date+1:]],axis=0)
+            if self.data_q is not None:
+                self.data_q = pd.concat([self.data_q,tmp_dv.data_q.loc[self.end_date+1:]],axis=0)
+
+            if self.benchmark:
+                self._data_benchmark = pd.concat([self._data_benchmark,tmp_dv._data_benchmark.loc[self.end_date+1:]],axis=0)
+            self.end_date = end_date
