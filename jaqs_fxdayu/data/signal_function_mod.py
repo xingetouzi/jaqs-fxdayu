@@ -2,8 +2,6 @@
 
 import pandas as pd
 import numpy as np
-from talib import abstract
-
 
 # talib函数库,自动剔除为空的日期,用于计算signal
 def ta(ta_method='MA',
@@ -15,7 +13,10 @@ def ta(ta_method='MA',
        Volume=None,
        *args,
        **kwargs):
-
+    try:
+        from talib import abstract
+    except ImportError:
+        raise RuntimeError("如要在公式中使用talib相关函数,请先安装talib.")
     if not isinstance(ta_method, str):
         raise ValueError("格式错误!Ta方法需指定调用的talib函数名(str),检测到传入的为%s,需要传入str" % (type(ta_method)))
     else:
