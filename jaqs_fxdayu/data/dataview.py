@@ -553,7 +553,7 @@ class DataView(OriginDataView):
         # the_data = apply_in_subprocess(pd.merge, args=(the_data, df),
         #                            kwargs={'left_index': True, 'right_index': True, 'how': 'left'})  # runs in *only* one process
         # the_data = pd.merge(the_data, df, left_index=True, right_index=True, how='left')
-        the_data = quick_concat([the_data, df], ["symbol", "field"], how="inner")
+        the_data = quick_concat([the_data, df.reindex(the_data.index)], ["symbol", "field"], how="inner")
         the_data = the_data.sort_index(axis=1)
         # merge = the_data.join(df, how='left')  # left: keep index of existing data unchanged
         # sort_columns(the_data)
@@ -574,7 +574,7 @@ class DataView(OriginDataView):
                 return
         self.append_df(df, field_name, is_quarterly=True)
         df_ann = self._get_ann_df()
-        df_expanded = align(df, df_ann, self.dates)
+        df_expanded = align(df.reindex(df_ann.index), df_ann, self.dates)
         self.append_df(df_expanded, field_name, is_quarterly=False)
 
     def add_comp_info(self, index, data_api=None):
@@ -804,13 +804,14 @@ class DataView(OriginDataView):
                     if not success:
                         return
 
+        all_quarterly=True
         for var in var_list:
-            if self._is_quarter_field(var):
+            if self._is_quarter_field(var) and is_quarterly:
                 df_var = self.get_ts_quarter(var, start_date=self.extended_start_date_q)
             else:
                 # must use extended date. Default is start_date
                 df_var = self.get_ts(var, start_date=self.extended_start_date_d, end_date=self.end_date)
-
+                all_quarterly=False
             var_df_dic[var] = df_var
 
         # TODO: send ann_date into expr.evaluate. We assume that ann_date of all fields of a symbol is the same
@@ -824,14 +825,14 @@ class DataView(OriginDataView):
             df_eval = parser.evaluate(var_df_dic, ann_dts=df_ann, trade_dts=self.dates)
 
         if add_data:
-            if is_quarterly:
+            if all_quarterly:
                 self.append_df_quarter(df_eval, field_name)
             else:
                 self.append_df(df_eval, field_name, is_quarterly=False)
 
-        if is_quarterly:
+        if all_quarterly:
             df_ann = self._get_ann_df()
-            df_expanded = align(df_eval, df_ann, self.dates)
+            df_expanded = align(df_eval.reindex(df_ann.index), df_ann, self.dates)
             return df_expanded.loc[self.start_date:self.end_date]
         else:
             return df_eval.loc[self.start_date:self.end_date]

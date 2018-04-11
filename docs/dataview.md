@@ -2574,7 +2574,7 @@ dv.get_ts("volume").head()
 |:----    |:---|:----- |-----   |
 |field_name|是  |string|自定义的因子名称|
 |formula |是  |string|因子表达式|
-|is_quarterly |是  |bool| (最终结果)是否是季度数据|
+|is_quarterly |是  |bool|公式中的季度数据是否按季频周期提取（若为True，则季度数据时间序列相关计算在季频下进行，否则处理到日频下进行计算。日频数据不会受此参数影响）|
 |add_data |否  |bool|是否将最终结果添加到dataview数据集中，默认不添加|
 |overwrite |否  |bool|若因子名称(field_name)与数据集中已有的字段冲突，是否覆盖。仅在add_data=True时生效，默认覆盖|
 |formula_func_name_style |否 |string {'upper', 'lower'， 'camel'}|表达式中用到的函数名大小写规则,默认为'camel'|
