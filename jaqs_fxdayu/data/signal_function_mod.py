@@ -2,6 +2,7 @@
 
 import pandas as pd
 import numpy as np
+import warnings
 
 # talib函数库,自动剔除为空的日期,用于计算signal
 def ta(ta_method='MA',
@@ -31,11 +32,9 @@ def ta(ta_method='MA',
 
     waiting_for_pop = []
     for candle_type in candle_dict.keys():
-        if candle_dict[candle_type] is None:
+        if not isinstance(candle_dict[candle_type], pd.DataFrame):
             waiting_for_pop.append(candle_type)
             continue
-        if not (isinstance(candle_dict[candle_type], pd.DataFrame)):
-            raise ValueError("%s需要的格式为pandas.Dataframe,此处为%s."%(candle_type,type(candle_dict[candle_type])))
         if candle_dict[candle_type].size == 0:
             raise ValueError("%s为空,请检查对应的传入数据." % (candle_type, ))
     # 剔除K线数据中的None
@@ -48,7 +47,7 @@ def ta(ta_method='MA',
     for sec in candle_pannel.minor_axis:
         df = candle_pannel.minor_xs(sec).dropna()
         if len(df) == 0:
-            print("%s数据缺失严重,无法完成指标计算,请检查是否存在数据问题." % (sec,))
+            warnings.warn("%s数据缺失严重,无法完成指标计算,请检查是否存在数据问题." % (sec,))
             continue
         result = pd.DataFrame(getattr(abstract, ta_method)(df, *args, **kwargs))
 
