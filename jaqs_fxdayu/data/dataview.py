@@ -373,6 +373,8 @@ class DataView(OriginDataView):
         print("Query data...")
         data_d, data_q = self._prepare_daily_quarterly(self.fields)
         self.data_d, self.data_q = data_d, data_q
+        if self.data_d is None:
+            self.data_d, _ = self._prepare_daily_quarterly(["trade_status"])
         if self.data_q is not None:
             self._prepare_report_date()
         self._align_and_merge_q_into_d()
@@ -460,12 +462,19 @@ class DataView(OriginDataView):
 
         if self._is_daily_field(field_name):
             if self.data_d is None:
-                raise ValueError("Please prepare [{:s}] first.".format(field_name))
+                self.data_d, _ = self._prepare_daily_quarterly(["trade_status"])
+                self._add_field("trade_status")
             merge, _ = self._prepare_daily_quarterly([field_name])
             is_quarterly = False
         else:
             if self.data_q is None:
-                raise ValueError("Please prepare [{:s}] first.".format(field_name))
+                _, self.data_q = self._prepare_daily_quarterly(["ann_date"])
+                self._add_field("ann_date")
+                self._prepare_report_date()
+                if self.data_d is None:
+                    self.data_d, _ = self._prepare_daily_quarterly(["trade_status"])
+                    self._add_field("trade_status")
+                self._align_and_merge_q_into_d()
             _, merge = self._prepare_daily_quarterly([field_name])
             is_quarterly = True
 
