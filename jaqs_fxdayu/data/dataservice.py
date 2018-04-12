@@ -196,7 +196,23 @@ class LocalDataService():
         return data.set_index('symbol')   
     
     def query_lb_dailyindicator(self, symbol, start_date, end_date, fields=""):
-        return self.daily(symbol, start_date, end_date,fields = fields)
+        special_fields = set(['pb','pe','ps'])
+        field = fields.split(',')
+        sf = list(set(field)&special_fields)
+        
+        dic = {}
+        if sf:      
+            bz_sf = [i + '_' for i in sf]
+            for i in range(len(sf)):
+               field.remove(sf[i])
+               field.append(bz_sf[i])
+               dic[bz_sf[i]] = sf[i]
+               
+            df , msg = self.daily(symbol, start_date, end_date,fields = field)
+            df = df.rename(dic,axis=1)
+            return df ,msg
+        else:    
+            return self.daily(symbol, start_date, end_date,fields = fields)
 
     def query_adj_factor_daily(self, symbol_str, start_date, end_date, div=False):
         return self.daily(symbol_str, start_date, end_date,fields = 'adjust_factor')
