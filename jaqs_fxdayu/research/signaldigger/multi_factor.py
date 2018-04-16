@@ -568,38 +568,39 @@ def combine_factors(factors_dict=None,
             if _props['low'] is None:
                 raise ValueError("您需要在配置props中提供low")
 
-        # 此处计算的ic,用到的因子值是shift(1)后的
-        # t日ic计算逻辑:t-1的因子数据，t日决策买入，t+n天后卖出对应的ic
-        ic_df = get_factors_ic_df(factors_dict=factors_dict,
-                                  **_props)
-        if weighted_method == 'max_IR':
-            return max_IR_weight(ic_df,
-                                 _props['period'],
-                                 _props["rollback_period"],
-                                 _props["covariance_type"])
-        elif weighted_method == "ic_weight":
-            return ic_weight(ic_df,
-                             _props['period'],
-                             _props["rollback_period"])
-        elif weighted_method == "ir_weight":
-            return ir_weight(ic_df,
-                             _props['period'],
-                             _props["rollback_period"])
-        elif weighted_method == "max_IC":
-            # 计算t期因子ic用的是t-1期因子，所以要把因子数据shift(1)
-            shift_factors = {
-                factor_name: factors_dict[factor_name].shift(1) for factor_name in factors_dict.keys()
-            }
-            return max_IC_weight(ic_df,
-                                 shift_factors,
-                                 _props['period'],
-                                 _props["covariance_type"])
-        elif weighted_method == "factors_ret_weight":
+        if weighted_method == "factors_ret_weight":
             factors_ret = get_factors_ret_df(factors_dict=factors_dict,
                                              **_props)
             return factors_ret_weight(factors_ret,
                                       _props['period'],
                                       _props["rollback_period"])
+        else:
+            # 此处计算的ic,用到的因子值是shift(1)后的
+            # t日ic计算逻辑:t-1的因子数据，t日决策买入，t+n天后卖出对应的ic
+            ic_df = get_factors_ic_df(factors_dict=factors_dict,
+                                      **_props)
+            if weighted_method == 'max_IR':
+                return max_IR_weight(ic_df,
+                                     _props['period'],
+                                     _props["rollback_period"],
+                                     _props["covariance_type"])
+            elif weighted_method == "ic_weight":
+                return ic_weight(ic_df,
+                                 _props['period'],
+                                 _props["rollback_period"])
+            elif weighted_method == "ir_weight":
+                return ir_weight(ic_df,
+                                 _props['period'],
+                                 _props["rollback_period"])
+            elif weighted_method == "max_IC":
+                # 计算t期因子ic用的是t-1期因子，所以要把因子数据shift(1)
+                shift_factors = {
+                    factor_name: factors_dict[factor_name].shift(1) for factor_name in factors_dict.keys()
+                }
+                return max_IC_weight(ic_df,
+                                     shift_factors,
+                                     _props['period'],
+                                     _props["covariance_type"])
 
     def sum_weighted_factors(x, y):
         return x + y

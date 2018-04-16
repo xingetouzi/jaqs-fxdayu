@@ -1,3 +1,4 @@
+
 # multi_factor
 
 ## 介绍
@@ -276,7 +277,7 @@ new_factors["pe"].head()
 |low |否  |pandas.DataFrame|因子涉及到的股票的最低价数据,用于计算持有期潜在最大下跌收益,日期为索引，股票品种为columns,默认为空|
 |group |否  |pandas.DataFrame|因子涉及到的股票的分组(行业分类),日期为索引，股票品种为columns,默认为空|
 |period |否  |int|持有周期,默认为5,即持有5天|
-|n_quantiles |否  |int|根据每日因子值的大小分成n_quantiles组,默认为5,即将因子每天分成5组|
+|quantiles |否  |int|根据每日因子值的大小分成quantiles组,默认为5,即将因子每天分成5组|
 |mask |否  |pandas.DataFrame|一张由bool值组成的表格,日期为索引，股票品种为columns，表示在做因子分析时是否要对某期的某个品种过滤。对应位置为True则**过滤**（剔除）——不纳入因子分析考虑。默认为空，不执行过滤操作|
 |can_enter |否  |pandas.DataFrame|一张由bool值组成的表格,日期为索引，股票品种为columns，表示某期的某个品种是否可以买入(进场)。对应位置为True则可以买入。默认为空，任何时间任何品种均可买入|
 |can_exit |否  |pandas.DataFrame|一张由bool值组成的表格,日期为索引，股票品种为columns，表示某期的某个品种是否可以卖出(出场)。对应位置为True则可以卖出。默认为空，任何时间任何品种均可卖出|
@@ -314,7 +315,7 @@ factor_ic_df = get_factors_ic_df(factors_dict,
                                  high=dv.get_ts("high_adj"), # 可为空
                                  low=dv.get_ts("low_adj"),# 可为空
                                  group=dv.get_ts("sw1"), # 可为空
-                                 n_quantiles=5,# quantile分类数
+                                 quantiles=5,# quantile分类数
                                  period=5,# 持有期
                                  benchmark_price=dv.data_benchmark, # 基准价格 可不传入，持有期收益（return）计算为绝对收益
                                  commission = 0.0008,
@@ -392,6 +393,136 @@ factor_ic_df.dropna(how="all").head()
 
 
 
+## get_factors_ret_df
+- ` jaqs_fxdayu.research.signaldigger.multi_factor.get_factors_ret_df(*args, **kwargs) `
+
+**简要描述：**
+
+-  获取多个因子收益序列矩阵
+
+**参数:**
+
+|字段|必选|类型|说明|
+|:----    |:---|:----- |-----   |
+|factors_dict|是|dict of pandas.DataFrame | 若干因子组成的字典(dict),形式为:{"factor_name_1":factor_1,"factor_name_2":factor_2}。每个因子值格式为一个pd.DataFrame，索引(index)为date,column为asset|
+|price |是|pandas.DataFrame|因子涉及到的股票的价格数据，用于作为进出场价用于计算收益,日期为索引，股票品种为columns|
+|benchmark_price | 否  |pandas.DataFrame or pandas.Series|基准价格，日期为索引。在price参数不为空的情况下，该参数生效，用于计算因子涉及到的股票的持有期**相对收益**--相对基准。默认为空，为空时计算的收益为**绝对收益**。|
+|high |否  |pandas.DataFrame|因子涉及到的股票的最高价数据,用于计算持有期潜在最大上涨收益,日期为索引，股票品种为columns,默认为空|
+|low |否  |pandas.DataFrame|因子涉及到的股票的最低价数据,用于计算持有期潜在最大下跌收益,日期为索引，股票品种为columns,默认为空|
+|group |否  |pandas.DataFrame|因子涉及到的股票的分组(行业分类),日期为索引，股票品种为columns,默认为空|
+|period |否  |int|持有周期,默认为5,即持有5天|
+|quantiles |否  |int|根据每日因子值的大小分成quantiles组,默认为5,即将因子每天分成5组|
+|mask |否  |pandas.DataFrame|一张由bool值组成的表格,日期为索引，股票品种为columns，表示在做因子分析时是否要对某期的某个品种过滤。对应位置为True则**过滤**（剔除）——不纳入因子分析考虑。默认为空，不执行过滤操作|
+|can_enter |否  |pandas.DataFrame|一张由bool值组成的表格,日期为索引，股票品种为columns，表示某期的某个品种是否可以买入(进场)。对应位置为True则可以买入。默认为空，任何时间任何品种均可买入|
+|can_exit |否  |pandas.DataFrame|一张由bool值组成的表格,日期为索引，股票品种为columns，表示某期的某个品种是否可以卖出(出场)。对应位置为True则可以卖出。默认为空，任何时间任何品种均可卖出|
+|forward |否  |bool|收益对齐方式,forward=True则在当期因子下对齐下一期实现的收益；forward=False则在当期实现收益下对齐上一期的因子值。默认为True|
+|commission |否 |float|手续费比例,每次换仓收取的手续费百分比,默认为万分之八0.0008|
+|ret_type |否 |string|计算何种收益的ic。目前支持的收益类型有return, upside_ret, downside_ret,分别代表固定调仓收益,潜在最大上涨收益,潜在最大下跌收益。默认为return--固定调仓收益|
+
+**返回:**
+
+ret_df 多个因子收益序列矩阵
+类型pd.Dataframe,索引（index）为datetime,columns为各因子名称，与factors_dict中的对应。
+如：
+
+```
+
+         BP	　　　     CFP	　　　EP	　　ILLIQUIDITY	REVS20	　　SRMI	　　　VOL20
+date
+2016-06-24	0.165260	0.002198	0.085632	-0.078074	0.173832	0.214377	0.068445
+2016-06-27	0.165537	0.003583	0.063299	-0.048674	0.180890	0.202724	0.081748
+2016-06-28	0.135215	0.010403	0.059038	-0.034879	0.111691	0.122554	0.042489
+2016-06-29	0.068774	0.019848	0.058476	-0.049971	0.042805	0.053339	0.079592
+2016-06-30	0.039431	0.012271	0.037432	-0.027272	0.010902	0.077293	-0.050667
+```
+
+
+
+**示例：**
+
+
+```python
+from jaqs_fxdayu.research.signaldigger.multi_factor import get_factors_ret_df
+
+factor_ret_df = get_factors_ret_df(factors_dict,
+                                   price=dv.get_ts("close_adj"),
+                                   high=dv.get_ts("high_adj"), # 可为空
+                                   low=dv.get_ts("low_adj"),# 可为空
+                                   group=dv.get_ts("sw1"), # 可为空
+                                   quantiles=5,# quantile分类数
+                                   period=5,# 持有期
+                                   benchmark_price=dv.data_benchmark, # 基准价格 可不传入，持有期收益（return）计算为绝对收益
+                                   commission = 0.0008,
+                                   ret_type = 'downside_ret' # 计算最大潜在下跌收益的因子收益 
+                                 )
+factor_ret_df.dropna(how="all").head()
+```
+
+
+
+
+<div>
+<style>
+    .dataframe thead tr:only-child th {
+        text-align: right;
+    }
+
+    .dataframe thead th {
+        text-align: left;
+    }
+
+    .dataframe tbody tr th {
+        vertical-align: top;
+    }
+</style>
+<table border="1" class="dataframe">
+  <thead>
+    <tr style="text-align: right;">
+      <th></th>
+      <th></th>
+      <th>pb</th>
+      <th>pe</th>
+    </tr>
+    <tr>
+      <th>trade_date</th>
+      <th>group</th>
+      <th></th>
+      <th></th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr>
+      <th rowspan="5" valign="top">20170503</th>
+      <th>110000</th>
+      <td>-0.029078</td>
+      <td>0.000052</td>
+    </tr>
+    <tr>
+      <th>210000</th>
+      <td>-0.010770</td>
+      <td>-0.000389</td>
+    </tr>
+    <tr>
+      <th>220000</th>
+      <td>-0.005822</td>
+      <td>-0.000566</td>
+    </tr>
+    <tr>
+      <th>230000</th>
+      <td>-0.058078</td>
+      <td>0.000080</td>
+    </tr>
+    <tr>
+      <th>240000</th>
+      <td>-0.041450</td>
+      <td>0.000142</td>
+    </tr>
+  </tbody>
+</table>
+</div>
+
+
+
 ## combine_factors
 - ` jaqs_fxdayu.research.signaldigger.multi_factor.combine_factors(*args, **kwargs) `
 
@@ -420,7 +551,7 @@ factor_ic_df.dropna(how="all").head()
 |ret_type |否 |string|计算何种收益的ic。目前支持的收益类型有return, upside_ret, downside_ret,分别代表固定调仓收益,潜在最大上涨收益,潜在最大下跌收益。默认为return--固定调仓收益|
 |benchmark_price | 否  |pandas.DataFrame or pandas.Series|基准价格，日期为索引。在price参数不为空的情况下，该参数生效，用于计算因子涉及到的股票的持有期**相对收益**--相对基准。默认为空，为空时计算的收益为**绝对收益**。|
 |period |否  |int|持有周期,默认为5,即持有5天|
-|n_quantiles |否  |int|根据每日因子值的大小分成n_quantiles组,默认为5,即将因子每天分成5组|
+|quantiles |否  |int|根据每日因子值的大小分成quantiles组,默认为5,即将因子每天分成5组|
 |mask |否  |pandas.DataFrame|一张由bool值组成的表格,日期为索引，股票品种为columns，表示在做因子分析时是否要对某期的某个品种过滤。对应位置为True则**过滤**（剔除）——不纳入因子分析考虑。默认为空，不执行过滤操作|
 |can_enter |否  |pandas.DataFrame|一张由bool值组成的表格,日期为索引，股票品种为columns，表示某期的某个品种是否可以买入(进场)。对应位置为True则可以买入。默认为空，任何时间任何品种均可买入|
 |can_exit |否  |pandas.DataFrame|一张由bool值组成的表格,日期为索引，股票品种为columns，表示某期的某个品种是否可以卖出(出场)。对应位置为True则可以卖出。默认为空，任何时间任何品种均可卖出|

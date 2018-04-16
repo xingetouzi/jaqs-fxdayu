@@ -123,12 +123,14 @@ from jaqs_fxdayu.research import Optimizer
 [详细文档地址](http://jaqs-fxdayu.readthedocs.io/zh_CN/latest/)
 
 ## 最新功能
+### 2018/4/16
+新增multi_factor-get_factors_ret_df,用于获取因子收益序列矩阵．同时，combine_factors新增基于最近一段时间的因子收益进行多因子加权组合的方法．
 
 ### 2018/4/11
-新增dataview-refresh_data方法,可对数据集进行更新
+新增dataview-refresh_data方法,可对数据集进行更新．
 
 ### 2018/3/26
-新增dataservice文档.dataservice是对jaqs底层dataapi的一个高级封装，提供了一些常用数据的快捷查询方法——如K线、交易日历、指数成分信息、行业分类信息等 
+新增dataservice文档.dataservice是对jaqs底层dataapi的一个高级封装，提供了一些常用数据的快捷查询方法——如K线、交易日历、指数成分信息、行业分类信息等。 
 
 ### 2018/3/26
 
