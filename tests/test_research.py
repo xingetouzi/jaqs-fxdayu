@@ -212,7 +212,7 @@ def test_multi_factor():
         "rollback_period": 120}  # 滚动窗口天数
 
     comb_factors = dict()
-    for method in ["equal_weight", "ic_weight", "ir_weight", "max_IR", "max_IC"]:
+    for method in ["equal_weight", "ic_weight", "ir_weight", "max_IR", "max_IC", "factors_ret_weight"]:
         comb_factors[method] = multi_factor.combine_factors(factor_dict,
                                                             standardize_type="rank",
                                                             winsorization=False,
