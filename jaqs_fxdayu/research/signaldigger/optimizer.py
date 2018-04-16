@@ -5,6 +5,8 @@
 from itertools import product
 from .analysis import analysis
 from .signal_creator import SignalCreator
+import warnings
+import pandas as pd
 
 target_types = {
     'factor': {
@@ -155,7 +157,7 @@ class Optimizer(object):
             raise ValueError("优化空间参数不符合格式要求:如{'LEN1'：range(1,10,1),'LEN2':range(1,10,1)}")
         for para in self.params.keys():
             if len(para) < 2 or not para.isupper():
-                raise ValueError("参数变量的命名不符合要求!参数名称需全部由大写英文字母组成,且字母数不少于2")
+                raise ValueError("formula的参数%s的命名不符合要求!参数名称需全部由大写英文字母组成,且字母数不少于2"%(para,))
 
     # 判断target合法性
     def _judge_target(self, target_type, target):
@@ -240,6 +242,9 @@ class Optimizer(object):
                 signal = self.dataview.add_formula(self.name,
                                                    formula,
                                                    is_quarterly=self.is_quarterly)
+                if (not isinstance(signal,pd.DataFrame)) or (signal.size==0):
+                    warnings.warn("待优化公式%s不能计算出有效结果,请检查数据和公式是否正确完备!")
+                    continue
                 self.all_signals[self.name + str(para_dict)] = self.cal_signal(signal)
 
     def get_all_signals_perf(self, in_sample_range=None):

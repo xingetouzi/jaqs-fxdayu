@@ -371,10 +371,10 @@ class DataView(OriginDataView):
         """Prepare data for the FIRST time."""
         # prepare benchmark and group
         print("Query data...")
+        self.fields = list(set(self.fields)|set(["trade_status","ann_date"]))
         data_d, data_q = self._prepare_daily_quarterly(self.fields)
         self.data_d, self.data_q = data_d, data_q
-        if self.data_d is None:
-            self.data_d, _ = self._prepare_daily_quarterly(["trade_status"])
+
         if self.data_q is not None:
             self._prepare_report_date()
         self._align_and_merge_q_into_d()
