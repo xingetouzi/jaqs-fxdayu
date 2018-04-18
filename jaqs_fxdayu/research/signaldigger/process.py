@@ -71,6 +71,33 @@ def winsorize(factor_df, alpha=0.05, index_member=None):
     return factor_df.apply(lambda x: winsorize_series(x), axis=1)
 
 
+# 横截面去极值 - 对Dataframe数据
+def mad(factor_df, index_member=None):
+    """
+    对因子值做去极值操作
+    :param index_member:
+    :param factor_df: 因子值 (pandas.Dataframe类型),index为datetime, colunms为股票代码。
+                      形如:
+                                  　AAPL	　　　     BA	　　　CMG	　　   DAL	      LULU	　　
+                        date
+                        2016-06-24	0.165260	0.002198	0.085632	-0.078074	0.173832
+                        2016-06-27	0.165537	0.003583	0.063299	-0.048674	0.180890
+                        2016-06-28	0.135215	0.010403	0.059038	-0.034879	0.111691
+                        2016-06-29	0.068774	0.019848	0.058476	-0.049971	0.042805
+                        2016-06-30	0.039431	0.012271	0.037432	-0.027272	0.010902
+    :return:去极值后的因子值(pandas.Dataframe类型),index为datetime, colunms为股票代码。
+    """
+
+    def _mad(series):
+        median = series.median()
+        tmp = (series - median).abs().median()
+        return series.clip(median - 5 * tmp, median + 5 * tmp)
+
+    factor_df = jutil.fillinf(factor_df)
+    factor_df = _mask_non_index_member(factor_df, index_member)
+    return factor_df.apply(lambda x: _mad(x), axis=1)
+
+
 # 横截面排序并归一化
 def rank_standardize(factor_df, index_member=None):
     """
