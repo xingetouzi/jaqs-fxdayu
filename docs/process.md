@@ -1,3 +1,4 @@
+
 # process
 
 ## 介绍
@@ -456,6 +457,230 @@ winsorize(factor_df = dv.get_ts("pe"),
       <td>NaN</td>
       <td>6.9002</td>
       <td>146.7608</td>
+      <td>NaN</td>
+      <td>NaN</td>
+      <td>22.7311</td>
+      <td>72.5883</td>
+    </tr>
+  </tbody>
+</table>
+<p>5 rows × 330 columns</p>
+</div>
+
+
+
+## mad
+- ` jaqs_fxdayu.research.signaldigger.process.mad(factor_df, index_member=None) `
+
+**简要描述：**
+
+- 横截面去极值
+
+**参数:**
+
+|字段|必选|类型|说明|
+|:----    |:---|:----- |-----   |
+|factor_df |是|pandas.DataFrame |日期为索引,证券品种为columns的二维因子表格|
+|index_member |否|pandas.DataFrame of bool |是否是指数成分股。日期为索引,证券品种为columns的二维bool值表格,True代表该品种在该日期下属于指数成分股。传入该参数,则进行去极值所纳入的样本只有每期横截面上属于对应指数成分股的股票，默认为空|
+
+**返回:**
+
+去极值后的因子
+
+**示例：**
+
+
+```python
+from jaqs_fxdayu.research.signaldigger.process import mad
+
+mad(factor_df = dv.get_ts("pe"), 
+    index_member = dv.get_ts("index_member")).head()
+```
+
+
+
+
+<div>
+<style>
+    .dataframe thead tr:only-child th {
+        text-align: right;
+    }
+
+    .dataframe thead th {
+        text-align: left;
+    }
+
+    .dataframe tbody tr th {
+        vertical-align: top;
+    }
+</style>
+<table border="1" class="dataframe">
+  <thead>
+    <tr style="text-align: right;">
+      <th>symbol</th>
+      <th>000001.SZ</th>
+      <th>000002.SZ</th>
+      <th>000008.SZ</th>
+      <th>000009.SZ</th>
+      <th>000027.SZ</th>
+      <th>000039.SZ</th>
+      <th>000060.SZ</th>
+      <th>000061.SZ</th>
+      <th>000063.SZ</th>
+      <th>000069.SZ</th>
+      <th>...</th>
+      <th>601988.SH</th>
+      <th>601989.SH</th>
+      <th>601992.SH</th>
+      <th>601997.SH</th>
+      <th>601998.SH</th>
+      <th>603000.SH</th>
+      <th>603160.SH</th>
+      <th>603858.SH</th>
+      <th>603885.SH</th>
+      <th>603993.SH</th>
+    </tr>
+    <tr>
+      <th>trade_date</th>
+      <th></th>
+      <th></th>
+      <th></th>
+      <th></th>
+      <th></th>
+      <th></th>
+      <th></th>
+      <th></th>
+      <th></th>
+      <th></th>
+      <th></th>
+      <th></th>
+      <th></th>
+      <th></th>
+      <th></th>
+      <th></th>
+      <th></th>
+      <th></th>
+      <th></th>
+      <th></th>
+      <th></th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr>
+      <th>20170502</th>
+      <td>6.7925</td>
+      <td>10.0821</td>
+      <td>42.9544</td>
+      <td>79.4778</td>
+      <td>20.4542</td>
+      <td>88.5511</td>
+      <td>70.1653</td>
+      <td>91.92400</td>
+      <td>0.0</td>
+      <td>9.6490</td>
+      <td>...</td>
+      <td>6.3679</td>
+      <td>91.92400</td>
+      <td>NaN</td>
+      <td>NaN</td>
+      <td>7.0177</td>
+      <td>91.92400</td>
+      <td>NaN</td>
+      <td>NaN</td>
+      <td>22.9161</td>
+      <td>76.4800</td>
+    </tr>
+    <tr>
+      <th>20170503</th>
+      <td>6.7697</td>
+      <td>9.9035</td>
+      <td>42.6314</td>
+      <td>78.8332</td>
+      <td>20.1893</td>
+      <td>88.3302</td>
+      <td>69.4123</td>
+      <td>91.87230</td>
+      <td>0.0</td>
+      <td>9.5060</td>
+      <td>...</td>
+      <td>6.3143</td>
+      <td>91.87230</td>
+      <td>NaN</td>
+      <td>NaN</td>
+      <td>6.9472</td>
+      <td>91.87230</td>
+      <td>NaN</td>
+      <td>NaN</td>
+      <td>22.9674</td>
+      <td>75.6340</td>
+    </tr>
+    <tr>
+      <th>20170504</th>
+      <td>6.6405</td>
+      <td>9.9876</td>
+      <td>42.4161</td>
+      <td>78.6490</td>
+      <td>20.2187</td>
+      <td>86.9501</td>
+      <td>68.1117</td>
+      <td>92.15105</td>
+      <td>0.0</td>
+      <td>9.5298</td>
+      <td>...</td>
+      <td>6.3143</td>
+      <td>92.15105</td>
+      <td>NaN</td>
+      <td>NaN</td>
+      <td>6.9002</td>
+      <td>92.15105</td>
+      <td>NaN</td>
+      <td>NaN</td>
+      <td>22.8647</td>
+      <td>73.7727</td>
+    </tr>
+    <tr>
+      <th>20170505</th>
+      <td>6.5570</td>
+      <td>9.9193</td>
+      <td>40.5860</td>
+      <td>76.0703</td>
+      <td>20.0127</td>
+      <td>83.9137</td>
+      <td>67.6325</td>
+      <td>86.81125</td>
+      <td>0.0</td>
+      <td>9.3869</td>
+      <td>...</td>
+      <td>6.3322</td>
+      <td>86.81125</td>
+      <td>NaN</td>
+      <td>NaN</td>
+      <td>6.8649</td>
+      <td>86.81125</td>
+      <td>NaN</td>
+      <td>NaN</td>
+      <td>23.1319</td>
+      <td>72.2499</td>
+    </tr>
+    <tr>
+      <th>20170508</th>
+      <td>6.5114</td>
+      <td>9.6988</td>
+      <td>39.3479</td>
+      <td>74.2284</td>
+      <td>19.6007</td>
+      <td>82.9752</td>
+      <td>67.9063</td>
+      <td>86.30405</td>
+      <td>0.0</td>
+      <td>9.3273</td>
+      <td>...</td>
+      <td>6.3858</td>
+      <td>86.30405</td>
+      <td>NaN</td>
+      <td>NaN</td>
+      <td>6.9002</td>
+      <td>86.30405</td>
       <td>NaN</td>
       <td>NaN</td>
       <td>22.7311</td>
