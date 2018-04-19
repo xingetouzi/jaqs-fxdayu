@@ -4,7 +4,7 @@
 import jaqs.util as jutil
 import pandas as pd
 import numpy as np
-from sklearn import linear_model
+from sklearn.preprocessing import scale
 
 
 def _mask_df(df, mask):
@@ -23,7 +23,7 @@ def _mask_non_index_member(df, index_member=None):
 # 横截面标准化 - 对Dataframe数据
 def standardize(factor_df, index_member=None):
     """
-    对因子值做z-score标准化
+    对因子值做z-score标准化-算样本方差选择自由度为n-1
     :param index_member:
     :param factor_df: 因子值 (pandas.Dataframe类型),index为datetime, colunms为股票代码。
                       形如:
@@ -160,44 +160,44 @@ def neutralize(factor_df,
     :param float_mv: 流通市值因子(pandas.Dataframe类型),index为datetime, colunms为股票代码．为空则不进行市值中性化
     :return: 中性化后的因子值(pandas.Dataframe类型),index为datetime, colunms为股票代码。
     """
-    assert np.all(factor_df.index == group.index)
-    assert np.all(factor_df.columns == group.columns)
+    def drop_nan(s):
+        return s[s != "nan"]
+
+    def _ols_by_numpy(x, y):
+        m = np.linalg.lstsq(x, y)[0]
+        resid = y - (x@m)
+        return resid
+
+    def _generate_cross_sectional_residual(data):
+        for _, X in data.groupby(level=0):
+            signal = X.pop("signal")
+            X = pd.concat([X, pd.get_dummies(X.pop("industry"))], axis=1)
+            signal = pd.Series(_ols_by_numpy(X.values, signal), index=signal.index, name=signal.name)
+            yield signal
+
+    data = []
+
+    # 用于恢复原先的索引和列
+    origin_factor_columns = factor_df.columns
+    origin_factor_index = factor_df.index
+
+    factor_df = jutil.fillinf(factor_df)  # 调整非法值
+    factor_df = _mask_non_index_member(factor_df, index_member)  # 剔除非指数成份股
+    factor_df = factor_df.dropna(how="all").stack().rename("signal")  # 删除全为空的截面
+    data.append(factor_df)
 
     # 获取对数流动市值，并去极值、标准化。市值类因子不需进行这一步
     if float_mv is not None:
-        assert np.all(factor_df.index == float_mv.index)
-        assert np.all(factor_df.columns == float_mv.columns)
-        x1 = standardize(winsorize(np.log(float_mv), index_member=index_member), index_member)
+        float_mv = standardize(mad(np.log(float_mv), index_member=index_member), index_member).stack().rename("style")
+        data.append(float_mv)
 
-    factor_df = jutil.fillinf(factor_df)
-    factor_df = _mask_non_index_member(factor_df, index_member)  # 剔除非指数成份股
-    factor_df = factor_df.dropna(how="all")  # 删除全为空的截面
-    result = []
-    # 逐个截面进行回归，留残差作为中性化后的因子值
-    for i in factor_df.index:
-        # 获取行业分类信息
-        X = pd.get_dummies(group.loc[i, :].dropna())
-        if float_mv is not None:
-            nfactors = len(X.columns)+1
-            DataAll = pd.concat([X, x1.loc[i], factor_df.loc[i]], axis=1)
-        else:
-            nfactors = len(X.columns)
-            DataAll = pd.concat([X, factor_df.loc[i]], axis=1)
-        # 剔除截面中值含空的股票
-        DataAll = DataAll.dropna()
-        if len(DataAll) == 0:
-            continue
-        DataAll.columns = list(range(0, nfactors + 1))
-        regr = linear_model.LinearRegression(fit_intercept=False)
-        regr.fit(np.matrix(DataAll.iloc[:, 0:nfactors]), np.transpose(np.matrix(DataAll.iloc[:, nfactors])))
-        residuals = np.transpose(np.matrix(DataAll.iloc[:, nfactors])) - regr.predict(
-            np.matrix(DataAll.iloc[:, 0:nfactors]))
-        residuals = pd.DataFrame(data=residuals, index=np.transpose(np.matrix(DataAll.index.values)))
-        residuals.index = DataAll.index.values
-        residuals.columns = [i]
-        result.append(residuals)
+    # 行业
+    industry_standard = drop_nan(group.stack()).rename("industry")
+    data.append(industry_standard)
 
-    # 合并回归结果,恢复在中性化过程中剔除的行和列
-    result = pd.concat(result, axis=1).reindex(factor_df.columns).T
-    result = result.reindex(factor_df.index)
-    return result
+    data = pd.concat(data,axis=1).dropna()
+    residuals = pd.concat(_generate_cross_sectional_residual(data)).unstack()
+
+    # 恢复在中性化过程中剔除的行和列
+    residuals.reindex(index=origin_factor_index,columns=origin_factor_columns)
+    return residuals.reindex(index=origin_factor_index,columns=origin_factor_columns)
