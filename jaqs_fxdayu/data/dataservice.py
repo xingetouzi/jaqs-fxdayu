@@ -13,6 +13,18 @@ from jaqs_fxdayu.patch_util import auto_register_patch
 
 @auto_register_patch(parent_level=1)
 class RemoteDataService(OriginRemoteDataService):
+    def __init__(self):
+        super(OriginRemoteDataService, self).__init__()
+
+        self.data_api = None
+
+        self._address = ""
+        self._username = ""
+        self._password = ""
+        self._timeout = 60
+
+        self._REPORT_DATE_FIELD_NAME = 'report_date'
+
     def query_industry_daily(self, symbol, start_date, end_date, type_='SW', level=1):
         """
         Get index components on each day during start_date and end_date.
@@ -51,7 +63,7 @@ class RemoteDataService(OriginRemoteDataService):
         df_value.loc[df_value_tmp.index, df_value_tmp.columns] = df_value_tmp
 
         dates_arr = self.query_trade_dates(start_date, end_date)
-        df_industry = align.align(df_value, df_ann, dates_arr)
+        df_industry = align(df_value, df_ann, dates_arr)
 
         # TODO before industry classification is available, we assume they belong to their first group.
         df_industry = df_industry.fillna(method='bfill')
@@ -491,7 +503,7 @@ class LocalDataService():
 
         dates_arr = self.query_trade_dates(start_date, end_date)
         
-        df_industry = align.align(df_value, df_ann, dates_arr)
+        df_industry = align(df_value, df_ann, dates_arr)
         
         # TODO before industry classification is available, we assume they belong to their first group.
         df_industry = df_industry.fillna(method='bfill')
