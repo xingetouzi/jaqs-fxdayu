@@ -1,6 +1,6 @@
 # noinspection PyUnresolvedReferences
 from jaqs.data.dataservice import *
-
+from jaqs.data.dataservice import RemoteDataService as OriginRemoteDataService
 import os
 import bcolz
 import numpy as np
@@ -8,6 +8,56 @@ import pandas as pd
 import sqlite3 as sql
 from jaqs.data.align import align
 import jaqs.util as jutil
+from jaqs_fxdayu.patch_util import auto_register_patch
+
+
+@auto_register_patch(parent_level=1)
+class RemoteDataService(OriginRemoteDataService):
+    def query_industry_daily(self, symbol, start_date, end_date, type_='SW', level=1):
+        """
+        Get index components on each day during start_date and end_date.
+
+        Parameters
+        ----------
+        symbol : str
+            separated by ','
+        start_date : int
+        end_date : int
+        type_ : {'SW', 'ZZ'}
+
+        Returns
+        -------
+        res : pd.DataFrame
+            index dates, columns symbols
+            values are industry code
+
+        """
+        df_raw = self.query_industry_raw(symbol, type_=type_, level=level)
+
+        dic_sec = jutil.group_df_to_dict(df_raw, by='symbol')
+        dic_sec = {sec: df.sort_values(by='in_date', axis=0).reset_index()
+                   for sec, df in dic_sec.items()}
+
+        df_ann_tmp = pd.concat({sec: df.loc[:, 'in_date'] for sec, df in dic_sec.items()}, axis=1)
+        df_value_tmp = pd.concat({sec: df.loc[:, 'industry{:d}_name'.format(level)]
+                                  for sec, df in dic_sec.items()},
+                                 axis=1)
+
+        idx = np.unique(np.concatenate([df.index.values for df in dic_sec.values()]))
+        symbol_arr = np.sort(symbol.split(','))
+        df_ann = pd.DataFrame(index=idx, columns=symbol_arr, data=np.nan)
+        df_ann.loc[df_ann_tmp.index, df_ann_tmp.columns] = df_ann_tmp
+        df_value = pd.DataFrame(index=idx, columns=symbol_arr, data=np.nan)
+        df_value.loc[df_value_tmp.index, df_value_tmp.columns] = df_value_tmp
+
+        dates_arr = self.query_trade_dates(start_date, end_date)
+        df_industry = align.align(df_value, df_ann, dates_arr)
+
+        # TODO before industry classification is available, we assume they belong to their first group.
+        df_industry = df_industry.fillna(method='bfill')
+        df_industry = df_industry.astype(str)
+
+        return df_industry
 
 class LocalDataService():
     def __init__(self,fp):
@@ -428,7 +478,7 @@ class LocalDataService():
                    for sec, df in dic_sec.items()}
 
         df_ann_tmp = pd.concat({sec: df.loc[:, 'in_date'] for sec, df in dic_sec.items()}, axis=1)
-        df_value_tmp = pd.concat({sec: df.loc[:, 'industry{:d}_code'.format(level)]
+        df_value_tmp = pd.concat({sec: df.loc[:, 'industry{:d}_name'.format(level)]
                                   for sec, df in dic_sec.items()},
                                  axis=1)
         
@@ -441,11 +491,10 @@ class LocalDataService():
 
         dates_arr = self.query_trade_dates(start_date, end_date)
         
-        df_industry = align(df_value, df_ann, dates_arr) 
+        df_industry = align.align(df_value, df_ann, dates_arr)
         
         # TODO before industry classification is available, we assume they belong to their first group.
         df_industry = df_industry.fillna(method='bfill')
         df_industry = df_industry.astype(str)
         
         return df_industry
-        
