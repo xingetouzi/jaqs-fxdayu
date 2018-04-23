@@ -1,6 +1,5 @@
 # encoding=utf-8
 from functools import reduce
-
 from . import process
 import pandas as pd
 import numpy as np
@@ -8,6 +7,7 @@ from sklearn.covariance import LedoitWolf
 import jaqs.util as jutil
 from . import performance as pfm
 from . import SignalCreator
+import statsmodels.api as sm
 
 
 # 因子间存在较强同质性时，使用施密特正交化方法对因子做正交化处理，用得到的正交化残差作为因子
@@ -67,14 +67,124 @@ def orthogonalize(factors_dict=None,
     for factor_name in factor_name_list:
         factor_value = pd.concat(new_factors_dict[factor_name])
         # 恢复在正交化过程中剔除的行和列
-        factor_value = factor_value.reindex(factor_value_list[0].index)
-        factor_value = factor_value.T.reindex(factor_value_list[0].columns).T
+        factor_value = factor_value.reindex(index=factor_value_list[0].index,columns=factor_value_list[0].columns)
         if standardize_type == "z_score":
             new_factors_dict[factor_name] = process.standardize(factor_value, index_member)
         else:
             new_factors_dict[factor_name] = process.rank_standardize(factor_value, index_member)
 
     return new_factors_dict
+
+
+# 获取多个因子收益序列矩阵
+def get_factors_ret_df(factors_dict,
+                       price,
+                       high=None,
+                       low=None,
+                       group=None,
+                       benchmark_price=None,
+                       period=5,
+                       quantiles=5,
+                       mask=None,
+                       can_enter=None,
+                       can_exit=None,
+                       commission=0.0008,
+                       forward=True,
+                       ret_type="return",
+                       **kwargs):
+    """
+    获取多个因子收益序列矩阵
+    :param factors_dict: 若干因子组成的字典(dict),形式为:
+                         {"factor_name_1":factor_1,"factor_name_2":factor_2}
+    :param period: 指定持有周期(int)
+    :param quantiles: 根据因子大小将股票池划分的分位数量(int)
+    :param price : 包含了pool中所有股票的价格时间序列(pd.Dataframe)，索引（index)为datetime,columns为各股票代码，与pool对应。
+    :param benchmark_price:基准收益，不为空计算相对收益，否则计算绝对收益
+    :return: ret_df 多个因子收益序列矩阵
+             类型pd.Dataframe,索引（index）为datetime,columns为各因子名称，与factors_dict中的对应。
+             如：
+
+            　　　　　　　　　　　BP	　　　CFP	　　　EP	　　ILLIQUIDITY	REVS20	　　　SRMI	　　　VOL20
+            date
+            2016-06-24	0.165260	0.002198	0.085632	-0.078074	0.173832	0.214377	0.068445
+            2016-06-27	0.165537	0.003583	0.063299	-0.048674	0.180890	0.202724	0.081748
+            2016-06-28	0.135215	0.010403	0.059038	-0.034879	0.111691	0.122554	0.042489
+            2016-06-29	0.068774	0.019848	0.058476	-0.049971	0.042805	0.053339	0.079592
+            2016-06-30	0.039431	0.012271	0.037432	-0.027272	0.010902	0.077293	-0.050667
+    """
+
+    def stack_td_symbol(df):
+        df = pd.DataFrame(df.stack(dropna=False))  # do not dropna
+        df.index.names = ['trade_date', 'symbol']
+        df.sort_index(axis=0, level=['trade_date', 'symbol'], inplace=True)
+        return df
+
+    def get_regression_result(df):
+        ret = df.pop("return")
+        if "group" in df.columns:
+            df = df.drop("group", axis=1)
+        ols_model = sm.OLS(ret, df)
+        regression_results = ols_model.fit()
+        return regression_results.params
+
+    if ret_type is None:
+        ret_type = "return"
+
+    if not (ret_type in ["return", "upside_ret", "downside_ret"]):
+        raise ValueError("不支持对%s收益的ic计算!支持的收益类型有return, upside_ret, downside_ret." % (ret_type,))
+
+    sc = SignalCreator(
+        price,
+        high=high,
+        low=low,
+        group=group,
+        benchmark_price=benchmark_price,
+        period=period,
+        n_quantiles=quantiles,
+        mask=mask,
+        can_enter=can_enter,
+        can_exit=can_exit,
+        forward=forward,
+        commission=commission
+    )
+
+    res = None
+
+    # 获取factor_value的时间（index）,将用来生成 factors_ic_df 的对应时间（index）
+    times = sorted(
+        pd.concat([pd.Series(factors_dict[factor_name].index) for factor_name in factors_dict.keys()]).unique())
+    for factor_name in factors_dict.keys():
+        signal = factors_dict[factor_name]
+        if (not isinstance(signal, pd.DataFrame)) or (signal.size == 0):
+            raise ValueError("因子%s为空或不合法!请确保传入因子有值且数据类型为pandas.DataFrame." % (factor_name,))
+        sc._judge(signal)
+        sc._cal_ret()
+        if ret_type not in sc.signal_ret.keys():
+            raise ValueError("无法计算%s收益,请重新设置输入参数." % (ret_type,))
+        if res is None:
+            res = stack_td_symbol(sc.signal_ret[ret_type]).fillna(0)
+            res.columns = ["return"]
+        signal = jutil.fillinf(signal)
+        signal = signal.shift(1)  # avoid forward-looking bias
+        if not forward:
+            signal = signal.shift(period)
+        res[factor_name] = stack_td_symbol(signal)
+
+    grouper = ['trade_date']
+    if group is not None:
+        res["group"] = stack_td_symbol(group)
+        grouper.append('group')
+
+    res = res.dropna()
+    result = res.groupby(grouper).apply(get_regression_result)
+
+    if group is None:
+        result = result.dropna(how="all").reindex(times)
+    else:
+        result = result.dropna(how="all")
+        result = result.reindex(pd.MultiIndex.from_product([times, result.index.levels[1]],
+                                                           names=["trade_date", "group"]))
+    return result
 
 
 # 获取因子的ic序列
@@ -89,7 +199,7 @@ def get_factors_ic_df(factors_dict,
                       mask=None,
                       can_enter=None,
                       can_exit=None,
-                      commisson=0.0008,
+                      commission=0.0008,
                       forward=True,
                       ret_type="return",
                       **kwargs):
@@ -97,9 +207,6 @@ def get_factors_ic_df(factors_dict,
     获取多个因子ic值序列矩阵
     :param factors_dict: 若干因子组成的字典(dict),形式为:
                          {"factor_name_1":factor_1,"factor_name_2":factor_2}
-    :param pool: 股票池范围（list),如：["000001.SH","600300.SH",......]
-    :param start: 起始时间 (int)
-    :param end: 结束时间 (int)
     :param period: 指定持有周期(int)
     :param quantiles: 根据因子大小将股票池划分的分位数量(int)
     :param price : 包含了pool中所有股票的价格时间序列(pd.Dataframe)，索引（index)为datetime,columns为各股票代码，与pool对应。
@@ -135,14 +242,15 @@ def get_factors_ic_df(factors_dict,
         can_enter=can_enter,
         can_exit=can_exit,
         forward=forward,
-        commission=commisson
+        commission=commission
     )
     # 获取factor_value的时间（index）,将用来生成 factors_ic_df 的对应时间（index）
     times = sorted(
         pd.concat([pd.Series(factors_dict[factor_name].index) for factor_name in factors_dict.keys()]).unique())
     for factor_name in factors_dict.keys():
-        factors_dict[factor_name] = jutil.fillinf(factors_dict[factor_name])
         factor_value = factors_dict[factor_name]
+        if (not isinstance(factor_value, pd.DataFrame)) or (factor_value.size == 0):
+            raise ValueError("因子%s为空或不合法!请确保传入因子有值且数据类型为pandas.DataFrame." % (factor_name,))
         signal_data = sc.get_signal_data(factor_value)
         if ret_type in signal_data.columns:
             origin_fields = ["signal", ret_type]
@@ -301,6 +409,43 @@ def ic_weight(ic_df,
     return weight_df.shift(holding_period)
 
 
+# 以因子收益为多因子组合权重
+def factors_ret_weight(factors_ret_df,
+                       holding_period,
+                       rollback_period=120):
+    """
+    输入factors_ret_df(因子收益序列矩阵),指定持有期和滚动窗口，给出相应的多因子组合权重
+    :param factors_ret_df: 因子收益序列矩阵 （pd.Dataframe），索引（index）为datetime,columns为各因子名称。
+             如：
+
+            　　　　　　　　　　　BP	　　　CFP	　　　EP	　　ILLIQUIDITY	REVS20	　　　SRMI	　　　VOL20
+            date
+            2016-06-24	0.165260	0.002198	0.085632	-0.078074	0.173832	0.214377	0.068445
+            2016-06-27	0.165537	0.003583	0.063299	-0.048674	0.180890	0.202724	0.081748
+            2016-06-28	0.135215	0.010403	0.059038	-0.034879	0.111691	0.122554	0.042489
+            2016-06-29	0.068774	0.019848	0.058476	-0.049971	0.042805	0.053339	0.079592
+            2016-06-30	0.039431	0.012271	0.037432	-0.027272	0.010902	0.077293	-0.050667
+
+    :param holding_period: 持有周期(int)
+    :param rollback_period: 滚动窗口，即计算每一天的因子权重时，使用了之前rollback_period下的IC时间序列来计算。
+    :return: weight_df:因子权重(pd.Dataframe),
+             索引（index)为datetime,columns为待合成的因子名称。
+    """
+    # t-n ~ t天的因子收益,用到了截止到t+period的数据（算收益）,
+    # 算得的权重用于t+period的因子进行加权
+    n = rollback_period
+    weight_df = pd.DataFrame(index=factors_ret_df.index, columns=factors_ret_df.columns)
+    for dt in factors_ret_df.index:
+        ret_dt = factors_ret_df[factors_ret_df.index <= dt].tail(n)
+        if len(ret_dt) < n:
+            continue
+        weight = ret_dt.mean(axis=0)
+        weight = np.array(weight.reshape(len(weight), ))
+        weight_df.ix[dt] = weight / np.sum(np.abs(weight))
+
+    return weight_df.shift(holding_period)
+
+
 # 以IC_IR为多因子组合权重
 def ir_weight(ic_df,
               holding_period,
@@ -422,41 +567,48 @@ def combine_factors(factors_dict=None,
             if _props['low'] is None:
                 raise ValueError("您需要在配置props中提供low")
 
-        # 此处计算的ic,用到的因子值是shift(1)后的
-        # t日ic计算逻辑:t-1的因子数据，t日决策买入，t+n天后卖出对应的ic
-        ic_df = get_factors_ic_df(factors_dict=factors_dict,
-                                  **_props)
-        if weighted_method == 'max_IR':
-            return max_IR_weight(ic_df,
+        if weighted_method == "factors_ret_weight":
+            factors_ret = get_factors_ret_df(factors_dict=factors_dict,
+                                             **_props)
+            return factors_ret_weight(factors_ret,
+                                      _props['period'],
+                                      _props["rollback_period"])
+        else:
+            # 此处计算的ic,用到的因子值是shift(1)后的
+            # t日ic计算逻辑:t-1的因子数据，t日决策买入，t+n天后卖出对应的ic
+            ic_df = get_factors_ic_df(factors_dict=factors_dict,
+                                      **_props)
+            if weighted_method == 'max_IR':
+                return max_IR_weight(ic_df,
+                                     _props['period'],
+                                     _props["rollback_period"],
+                                     _props["covariance_type"])
+            elif weighted_method == "ic_weight":
+                return ic_weight(ic_df,
                                  _props['period'],
-                                 _props["rollback_period"],
-                                 _props["covariance_type"])
-        elif weighted_method == "ic_weight":
-            return ic_weight(ic_df,
-                             _props['period'],
-                             _props["rollback_period"])
-        elif weighted_method == "ir_weight":
-            return ir_weight(ic_df,
-                             _props['period'],
-                             _props["rollback_period"])
-        elif weighted_method == "max_IC":
-            # 计算t期因子ic用的是t-1期因子，所以要把因子数据shift(1)
-            shift_factors = {
-                factor_name: factors_dict[factor_name].shift(1) for factor_name in factors_dict.keys()
-            }
-            return max_IC_weight(ic_df,
-                                 shift_factors,
+                                 _props["rollback_period"])
+            elif weighted_method == "ir_weight":
+                return ir_weight(ic_df,
                                  _props['period'],
-                                 _props["covariance_type"])
+                                 _props["rollback_period"])
+            elif weighted_method == "max_IC":
+                # 计算t期因子ic用的是t-1期因子，所以要把因子数据shift(1)
+                shift_factors = {
+                    factor_name: factors_dict[factor_name].shift(1) for factor_name in factors_dict.keys()
+                }
+                return max_IC_weight(ic_df,
+                                     shift_factors,
+                                     _props['period'],
+                                     _props["covariance_type"])
 
     def sum_weighted_factors(x, y):
         return x + y
 
     if not factors_dict or len(list(factors_dict.keys())) < 2:
-        raise ValueError("你需要给定至少２个因子")
+        raise ValueError("你需要给定至少2个因子")
     factors_dict = standarize_factors(factors_dict)
 
-    if weighted_method in ["max_IR", "max_IC", "ic_weight", "ir_weight"]:
+    if weighted_method in ["max_IR", "max_IC", "ic_weight", "ir_weight", "factors_ret_weight"]:
         weight = _cal_weight(weighted_method)
         weighted_factors = {}
         factor_name_list = factors_dict.keys()
@@ -468,7 +620,7 @@ def combine_factors(factors_dict=None,
     elif weighted_method == "equal_weight":
         weighted_factors = factors_dict
     else:
-        raise ValueError('weighted_method 只能为equal_weight, ic_weight, ir_weight, max_IR')
+        raise ValueError('weighted_method 只能为equal_weight, ic_weight, ir_weight, max_IR, max_IC, factors_ret_weight')
     new_factor = reduce(sum_weighted_factors, weighted_factors.values())
     new_factor = standarize_factors(new_factor)["factor"]
     return new_factor

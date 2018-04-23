@@ -7,7 +7,8 @@ _path = Path(__file__).absolute().parent / "built_in_funcs_docs.csv"
 
 
 def get_doc():
-    data = pd.read_csv(str(_path))
+    f = open(str(_path),"rb")
+    data = pd.read_csv(f)
     return data
 
 

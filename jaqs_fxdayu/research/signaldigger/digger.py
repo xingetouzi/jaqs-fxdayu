@@ -12,6 +12,7 @@ from jaqs_fxdayu.patch_util import auto_register_patch
 from .analysis import compute_downside_returns, compute_upside_returns
 from . import performance as pfm
 from . import plotting
+import warnings
 
 
 @auto_register_patch(parent_level=2)
@@ -90,7 +91,7 @@ class SignalDigger(OriginSignalDigger):
                 assert np.all(signal.index == mask.index)
                 assert np.all(signal.columns == mask.columns)
             except:
-                print("Warning: signal与mask的index/columns不一致,请检查输入参数!")
+                warnings.warn("Warning: signal与mask的index/columns不一致,请检查输入参数!")
                 mask = mask.reindex_like(signal)
             mask = jutil.fillinf(mask)
             mask = mask.astype(int).fillna(0).astype(bool)  # dtype of mask could be float. So we need to convert.
@@ -101,7 +102,7 @@ class SignalDigger(OriginSignalDigger):
                 assert np.all(signal.index == can_enter.index)
                 assert np.all(signal.columns == can_enter.columns)
             except:
-                print("Warning: signal与can_enter的index/columns不一致,请检查输入参数!")
+                warnings.warn("Warning: signal与can_enter的index/columns不一致,请检查输入参数!")
                 can_enter = can_enter.reindex_like(signal)
             can_enter = jutil.fillinf(can_enter)
             can_enter = can_enter.astype(int).fillna(0).astype(
@@ -113,7 +114,7 @@ class SignalDigger(OriginSignalDigger):
                 assert np.all(signal.index == can_exit.index)
                 assert np.all(signal.columns == can_exit.columns)
             except:
-                print("Warning: signal与can_exit的index/columns不一致,请检查输入参数!")
+                warnings.warn("Warning: signal与can_exit的index/columns不一致,请检查输入参数!")
                 can_exit = can_exit.reindex_like(signal)
             can_exit = jutil.fillinf(can_exit)
             can_exit = can_exit.astype(int).fillna(0).astype(
@@ -125,7 +126,7 @@ class SignalDigger(OriginSignalDigger):
                 assert np.all(signal.index == group.index)
                 assert np.all(signal.columns == group.columns)
             except:
-                print("Warning: signal与group的index/columns不一致,请检查输入参数!")
+                warnings.warn("Warning: signal与group的index/columns不一致,请检查输入参数!")
                 group = group.reindex_like(signal)
 
         signal = jutil.fillinf(signal)
@@ -144,7 +145,7 @@ class SignalDigger(OriginSignalDigger):
                 assert np.all(signal.index == price.index)
                 assert np.all(signal.columns == price.columns)
             except:
-                print("Warning: signal与price的index/columns不一致,请检查输入参数!")
+                warnings.warn("Warning: signal与price的index/columns不一致,请检查输入参数!")
                 price = price.reindex_like(signal)
             price = jutil.fillinf(price)
             can_enter = np.logical_and(price != np.NaN, can_enter)
@@ -169,7 +170,7 @@ class SignalDigger(OriginSignalDigger):
                     assert np.all(signal.index == high.index)
                     assert np.all(signal.columns == high.columns)
                 except:
-                    print("Warning: signal与high的index/columns不一致,请检查输入参数!")
+                    warnings.warn("Warning: signal与high的index/columns不一致,请检查输入参数!")
                     high = high.reindex_like(signal)
                 high = jutil.fillinf(high)
                 upside_ret = compute_upside_returns(price, high, can_exit, self.period, compound=True)
@@ -180,7 +181,7 @@ class SignalDigger(OriginSignalDigger):
                     assert np.all(signal.index == low.index)
                     assert np.all(signal.columns == low.columns)
                 except:
-                    print("Warning: signal与low的index/columns不一致,请检查输入参数!")
+                    warnings.warn("Warning: signal与low的index/columns不一致,请检查输入参数!")
                     low = low.reindex_like(signal)
                 low = jutil.fillinf(low)
                 downside_ret = compute_downside_returns(price, low, can_exit, self.period, compound=True)

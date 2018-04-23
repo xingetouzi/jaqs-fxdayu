@@ -71,11 +71,11 @@ dv.prepare_data()
     Query data - query...
     NOTE: price adjust method is [post adjust]
     当前请求daily...
-    {'adjust_mode': None, 'fields': 'symbol,open,high,low,close_adj,close,vwap,trade_date,high_adj,trade_status,open_adj,vwap_adj,low_adj'}
+    {'adjust_mode': None, 'fields': 'trade_status,symbol,open_adj,vwap,trade_date,low,close_adj,high,open,high_adj,low_adj,vwap_adj,close'}
     当前请求daily...
-    {'adjust_mode': 'post', 'fields': 'open,high,low,close,vwap,symbol,trade_date'}
+    {'adjust_mode': 'post', 'fields': 'vwap,high,low,open,close,symbol,trade_date'}
     当前请求query_lb_dailyindicator...
-    {'fields': 'pb,pe,trade_date,symbol'}
+    {'fields': 'pe,pb,symbol,trade_date'}
     WARNING: some data is unavailable: 
         At fields 
     Query data - daily fields prepared.
@@ -363,10 +363,9 @@ df.head()
 - 说明：
   -  初始请求数据时指定universe，会自动补充index_member(是否是指数成分股)、index_weight(指数成分权重)字段；若universe为多标,取设置的第一个指数为准补充index_member和index_weight
   -  初始请求数据时指定all_price=True,会请求open、high、low、close、vwap及相应复权后的结果open_adj、high_adj、low_adj、close_adj、vwap_adj
-  -  初始请求行情相关数据（如fields中包含open、high等字段,或指定all_price=True）,会自动补充trade_status(交易状态-停牌or可交易)
-  -  初始请求数据字段中包含季度数据,会自动补充quarter(季度数据对应披露月份)、ann_date(季度数据)字段
+  -  请求行情类数据（open、high、low、close、vwap）,若adjust_mode不为空（默认为"post"）,会补充相应复权后结果并以'_adj'为后缀。
   -  初始请求数据字段中包含季度数据,会自动按时间、标的整理对齐一份到日级别上
-  -  初始请求数据默认会自动补充adjust_factor(复权因子)
+  -  初始请求数据默认会自动补充adjust_factor(复权因子)、trade_status(交易状态-停牌or可交易)、ann_date(财报公告时间-季度数据)、quarter(季度数据对应披露月份)
 
 **示例：**
 
@@ -378,27 +377,27 @@ dv.fields
 
 
 
-    ['open',
-     'low',
-     'ann_date',
-     'vwap_adj',
-     'index_member',
-     'pb',
-     'close_adj',
-     'total_oper_rev',
-     'high_adj',
-     'open_adj',
-     'pe',
-     'low_adj',
-     'high',
-     'adjust_factor',
-     'vwap',
+    ['pe',
      'oper_exp',
+     'high_adj',
+     'index_weight',
      'quarter',
+     'trade_status',
+     'low',
+     'close_adj',
+     'ann_date',
+     'open',
      'sw1',
      'close',
-     'index_weight',
-     'trade_status']
+     'high',
+     'low_adj',
+     'vwap_adj',
+     'adjust_factor',
+     'open_adj',
+     'vwap',
+     'total_oper_rev',
+     'index_member',
+     'pb']
 
 
 
@@ -422,7 +421,7 @@ dv._get_fields('quarterly',dv.fields) # 查询数据集的字段里有哪些是�
 
 
 
-    ['quarter', 'oper_exp', 'total_oper_rev', 'ann_date']
+    ['ann_date', 'quarter', 'oper_exp', 'total_oper_rev']
 
 
 
@@ -1792,7 +1791,7 @@ dv.data_api
 
 
 
-    <jaqs.data.dataservice.RemoteDataService at 0x7f3e5e3a5780>
+    <jaqs.data.dataservice.RemoteDataService at 0x7f1ed0679978>
 
 
 
@@ -1948,17 +1947,17 @@ dv.refresh_data(20171201)
 dv.get_ts("close").tail(2)
 ```
 
-    Field name [{'adjust_factor', 'quarter'}] not valid, ignore.
+    Field name [{'quarter', 'adjust_factor'}] not valid, ignore.
     Initialize config success.
     Query data...
     Query data - query...
     NOTE: price adjust method is [post adjust]
     当前请求daily...
-    {'adjust_mode': None, 'fields': 'symbol,open,index_weight,high,low,close_adj,low_adj,vwap,close,trade_date,high_adj,trade_status,open_adj,vwap_adj,index_member'}
+    {'adjust_mode': None, 'fields': 'trade_status,symbol,open_adj,vwap,trade_date,index_member,low,close_adj,high,open,high_adj,low_adj,vwap_adj,index_weight,close'}
     当前请求daily...
-    {'adjust_mode': 'post', 'fields': 'open,high,low,close,vwap,symbol,trade_date'}
+    {'adjust_mode': 'post', 'fields': 'vwap,high,low,open,close,symbol,trade_date'}
     当前请求query_lb_dailyindicator...
-    {'fields': 'pb,pe,trade_date,symbol'}
+    {'fields': 'pe,pb,symbol,trade_date'}
     WARNING: some data is unavailable: 
         At fields 
     Query data - daily fields prepared.
@@ -2345,9 +2344,7 @@ dv.add_field("volume")
     Query data - query...
     NOTE: price adjust method is [post adjust]
     当前请求daily...
-    {'adjust_mode': None, 'fields': 'symbol,close,vwap,volume,trade_date,open,low,high,trade_status'}
-    当前请求daily...
-    {'adjust_mode': 'post', 'fields': 'symbol,close,vwap,volume,trade_date,open,low,high,trade_status'}
+    {'adjust_mode': None, 'fields': 'volume,trade_status,symbol,trade_date'}
     Query data - daily fields prepared.
 
 
@@ -3955,6 +3952,54 @@ dv.get_ts_quarter("d-roe").dropna().head() # 查询季度数据
       <td>2.1448</td>
     </tr>
     <tr>
+      <th>20160930</th>
+      <td>3.4469</td>
+      <td>2.8231</td>
+      <td>3.9954</td>
+      <td>3.0741</td>
+      <td>2.2083</td>
+      <td>0.6739</td>
+      <td>1.6038</td>
+      <td>3.6994</td>
+      <td>2.6870</td>
+      <td>3.3735</td>
+      <td>...</td>
+      <td>2.9932</td>
+      <td>0.2131</td>
+      <td>0.8388</td>
+      <td>5.1189</td>
+      <td>3.1815</td>
+      <td>1.6016</td>
+      <td>18.4533</td>
+      <td>8.0545</td>
+      <td>9.7982</td>
+      <td>0.3639</td>
+    </tr>
+    <tr>
+      <th>20161231</th>
+      <td>2.0210</td>
+      <td>11.4433</td>
+      <td>6.5921</td>
+      <td>0.5512</td>
+      <td>0.0144</td>
+      <td>2.5387</td>
+      <td>2.1093</td>
+      <td>-2.5432</td>
+      <td>-13.4652</td>
+      <td>9.3406</td>
+      <td>...</td>
+      <td>2.1099</td>
+      <td>-0.3445</td>
+      <td>1.0118</td>
+      <td>5.1804</td>
+      <td>1.4766</td>
+      <td>1.1263</td>
+      <td>1.5475</td>
+      <td>1.7371</td>
+      <td>-0.2593</td>
+      <td>2.2140</td>
+    </tr>
+    <tr>
       <th>20170331</th>
       <td>-9.3964</td>
       <td>-19.0699</td>
@@ -3978,33 +4023,9 @@ dv.get_ts_quarter("d-roe").dropna().head() # 查询季度数据
       <td>-17.3611</td>
       <td>-2.3932</td>
     </tr>
-    <tr>
-      <th>20170630</th>
-      <td>3.0383</td>
-      <td>5.8485</td>
-      <td>0.7553</td>
-      <td>1.0343</td>
-      <td>1.3482</td>
-      <td>0.9739</td>
-      <td>3.5654</td>
-      <td>0.1076</td>
-      <td>2.8533</td>
-      <td>2.1882</td>
-      <td>...</td>
-      <td>3.9847</td>
-      <td>0.5797</td>
-      <td>3.1304</td>
-      <td>4.2815</td>
-      <td>3.2946</td>
-      <td>0.6141</td>
-      <td>10.4661</td>
-      <td>3.7218</td>
-      <td>2.6678</td>
-      <td>1.3230</td>
-    </tr>
   </tbody>
 </table>
-<p>4 rows × 330 columns</p>
+<p>5 rows × 330 columns</p>
 </div>
 
 
