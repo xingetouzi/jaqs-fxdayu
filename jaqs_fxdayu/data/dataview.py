@@ -407,7 +407,7 @@ class DataView(OriginDataView):
         trade_status = self.get_ts("trade_status")
         if trade_status.size>0:
             try:
-                trade_status = trade_status.astype(int)
+                trade_status = trade_status.fillna(-1).astype(int)
             except:
                 tmp = (trade_status.fillna("")==u"交易").astype(int)
                 tmp[trade_status.fillna("") == ""] = np.NaN
