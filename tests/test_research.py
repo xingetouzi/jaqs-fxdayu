@@ -34,7 +34,7 @@ def mask_index_member(dv):
 # 定义可买卖条件——未停牌、未涨跌停
 def limit_up_down(dv):
     trade_status = dv.get_ts('trade_status')
-    mask_sus = trade_status.fillna("") == u'停牌'
+    mask_sus = trade_status != 1 # 不可交易
     # 涨停
     dv.add_formula('up_limit', '(close - Delay(close, 1)) / Delay(close, 1) > 0.095', is_quarterly=False,
                    add_data=True)
@@ -128,7 +128,7 @@ def test_DIY_signal():
     Low = dv.get_ts("low_adj")
     Close = dv.get_ts("close_adj")
     trade_status = dv.get_ts('trade_status')
-    mask_sus = trade_status.fillna("") == u'停牌'
+    mask_sus = trade_status!=1
     # 剔除掉停牌期的数据　再计算指标
     open_masked = process._mask_df(Open, mask=mask_sus)
     high_masked = process._mask_df(High, mask=mask_sus)

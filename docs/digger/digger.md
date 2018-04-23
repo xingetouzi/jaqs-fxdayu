@@ -73,7 +73,7 @@ mask = dv.get_ts('index_member') == 0  # 定义信号过滤条件-非指数成�
 
 # 定义可买入卖出条件——未停牌、未涨跌停
 trade_status = dv.get_ts('trade_status')
-can_trade = ~(trade_status == u'停牌') # 未停牌
+can_trade = trade_status==1 # 可以交易
 # 涨停
 up_limit = dv.add_formula('up_limit', '(open - Delay(close, 1)) / Delay(close, 1) > 0.095', is_quarterly=False)
 # 跌停
