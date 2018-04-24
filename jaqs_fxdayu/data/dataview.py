@@ -371,7 +371,7 @@ class DataView(OriginDataView):
         """Prepare data for the FIRST time."""
         # prepare benchmark and group
         print("Query data...")
-        self.fields = list(set(self.fields)|set(["trade_status","ann_date"]))
+        self.fields = list(set(self.fields)|set(["trade_status"]))
         data_d, data_q = self._prepare_daily_quarterly(self.fields)
         self.data_d, self.data_q = data_d, data_q
 
@@ -403,6 +403,15 @@ class DataView(OriginDataView):
         if (self.data_q is not None) and self.data_q.size != 0:
             self.fields += list(self.data_q.columns.levels[1])
         self.fields = list(set(self.fields))
+
+        trade_status = self.get_ts("trade_status")
+        if trade_status.size>0:
+            try:
+                trade_status = trade_status.fillna(-1).astype(int)
+            except:
+                tmp = (trade_status.fillna("")==u"交易").astype(int)
+                tmp[trade_status.fillna("") == ""] = np.NaN
+                self.append_df(tmp,"trade_status")
 
         print("Data has been successfully prepared.")
 
@@ -442,12 +451,27 @@ class DataView(OriginDataView):
             self.data_api = data_api
 
         if field_name in self.fields:
-            print("Field name [{:s}] already exists.".format(field_name))
-            return False
+            if self.data_d is None:
+                self.fields = []
+            else:
+                print("Field name [{:s}] already exists.".format(field_name))
+                return False
 
         if not self._is_predefined_field(field_name):
             print("Field name [{}] not valid, ignore.".format(field_name))
             return False
+
+        if self.data_d is None:
+            self.data_d, _ = self._prepare_daily_quarterly(["trade_status"])
+            self._add_field("trade_status")
+            trade_status = self.get_ts("trade_status")
+            if trade_status.size > 0:
+                try:
+                    trade_status = trade_status.astype(int)
+                except:
+                    tmp = (trade_status.fillna("") == u"交易").astype(int)
+                    tmp[trade_status.fillna("") == ""] = np.NaN
+                    self.append_df(tmp, "trade_status")
 
         # prepare group type
         group_map = ['sw1',
@@ -461,9 +485,6 @@ class DataView(OriginDataView):
             return True
 
         if self._is_daily_field(field_name):
-            if self.data_d is None:
-                self.data_d, _ = self._prepare_daily_quarterly(["trade_status"])
-                self._add_field("trade_status")
             merge, _ = self._prepare_daily_quarterly([field_name])
             is_quarterly = False
         else:
@@ -471,9 +492,6 @@ class DataView(OriginDataView):
                 _, self.data_q = self._prepare_daily_quarterly(["ann_date"])
                 self._add_field("ann_date")
                 self._prepare_report_date()
-                if self.data_d is None:
-                    self.data_d, _ = self._prepare_daily_quarterly(["trade_status"])
-                    self._add_field("trade_status")
                 self._align_and_merge_q_into_d()
             _, merge = self._prepare_daily_quarterly([field_name])
             is_quarterly = True
@@ -484,7 +502,6 @@ class DataView(OriginDataView):
 
         # 季度添加至data_q　日度添加至data_d
         self.append_df(df, field_name, is_quarterly=is_quarterly)
-
         if is_quarterly:
             df_ann = merge.loc[:, pd.IndexSlice[:, self.ANN_DATE_FIELD_NAME]]
             df_ann.columns = df_ann.columns.droplevel(level='field')

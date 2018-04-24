@@ -538,7 +538,7 @@ factor_ret_df.dropna(how="all").head()
 |standardize_type|否|string| 标准化方法，有"rank"（排序标准化）,"z_score"(z-score标准化)两种（"rank"/"z_score"），默认为"z_score"|
 |winsorization|否|bool| 是否对结果执行去极值操作。默认不执行（False）|
 |index_member |否|pandas.DataFrame of bool |是否是指数成分股。日期为索引,证券品种为columns的二维bool值表格,True代表该品种在该日期下属于指数成分股。传入该参数,则在对结果进行标准化/去极值操作时所纳入的样本只有每期横截面上属于对应指数成分股的股票，默认为空|
-|weighted_method|否|string | 组合方式，目前支持'equal_weight'(等权合成),'ic_weight'(以某个时间窗口的滚动平均ic为权重), 'ir_weight'(以某个时间窗口的滚动ic_ir为权重), 'max_IR'(最大化上个持有期的ic_ir为目标处理权重)，'max_IC'(最大化上个持有期的ic为目标处理权重)。默认采取'equal_weight'(等权合成)方式。若此处参数不为'equal_weight，则还需配置接下来的props参数|
+|weighted_method|否|string | 组合方式，目前支持'equal_weight'(等权合成),'ic_weight'(以某个时间窗口的滚动平均ic为权重), 'ir_weight'(以某个时间窗口的滚动ic_ir为权重), 'max_IR'(最大化上个持有期的ic_ir为目标处理权重)，'max_IC'(最大化上个持有期的ic为目标处理权重)，'factors_ret_weight'(以某个时间窗口的滚动因子收益为权重)。默认采取'equal_weight'(等权合成)方式。若此处参数不为'equal_weight，则还需配置接下来的props参数|
 |props|weighted_method不等于'equal_weight'时必须,否则可以缺省|dict|计算加权合成因子时的必要配置信息。具体配置方式见下|
 
 **props配置参数**
