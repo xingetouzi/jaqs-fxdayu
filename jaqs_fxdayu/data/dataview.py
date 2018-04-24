@@ -1,5 +1,4 @@
 import os
-from copy import copy
 import numpy as np
 import pandas as pd
 from jaqs import util as jutil
