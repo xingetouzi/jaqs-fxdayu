@@ -89,6 +89,8 @@ def mad(factor_df, index_member=None):
     """
 
     def _mad(series):
+        if series.dropna().size==0:
+            return series
         median = series.median()
         tmp = (series - median).abs().median()
         return series.clip(median - 5 * tmp, median + 5 * tmp)
