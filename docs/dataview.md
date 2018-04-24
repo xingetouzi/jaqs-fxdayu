@@ -365,7 +365,7 @@ df.head()
   -  初始请求数据时指定all_price=True,会请求open、high、low、close、vwap及相应复权后的结果open_adj、high_adj、low_adj、close_adj、vwap_adj
   -  请求行情类数据（open、high、low、close、vwap）,若adjust_mode不为空（默认为"post"）,会补充相应复权后结果并以'_adj'为后缀。
   -  初始请求数据字段中包含季度数据,会自动按时间、标的整理对齐一份到日级别上
-  -  初始请求数据默认会自动补充adjust_factor(复权因子)、trade_status(交易状态-停牌or可交易)、ann_date(财报公告时间-季度数据)、quarter(季度数据对应披露月份)
+  -  初始请求数据默认会自动补充adjust_factor(复权因子)、trade_status(交易状态-停牌or可交易)
 
 **示例：**
 
