@@ -4,7 +4,6 @@ from jaqs.data.dataservice import RemoteDataService as OriginRemoteDataService
 import os
 import numpy as np
 import pandas as pd
-import sqlite3 as sql
 from jaqs.data.align import align
 import jaqs.util as jutil
 from jaqs_fxdayu.patch_util import auto_register_patch
@@ -14,7 +13,6 @@ from jaqs_fxdayu.patch_util import auto_register_patch
 class RemoteDataService(OriginRemoteDataService):
     def __init__(self):
         super(OriginRemoteDataService, self).__init__()
-        import bcolz
         self.data_api = None
 
         self._address = ""
@@ -72,6 +70,10 @@ class RemoteDataService(OriginRemoteDataService):
 
 class LocalDataService():
     def __init__(self,fp):
+        
+        import bcolz
+        import sqlite3 as sql
+        
         bz_path = fp + '//' + 'data_d'
         sql_path = fp + '//' + 'data.sqlite'
         
