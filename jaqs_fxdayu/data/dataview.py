@@ -371,7 +371,7 @@ class DataView(OriginDataView):
         """Prepare data for the FIRST time."""
         # prepare benchmark and group
         print("Query data...")
-        self.fields = list(set(self.fields)|set(["trade_status","ann_date"]))
+        self.fields = list(set(self.fields)|set(["trade_status"]))
         data_d, data_q = self._prepare_daily_quarterly(self.fields)
         self.data_d, self.data_q = data_d, data_q
 
