@@ -363,12 +363,14 @@ class LocalDataService():
         return res
 
     def index_daily(self, universe, start_date, end_date, fields):
-
+        exist_fields = ['open','high','low','close','symbol','trade_date','symbol','trade_status','turnover','volume']
+        fields = [i for i in fields if i in exist_fields]
+        
         self.c.execute('''SELECT %s FROM "index_d"
                           WHERE trade_date>=%s 
                           AND trade_date<=%s 
-                          AND symbol = "%s" '''%(fields ,start_date ,end_date, universe[0]))
-        data = pd.DataFrame([list(i) for i in self.c.fetchall()],columns = fields.split(','))        
+                          AND symbol = "%s" '''%(','.join(fields) ,start_date ,end_date, universe[0]))
+        data = pd.DataFrame([list(i) for i in self.c.fetchall()],columns = fields)        
         
         return data , "0,"
 
@@ -382,15 +384,18 @@ class LocalDataService():
         if type(fields) == str:
             fields = fields.split(',')
             
-        symbols = [x for x in symbol if x in self.tb.attrs['index'].keys()]
+        exist_symbol = self.tb.attrs['index'].keys()
+        
+        symbols = [x for x in symbol if x in exist_symbol]
+        univ = [x for x in symbol if x not in exist_symbol]
         fld = [x for x in fields if x in self.tb.cols.names] + ['trade_date','symbol']
         
         need_dates = self.query_trade_dates(start_date, end_date)
         start = need_dates[0]
         end = need_dates[-1]
         
-        if symbols == []:
-            return self.index_daily(symbol, start_date, end_date , ','.join(fields))
+        if len(univ) > 0:
+            return self.index_daily(univ, start_date, end_date , fields)
         
         if adjust_mode == 'post':
             fld.extend(['open_adj', 'high_adj', 'low_adj', 'close_adj'])
