@@ -4,7 +4,6 @@
 import jaqs.util as jutil
 import pandas as pd
 import numpy as np
-from sklearn.preprocessing import scale
 
 
 def _mask_df(df, mask):

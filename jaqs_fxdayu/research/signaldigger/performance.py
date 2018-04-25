@@ -1,5 +1,4 @@
 import pandas as pd
-import scipy.stats as scst
 from jaqs_fxdayu.patch_util import auto_register_patch
 
 from jaqs.research.signaldigger.performance import calc_ic_stats_table as __calc_ic_stats_stable
