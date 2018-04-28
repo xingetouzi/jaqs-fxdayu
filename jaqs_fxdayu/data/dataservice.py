@@ -399,7 +399,7 @@ class LocalDataService():
         
         if adjust_mode == 'post':
             fld.extend(['open_adj', 'high_adj', 'low_adj', 'close_adj','vwap_adj'])
-            fld = list(set(fld) - set(['open','high','low','close']))
+            fld = list(set(fld) - set(['open','high','low','close','vwap']))
 
         index = self.tb.attrs['index']
         dates = np.array(list(set(self.tb['trade_date'])))
