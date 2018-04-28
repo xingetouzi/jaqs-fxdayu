@@ -280,7 +280,9 @@ class LocalDataService():
             return self.daily(symbol, start_date, end_date,fields = fields)
 
     def query_adj_factor_daily(self, symbol_str, start_date, end_date, div=False):
-        return self.daily(symbol_str, start_date, end_date,fields = 'adjust_factor')
+        data,msg =  self.daily(symbol_str, start_date, end_date,fields = 'adjust_factor')
+        data = data.pivot(index = 'trade_date',columns='symbol',values='adjust_factor')
+        return data
 
 
     def query_index_weights_range(self, index, start_date, end_date):
@@ -363,7 +365,7 @@ class LocalDataService():
         return res
 
     def index_daily(self, universe, start_date, end_date, fields):
-        exist_fields = ['open','high','low','close','symbol','trade_date','symbol','trade_status','turnover','volume']
+        exist_fields = ['open','high','low','close','symbol','trade_date','symbol','turnover','volume']
         fields = [i for i in fields if i in exist_fields]
         
         self.c.execute('''SELECT %s FROM "index_d"
@@ -385,9 +387,12 @@ class LocalDataService():
             fields = fields.split(',')
             
         exist_symbol = self.tb.attrs['index'].keys()
-        
+        exist_univ = ['399008.SZ','000016.SH','000012.SH','000010.SH','000002.SH','000009.SH','399003.SZ','399100.SZ','399002.SZ','000003.SH',
+                     '399004.SZ','000001.SH','000300.SH','399106.SZ','000905.SH','000008.SH','000011.SH','399001.SZ','399005.SZ','399101.SZ',
+                     '399333.SZ','399107.SZ','000017.SH','399606.SZ','399006.SZ','399108.SZ']
+                    
         symbols = [x for x in symbol if x in exist_symbol]
-        univ = [x for x in symbol if x not in exist_symbol]
+        univ = [x for x in symbol if x in exist_univ]
         fld = [x for x in fields if x in self.tb.cols.names] + ['trade_date','symbol']
         
         need_dates = self.query_trade_dates(start_date, end_date)
