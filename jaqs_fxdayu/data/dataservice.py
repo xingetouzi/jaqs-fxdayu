@@ -398,7 +398,7 @@ class LocalDataService():
             return self.index_daily(univ, start_date, end_date , fields)
         
         if adjust_mode == 'post':
-            fld.extend(['open_adj', 'high_adj', 'low_adj', 'close_adj'])
+            fld.extend(['open_adj', 'high_adj', 'low_adj', 'close_adj','vwap_adj'])
             fld = list(set(fld) - set(['open','high','low','close']))
 
         index = self.tb.attrs['index']
