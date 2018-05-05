@@ -78,7 +78,7 @@ class LocalDataService():
         sql_path = fp + '//' + 'data.sqlite'
         
         if not (os.path.exists(bz_path) and os.path.exists(bz_path)):
-            raise FileNotFoundError("Data not found at {}".format(fp))
+            raise FileNotFoundError("在{}目录下没有找到数据文件".format(fp))
             
         conn = sql.connect(sql_path)
         self.c = conn.cursor()
@@ -146,7 +146,7 @@ class LocalDataService():
     
     def query_index_member(self, universe, start_date, end_date,data_format='list'):
         self.c.execute('''SELECT * FROM "lb.indexCons"
-                          WHERE index_code == "%s" '''%(universe))
+                          WHERE index_code = "%s" '''%(universe))
         
         data = pd.DataFrame([list(i) for i in self.c.fetchall()])
         
@@ -154,6 +154,9 @@ class LocalDataService():
         cols = [i[1] for i in self.c.fetchall()]
         data.columns = cols
         
+        symbols = [i for i in data['symbol'] if (i[0] == '2' or i[0] == '9')]
+        data = data[~data['symbol'].isin(symbols)]
+                
         data['out_date'][data['out_date'] == ''] = '20990101'
         data['in_date'] = data['in_date'].astype(int)
         data['out_date'] = data['out_date'].astype(int)
@@ -285,9 +288,9 @@ class LocalDataService():
         return data
 
 
-    def query_index_weights_range(self, index, start_date, end_date):
+    def query_index_weights_range(self, universe, start_date, end_date):
         """
-        Return all securities that have been in index during start_date and end_date.
+        Return all securities that have been in universe during start_date and end_date.
         
         Parameters
         ----------
@@ -300,37 +303,40 @@ class LocalDataService():
         pd.DataFrame
 
         """
-        index = index.split(',')
-        if '000300.SH' in index:
-            index.remove('000300.SH')
-            index.append('399300.SZ')
+        universe = universe.split(',')
+        if '000300.SH' in universe:
+            universe.remove('000300.SH')
+            universe.append('399300.SZ')
             
-        if len(index) == 1:
-            index = index[0] 
+        if len(universe) == 1:
+            universe = universe[0] 
             self.c.execute('''SELECT * FROM "lb.indexWeightRange"
                       WHERE trade_date>=%s 
                       AND trade_date<=%s 
-                      AND index_code = "%s" '''%(start_date ,end_date, index))          
+                      AND index_code = "%s" '''%(start_date ,end_date, universe))          
         else:
-            index =  '("' + '","'.join(index.split(',')) + '")'
+            universe =  '("' + '","'.join(universe.split(',')) + '")'
             self.c.execute('''SELECT * FROM "lb.indexWeightRange"
                       WHERE trade_date>=%s 
                       AND trade_date<=%s 
-                      AND index_code IN %s '''%(start_date ,end_date, index))
+                      AND index_code IN %s '''%(start_date ,end_date, universe))
             
         data = pd.DataFrame([list(i) for i in self.c.fetchall()])
         
-        self.c.execute('PRAGMA table_info([lb.indexWeightRange])')
-        cols = [i[1] for i in self.c.fetchall()]
-        data.columns = cols     
+        if len(data) > 0:
+            self.c.execute('PRAGMA table_info([lb.indexWeightRange])')
+            cols = [i[1] for i in self.c.fetchall()]
+            data.columns = cols
         
-        # df_io = df_io.set_index('symbol')
-        df_io = data.astype({'weight': float, 'trade_date': np.integer})
-        df_io.loc[:, 'weight'] = df_io['weight'] / 100.
-        df_io = df_io.pivot(index='trade_date', columns='symbol', values='weight')
-        df_io = df_io.fillna(0.0)
-        return df_io
-
+            # df_io = df_io.set_index('symbol')
+            df_io = data.astype({'weight': float, 'trade_date': np.integer})
+            df_io.loc[:, 'weight'] = df_io['weight'] / 100.
+            df_io = df_io.pivot(index='trade_date', columns='symbol', values='weight')
+            df_io = df_io.fillna(0.0)
+            return df_io
+        else:
+            print ('没有找到指数%s的权重数据'%self.universe)
+            return data
 
     def query_index_weights_daily(self, index, start_date, end_date):
         """
@@ -364,16 +370,32 @@ class LocalDataService():
         
         return res
 
-    def index_daily(self, universe, start_date, end_date, fields):
+    def __index_daily(self, universe, start_date, end_date, fields):
+        if isinstance(universe,str):
+            universe = universe.splite(',')
+            
         exist_fields = ['open','high','low','close','symbol','trade_date','symbol','turnover','volume']
-        fields = [i for i in fields if i in exist_fields]
         
-        self.c.execute('''SELECT %s FROM "index_d"
-                          WHERE trade_date>=%s 
-                          AND trade_date<=%s 
-                          AND symbol = "%s" '''%(','.join(fields) ,start_date ,end_date, universe[0]))
-        data = pd.DataFrame([list(i) for i in self.c.fetchall()],columns = fields)        
+        print (fields) 
+        if fields == ['']:
+            fields = exist_fields
+        else:
+            fields = [i for i in fields if i in exist_fields]
+            
+        assert fields != [] ,('不支持的请求字段')
         
+        l = []
+        for univ in universe:
+            self.c.execute('''SELECT %s FROM "index_d"
+                              WHERE trade_date>=%s 
+                              AND trade_date<=%s 
+                              AND symbol="%s"'''%(','.join(fields) ,start_date ,end_date, univ))
+            df = pd.DataFrame([list(i) for i in self.c.fetchall()],columns = fields)   
+            l.append(df)
+        
+        data = pd.concat(l)
+        
+        assert len(data) > 0 , ("未找到{}指数行情数据".format(universe))     
         return data , "0,"
 
 
@@ -399,8 +421,13 @@ class LocalDataService():
         start = need_dates[0]
         end = need_dates[-1]
         
+        if start < self.tb['trade_date'][0]:
+            start = self.tb['trade_date'][0]
+        if end > self.tb['trade_date'][-1]:
+            end = self.tb['trade_date'][-1]
+        
         if len(univ) > 0:
-            return self.index_daily(univ, start_date, end_date , fields)
+            return self.__index_daily(univ, start_date, end_date , fields)
         
         if adjust_mode == 'post':
             fld.extend(['open_adj', 'high_adj', 'low_adj', 'close_adj','vwap_adj'])
