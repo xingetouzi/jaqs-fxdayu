@@ -68,7 +68,9 @@ def ta(ta_method='MA',
     if len(results) == 0:
         return None
     else:
-        return pd.concat(results, axis=1)
+        tmp = pd.concat(results, axis=1)
+        tmp = tmp.reindex(columns=candle_pannel.minor_axis)
+        return tmp
 
 
 # 最大值的坐标
