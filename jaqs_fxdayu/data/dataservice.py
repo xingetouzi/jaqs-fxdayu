@@ -287,7 +287,6 @@ class LocalDataService():
         data = data.pivot(index = 'trade_date',columns='symbol',values='adjust_factor')
         return data
 
-
     def query_index_weights_range(self, universe, start_date, end_date):
         """
         Return all securities that have been in universe during start_date and end_date.
@@ -398,6 +397,13 @@ class LocalDataService():
         assert len(data) > 0 , ("未找到{}指数行情数据".format(universe))     
         return data , "0,"
 
+    @property
+    def _exist_index(self,):
+        self.c.execute('''SELECT symbol FROM "index_d"''')
+        index1 = set([i[0] for i in self.c.fetchall()])        
+        self.c.execute('''SELECT index_code FROM "lb.indexCons"''')
+        index2 = set([i[0] for i in self.c.fetchall()])     
+        return index1&index2
 
     def daily(self, symbol, start_date, end_date,
               fields="", adjust_mode=None):
@@ -409,9 +415,7 @@ class LocalDataService():
             fields = fields.split(',')
             
         exist_symbol = self.tb.attrs['index'].keys()
-        exist_univ = ['399008.SZ','000016.SH','000012.SH','000010.SH','000002.SH','000009.SH','399003.SZ','399100.SZ','399002.SZ','000003.SH',
-                     '399004.SZ','000001.SH','000300.SH','399106.SZ','000905.SH','000008.SH','000011.SH','399001.SZ','399005.SZ','399101.SZ',
-                     '399333.SZ','399107.SZ','000017.SH','399606.SZ','399006.SZ','399108.SZ']
+        exist_univ = self._exist_index
                     
         symbols = [x for x in symbol if x in exist_symbol]
         univ = [x for x in symbol if x in exist_univ]
