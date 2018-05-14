@@ -124,6 +124,9 @@ from jaqs_fxdayu.research import Optimizer
 
 ## 最新功能
 ### 2018/4/19
+参数优化器(optimizer)新增功能,支持在待优化公式中调用自定义方法.
+
+### 2018/4/19
 新增process-mad,用于因子去极值.优化了行业市值中性化的算法效率.
 
 ### 2018/4/16

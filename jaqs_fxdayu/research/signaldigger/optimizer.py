@@ -114,6 +114,7 @@ class Optimizer(object):
                  commission=0.0008,
                  is_event=False,
                  is_quarterly=False,
+                 register_funcs=None,
                  ):
         self.dataview = dataview
         self.formula = formula
@@ -131,6 +132,7 @@ class Optimizer(object):
             n_quantiles = 1
         self.is_event = is_event
         self.is_quarterly = is_quarterly
+        self.register_funcs = register_funcs
         self.signal_creator = SignalCreator(
             price=price,
             ret=ret,
@@ -239,9 +241,10 @@ class Optimizer(object):
                 formula = self.formula
                 for vars in para_dict.keys():
                     formula = formula.replace(vars, str(para_dict[vars]))
-                signal = self.dataview.add_formula(self.name,
-                                                   formula,
-                                                   is_quarterly=self.is_quarterly)
+                signal = self.dataview.add_formula(field_name=self.name,
+                                                   formula=formula,
+                                                   is_quarterly=self.is_quarterly,
+                                                   register_funcs=self.register_funcs)
                 if (not isinstance(signal,pd.DataFrame)) or (signal.size==0):
                     warnings.warn("待优化公式%s不能计算出有效结果,请检查数据和公式是否正确完备!")
                     continue

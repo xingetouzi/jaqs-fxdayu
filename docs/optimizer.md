@@ -1,3 +1,4 @@
+
 # Optimizer
 
 ## 介绍
@@ -40,6 +41,7 @@ Optimizer是optimizer模块中的一个核心类，提供了因子算法参数�
 |commission |否 |float|手续费比例,每次换仓收取的手续费百分比,默认为万分之八0.0008|
 |is_event |否 |bool|是否是事件(0/1因子),默认为否|
 |is_quarterly |否 |bool|是否是季度因子,默认为否|
+|register_funcs |否 |dict of function|待优化公式中用到的自定义方法所组成的dict,如{"name1":func1，"name2":func2}|
 
 **示例：**
 
@@ -59,11 +61,14 @@ dv = DataView()
 dataview_folder = './data'
 dv.load_dataview(dataview_folder)
 
+def _cut_negative(df):
+    return df[df>=0]
+
 # step 1：实例化Optimizer
 optimizer = Optimizer(dataview=dv,
-                      formula='- Correlation(vwap_adj, volume, LEN)',
+                      formula='Cut_Neg(- Correlation(vwap_adj, high, LEN))',
                       params={"LEN":range(2,5,1)},
-                      name='divert',
+                      name='test',
                       price=dv.get_ts('close_adj'),
                       high=dv.get_ts('high_adj'),
                       low=dv.get_ts('low_adj'),
@@ -72,7 +77,8 @@ optimizer = Optimizer(dataview=dv,
                       n_quantiles=5,
                       commission=0.0008,#手续费 默认0.0008
                       is_event=False,#是否是事件(0/1因子)
-                      is_quarterly=False)#是否是季度因子 默认为False
+                      is_quarterly=False,
+                      register_funcs={"Cut_Neg":_cut_negative})#是否是季度因子 默认为False
 ```
 
     Dataview loaded successfully.
@@ -86,36 +92,27 @@ dv.fields
 
 
 
-    ['sw1',
-     'low_adj',
-     'high_adj',
-     'pe',
+    ['high',
      'quarter',
-     'low',
-     'oper_exp',
-     'open_adj',
-     'trade_status',
-     'close_adj',
-     'index_weight',
-     'pb',
-     'total_oper_rev',
-     'high',
-     '_limit',
-     'ann_date',
-     'vwap',
-     'vwap_adj',
-     'close',
-     'adjust_factor',
      'index_member',
-     '_daily_adjust_factor',
-     '000016.SH_member',
-     '000016.SH_weight',
-     'volume',
-     'momentum',
-     'double_SMA',
-     'close-high',
-     'roe',
-     'd-roe']
+     'close_adj',
+     'total_oper_rev',
+     'trade_status',
+     'close',
+     'high_adj',
+     'oper_exp',
+     'vwap',
+     'open',
+     'pe',
+     'index_weight',
+     'ann_date',
+     'pb',
+     'vwap_adj',
+     'low',
+     'sw1',
+     'low_adj',
+     'adjust_factor',
+     'open_adj']
 
 
 
@@ -139,7 +136,7 @@ optimizer.dataview
 
 
 
-    <jaqs_fxdayu.data.dataview.DataView at 0x7f684819db00>
+    <jaqs_fxdayu.data.dataview.DataView at 0x7f2084a09eb8>
 
 
 
@@ -161,7 +158,7 @@ optimizer.formula
 
 
 
-    '- Correlation(vwap_adj, volume, LEN)'
+    'Cut_Neg(- Correlation(vwap_adj, high, LEN))'
 
 
 
@@ -205,7 +202,7 @@ optimizer.name
 
 
 
-    'divert'
+    'test'
 
 
 
@@ -265,25 +262,25 @@ print(optimizer.all_signals)
 optimizer.get_all_signals()
 ```
 
-    Nan Data Count (should be zero) : 0;  Percentage of effective data: 92%
-    Nan Data Count (should be zero) : 0;  Percentage of effective data: 94%
-    Nan Data Count (should be zero) : 0;  Percentage of effective data: 93%
+    Nan Data Count (should be zero) : 0;  Percentage of effective data: 13%
+    Nan Data Count (should be zero) : 0;  Percentage of effective data: 5%
+    Nan Data Count (should be zero) : 0;  Percentage of effective data: 2%
 
 
 
 ```python
 print(optimizer.all_signals.keys())
-print(optimizer.all_signals["divert{'LEN': 2}"].head())
+print(optimizer.all_signals["test{'LEN': 2}"].head())
 ```
 
-    dict_keys(["divert{'LEN': 2}", "divert{'LEN': 3}", "divert{'LEN': 4}"])
+    dict_keys(["test{'LEN': 2}", "test{'LEN': 3}", "test{'LEN': 4}"])
                           signal    return  upside_ret  downside_ret  quantile
     trade_date symbol                                                         
-    20170503   000002.SZ    -1.0  0.109486    0.208108     -1.000800         3
-               000008.SZ    -1.0 -0.071442    0.000463     -0.135901         2
-               000009.SZ    -1.0 -0.089585    0.009714     -0.170193         2
-               000027.SZ    -1.0 -0.016835    0.075002     -0.082433         3
-               000039.SZ    -1.0  0.074825    0.103575     -0.098925         1
+    20170503   000039.SZ     1.0  0.074825    0.103575     -0.098925         5
+               000413.SZ     1.0  0.014553    0.046193     -0.085562         4
+               000568.SZ     1.0  0.072790    0.144421     -0.080269         4
+               000718.SZ     1.0 -0.032261    0.014552     -0.097524         2
+               000793.SZ     1.0 -0.103177    0.068670     -0.113231         2
 
 
 ## all_signals_perf
@@ -336,11 +333,11 @@ optimizer.get_all_signals_perf()
 
 ```python
 print(optimizer.all_signals_perf.keys())
-print(optimizer.all_signals_perf["divert{'LEN': 2}"].keys())
-optimizer.all_signals_perf["divert{'LEN': 2}"]["ic"]
+print(optimizer.all_signals_perf["test{'LEN': 2}"].keys())
+optimizer.all_signals_perf["test{'LEN': 2}"]["ic"]
 ```
 
-    dict_keys(["divert{'LEN': 2}", "divert{'LEN': 3}", "divert{'LEN': 4}"])
+    dict_keys(["test{'LEN': 2}", "test{'LEN': 3}", "test{'LEN': 4}"])
     dict_keys(['ic', 'ret', 'space', 'signal_name'])
 
 
@@ -373,45 +370,45 @@ optimizer.all_signals_perf["divert{'LEN': 2}"]["ic"]
   <tbody>
     <tr>
       <th>IC Mean</th>
-      <td>0.018350</td>
-      <td>0.009832</td>
-      <td>0.032779</td>
+      <td>0.017783</td>
+      <td>1.129418e-01</td>
+      <td>1.053663e-01</td>
     </tr>
     <tr>
       <th>IC Std.</th>
-      <td>0.067582</td>
-      <td>0.074829</td>
-      <td>0.069326</td>
+      <td>0.169546</td>
+      <td>1.670488e-01</td>
+      <td>1.517479e-01</td>
     </tr>
     <tr>
       <th>t-stat(IC)</th>
-      <td>2.367057</td>
-      <td>1.145460</td>
-      <td>4.121944</td>
+      <td>0.914376</td>
+      <td>5.894107e+00</td>
+      <td>6.053210e+00</td>
     </tr>
     <tr>
       <th>p-value(IC)</th>
-      <td>0.020511</td>
-      <td>0.255660</td>
-      <td>0.000096</td>
+      <td>0.363450</td>
+      <td>1.005366e-07</td>
+      <td>5.192371e-08</td>
     </tr>
     <tr>
       <th>IC Skew</th>
-      <td>-0.010015</td>
-      <td>0.147546</td>
-      <td>0.189683</td>
+      <td>0.138918</td>
+      <td>-2.151916e-01</td>
+      <td>1.253665e+00</td>
     </tr>
     <tr>
       <th>IC Kurtosis</th>
-      <td>-0.779674</td>
-      <td>-0.615603</td>
-      <td>0.070359</td>
+      <td>0.399807</td>
+      <td>3.517243e-01</td>
+      <td>3.078936e+00</td>
     </tr>
     <tr>
       <th>Ann. IR</th>
-      <td>0.271520</td>
-      <td>0.131393</td>
-      <td>0.472819</td>
+      <td>0.104886</td>
+      <td>6.761004e-01</td>
+      <td>6.943508e-01</td>
     </tr>
   </tbody>
 </table>
@@ -482,7 +479,7 @@ ret_best[0]["ret"]
 
     3
     dict_keys(['ic', 'ret', 'space', 'signal_name'])
-    divert{'LEN': 3}
+    test{'LEN': 4}
 
 
 
@@ -507,7 +504,6 @@ ret_best[0]["ret"]
     <tr style="text-align: right;">
       <th></th>
       <th>long_ret</th>
-      <th>short_ret</th>
       <th>long_short_ret</th>
       <th>top_quantile_ret</th>
       <th>bottom_quantile_ret</th>
@@ -518,83 +514,75 @@ ret_best[0]["ret"]
   <tbody>
     <tr>
       <th>t-stat</th>
-      <td>13.663182</td>
-      <td>-16.705837</td>
-      <td>2.070200</td>
-      <td>29.122529</td>
-      <td>23.165669</td>
-      <td>2.551231</td>
-      <td>58.301138</td>
+      <td>6.483452</td>
+      <td>-0.101407</td>
+      <td>5.392292</td>
+      <td>4.371209</td>
+      <td>-0.589115</td>
+      <td>9.697444</td>
     </tr>
     <tr>
       <th>p-value</th>
       <td>0.000000</td>
+      <td>0.919580</td>
       <td>0.000000</td>
-      <td>0.042610</td>
-      <td>0.000000</td>
-      <td>0.000000</td>
-      <td>0.013220</td>
+      <td>0.000030</td>
+      <td>0.557960</td>
       <td>0.000000</td>
     </tr>
     <tr>
       <th>skewness</th>
-      <td>0.180808</td>
-      <td>-0.028991</td>
-      <td>0.149466</td>
-      <td>1.212846</td>
-      <td>1.283619</td>
-      <td>0.193644</td>
-      <td>1.294608</td>
+      <td>0.293834</td>
+      <td>-0.223391</td>
+      <td>0.571958</td>
+      <td>0.789755</td>
+      <td>0.139580</td>
+      <td>0.937413</td>
     </tr>
     <tr>
       <th>kurtosis</th>
-      <td>-0.543815</td>
-      <td>-0.253210</td>
-      <td>-0.102499</td>
-      <td>5.032953</td>
-      <td>4.293791</td>
-      <td>-0.182180</td>
-      <td>5.098249</td>
+      <td>-0.358258</td>
+      <td>0.081883</td>
+      <td>0.368376</td>
+      <td>1.227729</td>
+      <td>0.237143</td>
+      <td>2.696370</td>
     </tr>
     <tr>
       <th>Ann. Ret</th>
-      <td>0.332104</td>
-      <td>-0.299027</td>
-      <td>0.017125</td>
-      <td>0.344567</td>
-      <td>0.287333</td>
-      <td>0.056858</td>
-      <td>0.317683</td>
+      <td>0.301933</td>
+      <td>-0.004470</td>
+      <td>0.440432</td>
+      <td>0.314685</td>
+      <td>-0.053747</td>
+      <td>0.329067</td>
     </tr>
     <tr>
       <th>Ann. Vol</th>
-      <td>0.067386</td>
-      <td>0.049624</td>
-      <td>0.022933</td>
-      <td>0.260520</td>
-      <td>0.274885</td>
-      <td>0.061787</td>
-      <td>0.269129</td>
+      <td>0.128063</td>
+      <td>0.118190</td>
+      <td>0.209361</td>
+      <td>0.253471</td>
+      <td>0.250885</td>
+      <td>0.238054</td>
     </tr>
     <tr>
       <th>Ann. IR</th>
-      <td>4.928367</td>
-      <td>-6.025866</td>
-      <td>0.746730</td>
-      <td>1.322611</td>
-      <td>1.045285</td>
-      <td>0.920240</td>
-      <td>1.180412</td>
+      <td>2.357699</td>
+      <td>-0.037818</td>
+      <td>2.103694</td>
+      <td>1.241505</td>
+      <td>-0.214231</td>
+      <td>1.382322</td>
     </tr>
     <tr>
       <th>occurance</th>
-      <td>63.000000</td>
-      <td>63.000000</td>
-      <td>63.000000</td>
-      <td>3912.000000</td>
-      <td>3963.000000</td>
-      <td>63.000000</td>
-      <td>19679.000000</td>
+      <td>62.000000</td>
+      <td>59.000000</td>
+      <td>54.000000</td>
+      <td>101.000000</td>
+      <td>62.000000</td>
+      <td>398.000000</td>
     </tr>
   </tbody>
 </table>
