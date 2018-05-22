@@ -2,6 +2,7 @@
 from jaqs.data.dataservice import *
 from jaqs.data.dataservice import RemoteDataService as OriginRemoteDataService
 import os
+import h5py
 import numpy as np
 import pandas as pd
 from jaqs.data.align import align
@@ -71,18 +72,19 @@ class RemoteDataService(OriginRemoteDataService):
 class LocalDataService():
     def __init__(self,fp):
         
-        import bcolz
+        import h5py
         import sqlite3 as sql
-        
-        bz_path = fp + '//' + 'data_d'
+        self.fp = fp
+        h5_path = fp + '//' + 'data.hd5'
         sql_path = fp + '//' + 'data.sqlite'
         
-        if not (os.path.exists(bz_path) and os.path.exists(bz_path)):
+        #if not (os.path.exists(sql_path) and os.path.exists(h5_path)):
+        if not os.path.exists(sql_path):
             raise FileNotFoundError("在{}目录下没有找到数据文件".format(fp))
             
         conn = sql.connect(sql_path)
         self.c = conn.cursor()
-        self.tb = bcolz.open(bz_path)
+        self.h5_file = h5py.File(h5_path)
 
 #------------------------q-----------------------------------
     def query(self, view, filter, fields, data_format='pandas'):
@@ -141,7 +143,6 @@ class LocalDataService():
         cols = [i[1] for i in self.c.fetchall()]
         data.columns = cols
         return data['trade_date'].values
-        
     
     
     def query_index_member(self, universe, start_date, end_date,data_format='list'):
@@ -369,93 +370,128 @@ class LocalDataService():
         
         return res
 
-    def __index_daily(self, universe, start_date, end_date, fields):
-        if isinstance(universe,str):
-            universe = universe.splite(',')
-            
-        exist_fields = ['open','high','low','close','symbol','trade_date','symbol','turnover','volume']
-        
-        print (fields) 
-        if fields == ['']:
-            fields = exist_fields
-        else:
-            fields = [i for i in fields if i in exist_fields]
-            
-        assert fields != [] ,('不支持的请求字段')
-        
-        l = []
-        for univ in universe:
-            self.c.execute('''SELECT %s FROM "index_d"
-                              WHERE trade_date>=%s 
-                              AND trade_date<=%s 
-                              AND symbol="%s"'''%(','.join(fields) ,start_date ,end_date, univ))
-            df = pd.DataFrame([list(i) for i in self.c.fetchall()],columns = fields)   
-            l.append(df)
-        
-        data = pd.concat(l)
-        
-        assert len(data) > 0 , ("未找到{}指数行情数据".format(universe))     
-        return data , "0,"
-
-    @property
-    def _exist_index(self,):
-        self.c.execute('''SELECT symbol FROM "index_d"''')
-        index1 = set([i[0] for i in self.c.fetchall()])        
-        self.c.execute('''SELECT index_code FROM "lb.indexCons"''')
-        index2 = set([i[0] for i in self.c.fetchall()])     
-        return index1&index2
-
-    def daily(self, symbol, start_date, end_date,
+    def _index_daily(self, universe, start_date, end_date,
               fields="", adjust_mode=None):
-        
-        if type(symbol) == str:
-            symbol = symbol.split(',')    
-        
-        if type(fields) == str:
+        if isinstance(fields,str):
             fields = fields.split(',')
-            
-        exist_symbol = self.tb.attrs['index'].keys()
-        exist_univ = self._exist_index
-                    
-        symbols = [x for x in symbol if x in exist_symbol]
-        univ = [x for x in symbol if x in exist_univ]
-        fld = [x for x in fields if x in self.tb.cols.names] + ['trade_date','symbol']
+        if isinstance(universe,str):
+            universe = universe.split(',')
+       
+        file_path = self.fp + '\\index_daily.hd5'
+        file = h5py.File(file_path)
         
+        exist_univ = file['symbol_flag'][:,0].astype(str)
+        exist_field = np.array(list(file.keys())).astype(str)
+        exist_dates = file['date_flag'][:,0].astype(int)
+
+        fld = [i for i in fields if i in exist_field] + ['symbol','trade_date']
+        fld = list(set(fld))
+        
+        univ = [x for x in universe if x in exist_univ]
         need_dates = self.query_trade_dates(start_date, end_date)
         start = need_dates[0]
         end = need_dates[-1]
         
-        if start < self.tb['trade_date'][0]:
-            start = self.tb['trade_date'][0]
-        if end > self.tb['trade_date'][-1]:
-            end = self.tb['trade_date'][-1]
+        if start not in exist_dates or end not in exist_dates:
+            raise ValueError('起止日期超限')    
+    
+        symbol_index = [np.where(exist_univ == i)[0][0] for i in univ]
+        symbol_index.sort()
+        start_index = np.where(exist_dates == start)[0][0]
+        end_index = np.where(exist_dates == end)[0][0] + 1
         
+        sorted_symbol = [exist_univ[i] for i in symbol_index]
+        cols_multi = pd.MultiIndex.from_product([fld,sorted_symbol], names=['field','symbol'])
+        
+        def query_by_field(field):
+            data = file[field][start_index:end_index,symbol_index]
+            if field not in ['float','float32','float16','int']:
+                data = data.astype(str)
+            if field == 'trade_date':
+                data = data.astype(float).astype(int)        
+            return data
+            
+        data = [query_by_field(f) for f in fld]
+        
+        df = pd.DataFrame(np.concatenate(data,axis=1))
+        
+        df.columns = cols_multi
+        df.index.name = 'trade_date'
+        df = df.stack().reset_index(drop=True)
+        return df.sort_values(by = ['symbol','trade_date']) , "0,"
+
+    
+    def daily(self, symbol, start_date, end_date,
+              fields="", adjust_mode=None):  
+        
+        if isinstance(fields,str):
+            fields = fields.split(',')
+        if isinstance(symbol,str):
+            symbol = symbol.split(',')
+            
+        daily_fp = self.fp + '//' +'daily'
+        index_grp = h5py.File(self.fp+'//'+'index_daily.hd5')
+        
+        exist_field = [i[:-4] for i in os.listdir(daily_fp)]
+        dset = h5py.File(daily_fp + '//' + 'close.hd5')
+        exist_symbol = dset['symbol_flag'][:,0].astype(str)
+        exist_univ = index_grp['symbol_flag'][:,0].astype(str)
+        univ = [x for x in symbol if x in exist_univ]
+        _symbol = [x for x in symbol if x in exist_symbol]
         if len(univ) > 0:
-            return self.__index_daily(univ, start_date, end_date , fields)
+            return self._index_daily(symbol, start_date, end_date, fields = fields, adjust_mode=None)
+            
+        exist_dates = dset['date_flag'][:,0].astype(int)
+
+        fld = [i for i in fields if i in exist_field] + ['symbol','trade_date']
+        fld = list(set(fld))
+         
+        need_dates = self.query_trade_dates(start_date, end_date)
+        start = need_dates[0]
+        end = need_dates[-1]
         
+        if start not in exist_dates or end not in exist_dates:
+            raise ValueError('起止日期超限')    
+    
         if adjust_mode == 'post':
             fld.extend(['open_adj', 'high_adj', 'low_adj', 'close_adj','vwap_adj'])
             fld = list(set(fld) - set(['open','high','low','close','vwap']))
 
-        index = self.tb.attrs['index']
-        dates = np.array(list(set(self.tb['trade_date'])))
-        dates.sort()
-        _s = np.argwhere(dates == start)[0][0]
-        _e = np.argwhere(dates == end)[0][0]
+        symbol_index = [np.where(exist_symbol == i)[0][0] for i in _symbol]
+        symbol_index.sort()
+        start_index = np.where(exist_dates == start)[0][0]
+        end_index = np.where(exist_dates == end)[0][0] + 1
         
-        def func(df,symbol):
-            s,e = index[symbol].split(',')
-            begin = int(s) + _s
-            finish = int(s) + _e + 1
-            return df[begin:finish]
+        sorted_symbol = [exist_symbol[i] for i in symbol_index]
+        cols_multi = pd.MultiIndex.from_product([fld,sorted_symbol], names=['fields','symbol'])
+        
+        def query_by_field(field):
+            _dir = daily_fp + '//' + field + '.hd5'
+            dset = h5py.File(_dir)[field]
+            data = dset[start_index:end_index,symbol_index]
+            if field not in ['float','float32','float16','int']:
+                data = data.astype(str)
+            if field == 'trade_date':
+                data = data.astype(float).astype(int)                
+            return data
             
-        res = {}
-        for f in fld:
-            df = self.tb[f]
-            res[f] = np.concatenate([func(df,sb) for sb in symbols])                             
+        data = [query_by_field(f) for f in fld]
+        
+        df = pd.DataFrame(np.concatenate(data,axis=1))
+        
+        df.columns = cols_multi
+        df.index.name = 'trade_date'
+        df = df.stack().reset_index(drop=True)
 
-        return pd.DataFrame(res) , "0,"
-    
+        for i in df.columns:
+            if i == 'trade_date':
+                df[i] = df[i].astype(int)
+            elif i == 'symbol':
+                df[i] = df[i].astype(str)
+            else:
+                df[i] = df[i].astype(float)
+
+        return df.sort_values(by = ['symbol','trade_date']) , "0,"
     
     def query_industry_raw(self, symbol_str, type_='ZZ', level=1):
         """
