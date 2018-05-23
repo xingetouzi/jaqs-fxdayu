@@ -849,8 +849,10 @@ class DataView(OriginDataView):
         if all_quarterly:
             df_ann = self._get_ann_df()
             df_expanded = align(df_eval.reindex(df_ann.index), df_ann, self.dates)
+            df_expanded.index.name = self.TRADE_DATE_FIELD_NAME
             return df_expanded.loc[self.start_date:self.end_date]
         else:
+            df_eval.index.name = self.TRADE_DATE_FIELD_NAME
             return df_eval.loc[self.start_date:self.end_date]
 
     @property
