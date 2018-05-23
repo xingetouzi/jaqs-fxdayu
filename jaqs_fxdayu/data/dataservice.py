@@ -69,6 +69,16 @@ class RemoteDataService(OriginRemoteDataService):
 
         return df_industry
 
+    def predefined_fields(self):
+        params, msg = self.query("help.apiParam", "", "")
+        if msg != "0,":
+            raise Exception(msg)
+        mapper = {}
+        for api, param in params[params.ptype == "OUT"][["api", "param"]].values:
+            mapper.setdefault(api, set()).add(param)
+        return mapper
+
+
 class LocalDataService():
     def __init__(self,fp):
         
