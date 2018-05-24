@@ -70,7 +70,7 @@ class RemoteDataService(OriginRemoteDataService):
         return df_industry
 
     def predefined_fields(self):
-        params, msg = self.query("help.apiParam", "", "")
+        params, msg = self.query("help.predefine", "", "")
         if msg != "0,":
             raise Exception(msg)
         mapper = {}

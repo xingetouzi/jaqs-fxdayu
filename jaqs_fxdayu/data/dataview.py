@@ -119,6 +119,10 @@ class DataView(OriginDataView):
         -------
         list
         """
+        if isinstance(fields, str):
+            fields = set(fields.split(','))
+        elif isinstance(fields, list):
+            fields = set(fields)
         pool_map = {'market_daily': self.market_daily_fields,
                     'ref_daily': self.reference_daily_fields,
                     'income': self.fin_stat_income,
