@@ -4,11 +4,9 @@ import pandas as pd
 from jaqs import util as jutil
 from jaqs.data.align import align
 from jaqs.data.dataview import DataView as OriginDataView, EventDataView
-from jaqs.data.dataapi import DataApi
 
 from jaqs_fxdayu.data.search_doc import FuncDoc
 from jaqs_fxdayu.patch_util import auto_register_patch
-from jaqs_fxdayu.data.dataservice import LocalDataService,RemoteDataService
 from jaqs_fxdayu.data.py_expression_eval import Parser
 
 try:
@@ -18,17 +16,6 @@ except NameError:
 
 
 PF = "prepare_fields"
-
-
-def get_api(data_api):
-    if isinstance(data_api, RemoteDataService):
-        return data_api.data_api
-    elif isinstance(data_api, DataApi):
-        return data_api
-    elif isinstance(data_api, LocalDataService):
-        return data_api  
-    else:
-        raise TypeError("Type of data_api should be jaqs.data.RemoteDataService or jaqs.data.DataApi or ")
 
 
 # def quick_concat(dfs, level, index_name="trade_date"): joined_index = pd.Index(np.concatenate([df.index.values for
@@ -42,6 +29,14 @@ from jaqs_fxdayu.util.concat import quick_concat
 class DataView(OriginDataView):
     def __init__(self):
         super(DataView, self).__init__()
+        self.fields_mapper = {
+            "lb.secDailyIndicator": self.reference_daily_fields,
+            "lb.income": self.fin_stat_income,
+            "lb.balanceSheet": self.fin_stat_balance_sheet,
+            "lb.cashFlow": self.fin_stat_cash_flow,
+            "lb.finIndicator": self.fin_indicator
+        }
+        self.external_fields = {}
         self.factor_fields = set()
 
     def init_from_config(self, props, data_api):
@@ -52,31 +47,12 @@ class DataView(OriginDataView):
         super(DataView, self).init_from_config(_props, data_api)
 
     def prepare_fields(self, data_api):
-        api = get_api(data_api)
-
-        table, msg = api.query("help.apiParam", "api=factor&ptype=OUT", "param")
-        if msg == "0,":
-            self.factor_fields = set(table["param"])
-            self.custom_daily_fields.extend(self.factor_fields)
-
-    def get_factor(self, symbol, start, end, fields, limit=500000):
-        if isinstance(symbol, list):
-            symbol = ",".join(symbol)
-        if isinstance(fields, list):
-            fields = ",".join(fields)
-
-        data ,msg = self.distributed_query("query",
-                                           symbol,
-                                           start_date=start,
-                                           end_date=end, limit=limit,
-                                           fields = fields,
-                                           view = "factor")
-        if msg == "0,":
-            data["symbol"] = data["symbol"].apply(lambda s: s[:6]+".SH" if s.startswith("6") else s[:6]+".SZ")
-            data.rename_axis({"datetime": "trade_date"}, 1, inplace=True)
-            return data
-        else:
-            raise Exception(msg)
+        mapper = data_api.predefined_fields()
+        for name in self.fields_mapper:
+            self.fields_mapper[name].update(mapper.pop(name, set()))
+        for api, param in mapper.items():
+            self.external_fields.update(dict.fromkeys(param, api))
+            self.custom_daily_fields.extend(param)
 
     def distributed_query(self, query_func_name, symbol, start_date, end_date, limit=100000, **kwargs):
 
@@ -149,8 +125,7 @@ class DataView(OriginDataView):
                     'balance_sheet': self.fin_stat_balance_sheet,
                     'cash_flow': self.fin_stat_cash_flow,
                     'fin_indicator': self.fin_indicator,
-                    'group': self.group_fields,
-                    'factor': self.factor_fields}
+                    'group': self.group_fields}
         pool_map['daily'] = set.union(pool_map['market_daily'],
                                       pool_map['ref_daily'],
                                       pool_map['group'],
@@ -200,6 +175,27 @@ class DataView(OriginDataView):
         l = list(s)
         return l
 
+    def _find_external_params(self, fields):
+        dct = {}
+        for field in fields:
+            dct.setdefault(self.external_fields.get(field, None), set()).add(field)
+        dct.pop(None, None)
+        return dct
+
+    def query_external_daily(self, fields, start, end, symbol):
+        if not isinstance(symbol, str):
+            from collections import Iterable
+            if isinstance(symbol, Iterable):
+                symbol = ",".join(symbol)
+        filters = "start_date=%s&end_date=%s&symbol=%s" % (start, end, symbol)
+        target = self._find_external_params(fields)
+        for view, params in target.items():
+            data, msg = self.data_api.query(view, filters, ",".join(params))
+            if msg == "0,":
+                yield data
+            else:
+                raise Exception(msg)
+
     def _query_data(self, symbol, fields):
         """
         Query data using different APIs, then store them in dict.
@@ -217,6 +213,7 @@ class DataView(OriginDataView):
         sep = ','
         symbol_str = sep.join(symbol)
         limit = 500000
+        fields = set(fields)
 
         if self.freq == 1:
             daily_list = []
@@ -256,13 +253,6 @@ class DataView(OriginDataView):
                                                             limit=limit)
                 daily_list.append(df_ref_daily.loc[:, fields_ref_daily])
 
-            # ----------------------------- query factor -----------------------------
-            factor_fields = self._get_fields("factor", fields)
-            if factor_fields:
-                df_factor = self.get_factor(symbol, self.extended_start_date_d, self.end_date, factor_fields, limit=limit)
-                daily_list.append(df_factor)
-
-            # ----------------------------- query factor -----------------------------
 
             fields_income = self._get_fields('income', fields, append=True)
             if fields_income:
@@ -297,6 +287,10 @@ class DataView(OriginDataView):
                     drop_dup_cols=['symbol', self.REPORT_DATE_FIELD_NAME])
                 quarterly_list.append(df_fin_ind.loc[:, fields_fin_ind])
 
+            # ----------------------------- query external -----------------------------
+            for data in self.query_external_daily(fields, self.extended_start_date_d, self.end_date, self.symbol):
+                daily_list.append(data)
+            # ----------------------------- query external -----------------------------
         else:
             raise NotImplementedError("freq = {}".format(self.freq))
         return daily_list, quarterly_list
@@ -849,8 +843,10 @@ class DataView(OriginDataView):
         if all_quarterly:
             df_ann = self._get_ann_df()
             df_expanded = align(df_eval.reindex(df_ann.index), df_ann, self.dates)
+            df_expanded.index.name = self.TRADE_DATE_FIELD_NAME
             return df_expanded.loc[self.start_date:self.end_date]
         else:
+            df_eval.index.name = self.TRADE_DATE_FIELD_NAME
             return df_eval.loc[self.start_date:self.end_date]
 
     @property
