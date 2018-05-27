@@ -132,6 +132,9 @@ class LocalDataService():
                 dic[k] = v
             return self.daily(dic['symbol'], dic['start'],dic['end'],fields, adjust_mode=None) 
      
+    def predefined_fields(self,):
+        return dict()
+        
     def query_trade_dates(self,start_date, end_date):
         self.c.execute('''SELECT * FROM "jz.secTradeCal" 
                       WHERE trade_date>=%s 
@@ -271,7 +274,7 @@ class LocalDataService():
         
         dic = {}
         if sf:      
-            bz_sf = [i + '_' for i in sf]
+            bz_sf = ['_' + i  for i in sf]
             for i in range(len(sf)):
                field.remove(sf[i])
                field.append(bz_sf[i])
@@ -369,57 +372,6 @@ class LocalDataService():
         res = res.loc[:, mask_col]
         
         return res
-
-    def _index_daily(self, universe, start_date, end_date,
-              fields="", adjust_mode=None):
-        if isinstance(fields,str):
-            fields = fields.split(',')
-        if isinstance(universe,str):
-            universe = universe.split(',')
-       
-        file_path = self.fp + '\\index_daily.hd5'
-        file = h5py.File(file_path)
-        
-        exist_univ = file['symbol_flag'][:,0].astype(str)
-        exist_field = np.array(list(file.keys())).astype(str)
-        exist_dates = file['date_flag'][:,0].astype(int)
-
-        fld = [i for i in fields if i in exist_field] + ['symbol','trade_date']
-        fld = list(set(fld))
-        
-        univ = [x for x in universe if x in exist_univ]
-        need_dates = self.query_trade_dates(start_date, end_date)
-        start = need_dates[0]
-        end = need_dates[-1]
-        
-        if start not in exist_dates or end not in exist_dates:
-            raise ValueError('起止日期超限')    
-    
-        symbol_index = [np.where(exist_univ == i)[0][0] for i in univ]
-        symbol_index.sort()
-        start_index = np.where(exist_dates == start)[0][0]
-        end_index = np.where(exist_dates == end)[0][0] + 1
-        
-        sorted_symbol = [exist_univ[i] for i in symbol_index]
-        cols_multi = pd.MultiIndex.from_product([fld,sorted_symbol], names=['field','symbol'])
-        
-        def query_by_field(field):
-            data = file[field][start_index:end_index,symbol_index]
-            if field not in ['float','float32','float16','int']:
-                data = data.astype(str)
-            if field == 'trade_date':
-                data = data.astype(float).astype(int)        
-            return data
-            
-        data = [query_by_field(f) for f in fld]
-        
-        df = pd.DataFrame(np.concatenate(data,axis=1))
-        
-        df.columns = cols_multi
-        df.index.name = 'trade_date'
-        df = df.stack().reset_index(drop=True)
-        return df.sort_values(by = ['symbol','trade_date']) , "0,"
-
     
     def daily(self, symbol, start_date, end_date,
               fields="", adjust_mode=None):  
@@ -430,33 +382,39 @@ class LocalDataService():
             symbol = symbol.split(',')
             
         daily_fp = self.fp + '//' +'daily'
-        index_grp = h5py.File(self.fp+'//'+'index_daily.hd5')
         
         exist_field = [i[:-4] for i in os.listdir(daily_fp)]
-        dset = h5py.File(daily_fp + '//' + 'close.hd5')
+        dset = h5py.File(daily_fp + '//' + 'symbol.hd5')
         exist_symbol = dset['symbol_flag'][:,0].astype(str)
-        exist_univ = index_grp['symbol_flag'][:,0].astype(str)
-        univ = [x for x in symbol if x in exist_univ]
         _symbol = [x for x in symbol if x in exist_symbol]
-        if len(univ) > 0:
-            return self._index_daily(symbol, start_date, end_date, fields = fields, adjust_mode=None)
-            
         exist_dates = dset['date_flag'][:,0].astype(int)
-
+        
         fld = [i for i in fields if i in exist_field] + ['symbol','trade_date']
         fld = list(set(fld))
-         
+        
         need_dates = self.query_trade_dates(start_date, end_date)
         start = need_dates[0]
         end = need_dates[-1]
         
         if start not in exist_dates or end not in exist_dates:
             raise ValueError('起止日期超限')    
+            
+        #--------------------------query index----------------------------
+        df, msg = self.query(view="jz.instrumentInfo",
+                                      fields="symbol,market",
+                                      filter="inst_type=100",
+                                      data_format='pandas')
+        
+        df = df[(df['market']=='SZ')|(df['market']=='SH')]
+        all_univ = df['symbol'].values
     
-        if adjust_mode == 'post':
+        #--------------------------adjust----------------------------
+        if adjust_mode == 'post' and symbol[0] not in all_univ: 
             fld.extend(['open_adj', 'high_adj', 'low_adj', 'close_adj','vwap_adj'])
             fld = list(set(fld) - set(['open','high','low','close','vwap']))
 
+        
+        #--------------------------query&trans----------------------------
         symbol_index = [np.where(exist_symbol == i)[0][0] for i in _symbol]
         symbol_index.sort()
         start_index = np.where(exist_dates == start)[0][0]
@@ -467,16 +425,20 @@ class LocalDataService():
         
         def query_by_field(field):
             _dir = daily_fp + '//' + field + '.hd5'
-            dset = h5py.File(_dir)[field]
-            data = dset[start_index:end_index,symbol_index]
+            try:
+                dset = h5py.File(_dir)[field]
+                data = dset[start_index:end_index,symbol_index]
+            except:
+                dset = h5py.File(_dir)[field[1:]]
+                data = dset[start_index:end_index,symbol_index]
+                
             if field not in ['float','float32','float16','int']:
                 data = data.astype(str)
             if field == 'trade_date':
                 data = data.astype(float).astype(int)                
             return data
             
-        data = [query_by_field(f) for f in fld]
-        
+        data = [query_by_field(f) for f in fld]   
         df = pd.DataFrame(np.concatenate(data,axis=1))
         
         df.columns = cols_multi
