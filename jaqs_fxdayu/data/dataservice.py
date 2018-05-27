@@ -94,7 +94,6 @@ class LocalDataService():
             
         conn = sql.connect(sql_path)
         self.c = conn.cursor()
-        self.h5_file = h5py.File(h5_path)
 
 #------------------------q-----------------------------------
     def query(self, view, filter, fields, data_format='pandas'):
