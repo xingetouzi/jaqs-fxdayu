@@ -48,6 +48,27 @@ def trade_days(api, start, end):
         raise Exception(msg)
 
 
+def st_status(api, symbol, start, end):
+    """
+    :param api: jaqs.data.DataApi
+    :param symbol: str, sample: 600000.SH,000001.SZ
+    :param start: int, sample: 20170101
+    :param end: int, sample: 20180101
+    :return:
+    """
+    dates = trade_days(api, start, end)
+    data, msg = api.query("lb.sState", "symbol={}".format(symbol))
+    if len(data) == 0:
+        return None
+    data["in_date"] = data["effDate"].apply(int)
+    data["out_date"] = 99999999
+    data = data.sort_values(by=["in_date"])
+    if msg != "0,":
+        raise Exception(msg)
+
+    return expand(data, dates, None, value="state").fillna(0)
+
+
 # 指数成分股(return pandas.DataFrame)
 def index_cons(api, index_code, start, end):
     """

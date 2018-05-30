@@ -1,3 +1,4 @@
+
 # dp
 
 ## 介绍
@@ -385,6 +386,94 @@ daily_index_cons(api, "000300.SH", 20170101, 20170501).head()
   </tbody>
 </table>
 <p>5 rows × 301 columns</p>
+</div>
+
+
+
+## st_status
+- ` jaqs_fxdayu.util.dp.st_status(api, symbol, start, end) `
+
+**简要描述：**
+
+- 指定起止时间段，股票是否进入异常状态（含st,*st,退市等）
+- 注:从未进入过异常状态的股票不会在返回值里
+- 注:该方法目前只有在fxdayu数据源下才可访问到（非公开接口）
+
+**参数:**
+
+|字段|必选|类型|说明|
+|:----    |:---|:----- |-----   |
+|api |是| jaqs.data.DataApi |jaqs.data.DataApi|
+|symbol |是| str |股票代码,以","隔开|
+|start |是|int |开始日期|
+|end |是|int |结束日期|
+
+**示例：**
+
+
+```python
+from jaqs_fxdayu.util.dp import st_status
+st_status(api, "000001.SZ,000003.SZ,000008.SZ", 20170101, 20170501).head()
+```
+
+
+
+
+<div>
+<style>
+    .dataframe thead tr:only-child th {
+        text-align: right;
+    }
+
+    .dataframe thead th {
+        text-align: left;
+    }
+
+    .dataframe tbody tr th {
+        vertical-align: top;
+    }
+</style>
+<table border="1" class="dataframe">
+  <thead>
+    <tr style="text-align: right;">
+      <th></th>
+      <th>000003.SZ</th>
+      <th>000008.SZ</th>
+    </tr>
+    <tr>
+      <th>trade_date</th>
+      <th></th>
+      <th></th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr>
+      <th>20170103</th>
+      <td>1.0</td>
+      <td>0.0</td>
+    </tr>
+    <tr>
+      <th>20170104</th>
+      <td>1.0</td>
+      <td>0.0</td>
+    </tr>
+    <tr>
+      <th>20170105</th>
+      <td>1.0</td>
+      <td>0.0</td>
+    </tr>
+    <tr>
+      <th>20170106</th>
+      <td>1.0</td>
+      <td>0.0</td>
+    </tr>
+    <tr>
+      <th>20170109</th>
+      <td>1.0</td>
+      <td>0.0</td>
+    </tr>
+  </tbody>
+</table>
 </div>
 
 
