@@ -9,31 +9,28 @@ import jaqs.util as jutil
 
 class SignalCreator(object):
     def __init__(self,
-                 price=None,
-                 ret=None,
-                 high=None,
-                 low=None,
+                 price=None, daily_ret=None,
+                 benchmark_price=None, daily_benchmark_ret=None,
+                 high=None, low=None,
                  group=None,
-                 n_quantiles=5,
+                 period=5, n_quantiles=5,
                  mask=None,
                  can_enter=None,
                  can_exit=None,
-                 period=5,
-                 benchmark_price=None,
                  forward=True,
                  commission=0.0008):
 
-        if price is None and ret is None:
-            raise ValueError("One of price / ret must be provided.")
-        if price is not None and ret is not None:
-            raise ValueError("Only one of price / ret should be provided.")
-        if ret is not None and benchmark_price is not None:
-            raise ValueError("You choose 'return' mode but benchmark_price is given.")
+        if price is None and daily_ret is None:
+            raise ValueError("One of price / daily_ret must be provided.")
+        if price is not None and daily_ret is not None:
+            raise ValueError("Only one of price / daily_ret should be provided.")
+        if benchmark_price is not None and daily_benchmark_ret is not None:
+            raise ValueError("Only one of benchmark_price / daily_benchmark_ret should be provided.")
         if not (n_quantiles > 0 and isinstance(n_quantiles, int)):
             raise ValueError("n_quantiles must be a positive integer. Input is: {}".format(n_quantiles))
 
         self.price = price
-        self.ret = ret
+        self.daily_ret = daily_ret
         self.high = high
         self.low = low
         self.group = group
@@ -56,6 +53,7 @@ class SignalCreator(object):
 
         self.period = period
         self.benchmark_price = benchmark_price
+        self.daily_benchmark_ret = daily_benchmark_ret
         self.forward = forward
         self.commission = commission
 
@@ -94,9 +92,9 @@ class SignalCreator(object):
             if self.price is not None:
                 assert np.all(signal.index == self.price.index)
                 assert np.all(signal.columns == self.price.columns)
-            elif self.ret is not None:
-                assert np.all(signal.index == self.ret.index)
-                assert np.all(signal.columns == self.ret.columns)
+            elif self.daily_ret is not None:
+                assert np.all(signal.index == self.daily_ret.index)
+                assert np.all(signal.columns == self.daily_ret.columns)
             if self.high is not None:
                 assert np.all(signal.index == self.high.index)
                 assert np.all(signal.columns == self.high.columns)
@@ -108,40 +106,55 @@ class SignalCreator(object):
         if self.signal_ret is not None:
             return
         else:
-            upside_ret = None
-            downside_ret = None
-            if self.price is not None:
-                self.price = jutil.fillinf(self.price)
-                self.can_enter = np.logical_and(self.price != np.NaN, self.can_enter)
-                df_ret = pfm.price2ret(self.price, period=self.period, axis=0, compound=True)
-                price_can_exit = self.price.copy()
-                price_can_exit[~self.can_exit] = np.NaN
-                price_can_exit = price_can_exit.fillna(method="bfill")
-                ret_can_exit = pfm.price2ret(price_can_exit, period=self.period, axis=0, compound=True)
-                df_ret[~self.can_exit] = ret_can_exit[~self.can_exit]
-                if self.benchmark_price is not None:
-                    benchmark_price = self.benchmark_price.loc[self.price.index]
-                    bench_ret = pfm.price2ret(benchmark_price, self.period, axis=0, compound=True)
-                    residual_ret = df_ret.sub(bench_ret.values.flatten(), axis=0)
-                else:
-                    residual_ret = df_ret
-                residual_ret = jutil.fillinf(residual_ret)
-                residual_ret -= self.commission
-                # 计算潜在上涨空间和潜在下跌空间
-                if self.high is not None:
-                    self.high = jutil.fillinf(self.high)
-                    upside_ret = compute_upside_returns(self.price, self.high, self.can_exit, self.period,
-                                                        compound=True)
-                    upside_ret = jutil.fillinf(upside_ret)
-                    upside_ret -= self.commission
-                if self.low is not None:
-                    self.low = jutil.fillinf(self.low)
-                    downside_ret = compute_downside_returns(self.price, self.low, self.can_exit, self.period,
-                                                            compound=True)
-                    downside_ret = jutil.fillinf(downside_ret)
-                    downside_ret -= self.commission
+            # 计算benchmark收益
+            if self.benchmark_price is not None:
+                self.benchmark_ret = pfm.price2ret(self.benchmark_price, self.period, axis=0, compound=True)
+            elif self.daily_benchmark_ret is not None:
+                self.benchmark_ret = pfm.daily_ret_to_ret(self.daily_benchmark_ret, self.period)
+
+            # 计算区间持仓收益
+            isRealPrice = False
+            if self.daily_ret is not None:
+                self.daily_ret = jutil.fillinf(self.daily_ret).fillna(0)
+                self.price = pfm.daily_ret_to_cum(self.daily_ret)
             else:
-                residual_ret = jutil.fillinf(self.ret)
+                # 有price
+                isRealPrice = True
+                self.price = jutil.fillinf(self.price)
+
+            self.can_enter = np.logical_and(self.price != np.NaN, self.can_enter)
+            df_ret = pfm.price2ret(self.price, period=self.period, axis=0, compound=True)
+            price_can_exit = self.price.copy()
+            price_can_exit[~self.can_exit] = np.NaN
+            price_can_exit = price_can_exit.fillna(method="bfill")
+            ret_can_exit = pfm.price2ret(price_can_exit, period=self.period, axis=0, compound=True)
+            df_ret[~self.can_exit] = ret_can_exit[~self.can_exit]
+
+            if self.benchmark_ret is not None:
+                # 计算持有期相对收益
+                residual_ret = df_ret.sub(self.benchmark_ret.values.flatten(), axis=0)
+            else:
+                residual_ret = df_ret
+            residual_ret = jutil.fillinf(residual_ret)
+            residual_ret -= self.commission
+
+            # 计算潜在上涨空间和潜在下跌空间
+            if self.high is not None and isRealPrice:
+                self.high = jutil.fillinf(self.high)
+            else:
+                self.high = self.price
+            upside_ret = compute_upside_returns(self.price, self.high, self.can_exit, self.period, compound=True)
+            upside_ret = jutil.fillinf(upside_ret)
+            upside_ret -= self.commission
+
+            if self.low is not None and isRealPrice:
+                self.low = jutil.fillinf(self.low)
+            else:
+                self.low = self.price
+            downside_ret = compute_downside_returns(self.price, self.low, self.can_exit, self.period, compound=True)
+            downside_ret = jutil.fillinf(downside_ret)
+            downside_ret -= self.commission
+
             self.signal_ret = {
                 "return": residual_ret,
                 "upside_ret": upside_ret,

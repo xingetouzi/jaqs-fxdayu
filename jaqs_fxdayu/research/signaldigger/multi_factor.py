@@ -78,18 +78,16 @@ def orthogonalize(factors_dict=None,
 
 # 获取多个因子收益序列矩阵
 def get_factors_ret_df(factors_dict,
-                       price,
-                       high=None,
-                       low=None,
+                       price=None, daily_ret=None,
+                       benchmark_price=None, daily_benchmark_ret=None,
+                       high=None, low=None,
                        group=None,
-                       benchmark_price=None,
-                       period=5,
-                       quantiles=5,
+                       period=5, n_quantiles=5,
                        mask=None,
                        can_enter=None,
                        can_exit=None,
-                       commission=0.0008,
                        forward=True,
+                       commission=0.0008,
                        ret_type="return",
                        **kwargs):
     """
@@ -97,7 +95,7 @@ def get_factors_ret_df(factors_dict,
     :param factors_dict: 若干因子组成的字典(dict),形式为:
                          {"factor_name_1":factor_1,"factor_name_2":factor_2}
     :param period: 指定持有周期(int)
-    :param quantiles: 根据因子大小将股票池划分的分位数量(int)
+    :param n_quantiles: 根据因子大小将股票池划分的分位数量(int)
     :param price : 包含了pool中所有股票的价格时间序列(pd.Dataframe)，索引（index)为datetime,columns为各股票代码，与pool对应。
     :param benchmark_price:基准收益，不为空计算相对收益，否则计算绝对收益
     :return: ret_df 多个因子收益序列矩阵
@@ -134,13 +132,11 @@ def get_factors_ret_df(factors_dict,
         raise ValueError("不支持对%s收益的ic计算!支持的收益类型有return, upside_ret, downside_ret." % (ret_type,))
 
     sc = SignalCreator(
-        price,
-        high=high,
-        low=low,
+        price=price, daily_ret=daily_ret,
+        benchmark_price=benchmark_price, daily_benchmark_ret=daily_benchmark_ret,
+        high=high, low=low,
         group=group,
-        benchmark_price=benchmark_price,
-        period=period,
-        n_quantiles=quantiles,
+        period=period, n_quantiles=n_quantiles,
         mask=mask,
         can_enter=can_enter,
         can_exit=can_exit,
@@ -189,18 +185,16 @@ def get_factors_ret_df(factors_dict,
 
 # 获取因子的ic序列
 def get_factors_ic_df(factors_dict,
-                      price,
-                      high=None,
-                      low=None,
+                      price=None, daily_ret=None,
+                      benchmark_price=None, daily_benchmark_ret=None,
+                      high=None, low=None,
                       group=None,
-                      benchmark_price=None,
-                      period=5,
-                      quantiles=5,
+                      period=5, n_quantiles=5,
                       mask=None,
                       can_enter=None,
                       can_exit=None,
-                      commission=0.0008,
                       forward=True,
+                      commission=0.0008,
                       ret_type="return",
                       **kwargs):
     """
@@ -208,7 +202,7 @@ def get_factors_ic_df(factors_dict,
     :param factors_dict: 若干因子组成的字典(dict),形式为:
                          {"factor_name_1":factor_1,"factor_name_2":factor_2}
     :param period: 指定持有周期(int)
-    :param quantiles: 根据因子大小将股票池划分的分位数量(int)
+    :param n_quantiles: 根据因子大小将股票池划分的分位数量(int)
     :param price : 包含了pool中所有股票的价格时间序列(pd.Dataframe)，索引（index)为datetime,columns为各股票代码，与pool对应。
     :param benchmark_price:基准收益，不为空计算相对收益，否则计算绝对收益
     :return: ic_df 多个因子ｉc值序列矩阵
@@ -231,13 +225,11 @@ def get_factors_ic_df(factors_dict,
 
     ic_table = []
     sc = SignalCreator(
-        price,
-        high=high,
-        low=low,
+        price=price, daily_ret=daily_ret,
+        benchmark_price=benchmark_price, daily_benchmark_ret=daily_benchmark_ret,
+        high=high, low=low,
         group=group,
-        benchmark_price=benchmark_price,
-        period=period,
-        n_quantiles=quantiles,
+        period=period, n_quantiles=n_quantiles,
         mask=mask,
         can_enter=can_enter,
         can_exit=can_exit,
@@ -496,10 +488,12 @@ def combine_factors(factors_dict=None,
     :param props:　当weighted_method不为equal_weight时　需传入此配置　配置内容包括
      props = {
             'price': None,
+            'daily_ret':None,
             'high': None,
             'low': None,
             'ret_type': 'return',
             'benchmark_price': None,
+            'daily_benchmark_ret':None,
             'period': 5,
             'mask': None,
             'can_enter': None,
@@ -520,10 +514,12 @@ def combine_factors(factors_dict=None,
     def generate_props():
         props = {
             'price': None,
+            'daily_ret': None,
             'high': None,
             'low': None,
             'ret_type': 'return',
             'benchmark_price': None,
+            'daily_benchmark_ret':None,
             'period': 5,
             'mask': None,
             'can_enter': None,
@@ -559,13 +555,8 @@ def combine_factors(factors_dict=None,
         _props = generate_props()
         if not (props is None):
             _props.update(props)
-        if _props["price"] is None:
-            raise ValueError("您需要在配置props中提供price")
-        if _props['ret_type'] in ["upside_ret", "downside_ret"]:
-            if _props['high'] is None:
-                raise ValueError("您需要在配置props中提供high")
-            if _props['low'] is None:
-                raise ValueError("您需要在配置props中提供low")
+        if _props["price"] is None and _props["daily_ret"] is None:
+            raise ValueError("您需要在配置props中提供price或者daily_ret")
 
         if weighted_method == "factors_ret_weight":
             factors_ret = get_factors_ret_df(factors_dict=factors_dict,

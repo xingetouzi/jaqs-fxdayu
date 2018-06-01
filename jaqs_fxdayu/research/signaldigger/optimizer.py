@@ -79,11 +79,12 @@ class Optimizer(object):
     :param formula: str(N) 需要优化的公式：如'(open - Delay(close, l1)) / Delay(close, l2)'
     :param params: dict(N) 需要优化的参数范围：如{"LEN1"：range(1,10,1),"LEN2":range(1,10,1)}
     :param name: str (N) 信号的名称
-    :param price: dataFrame (N) 价格与ret不能同时存在
-    :param ret: dataFrame (N) 收益
+    :param price: dataFrame (N) 价格与daily_ret不能同时存在
+    :param daily_ret: dataFrame (N) 每日收益
     :param high: dataFrame (N) 最高价　用于计算上行收益空间
     :param low: dataFrame (N) 最低价　用于计算下行收益空间
-    :param benchmark_price: dataFrame (N) 基准价格　若不为空收益计算模式为相对benchmark的收益
+    :param benchmark_price: dataFrame (N) 基准价格　若不为空收益计算模式为相对benchmark的收益　与daily_benchmark_ret不能同时存在
+    :param daily_benchmark_ret: dataFrame (N) 基准日收益　若不为空收益计算模式为相对benchmark的收益
     :param period: int (5) 选股持有期
     :param n_quantiles: int (5)
     :param mask: 过滤条件 dataFrame (N)
@@ -101,10 +102,11 @@ class Optimizer(object):
                  params=None,
                  name=None,
                  price=None,
-                 ret=None,
+                 daily_ret=None,
                  high=None,
                  low=None,
                  benchmark_price=None,
+                 daily_benchmark_ret=None,
                  period=5,
                  n_quantiles=5,
                  mask=None,
@@ -122,7 +124,7 @@ class Optimizer(object):
         if self.formula is not None:
             self._judge_params()
         self.name = name if name else formula
-        if price is None and ret is None:
+        if price is None and daily_ret is None:
             try:
                 price = dataview.get_ts('close_adj')
             except:
@@ -134,16 +136,13 @@ class Optimizer(object):
         self.is_quarterly = is_quarterly
         self.register_funcs = register_funcs
         self.signal_creator = SignalCreator(
-            price=price,
-            ret=ret,
-            high=high,
-            low=low,
-            n_quantiles=n_quantiles,
+            price=price, daily_ret=daily_ret,
+            benchmark_price=benchmark_price, daily_benchmark_ret=daily_benchmark_ret,
+            high=high, low=low,
+            period=period, n_quantiles=n_quantiles,
             mask=mask,
             can_enter=can_enter,
             can_exit=can_exit,
-            period=period,
-            benchmark_price=benchmark_price,
             forward=forward,
             commission=commission
         )
