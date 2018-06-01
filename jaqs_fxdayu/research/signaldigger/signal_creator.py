@@ -133,6 +133,7 @@ class SignalCreator(object):
 
             if self.benchmark_ret is not None:
                 # 计算持有期相对收益
+                self.benchmark_ret = self.benchmark_ret.reindex(df_ret.index)
                 residual_ret = df_ret.sub(self.benchmark_ret.values.flatten(), axis=0)
             else:
                 residual_ret = df_ret

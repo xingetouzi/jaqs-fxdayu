@@ -1,3 +1,4 @@
+
 # SignalDigger
 
 ## 介绍
@@ -20,8 +21,8 @@ warnings.filterwarnings('ignore')
 ```python
 from jaqs_fxdayu.research import SignalDigger
 
-# step 1：实例化SignalDigger 通过output_folder和output_format指定因子绩效表现的输出路径和输出格式
-sd = SignalDigger(output_folder=".", output_format='pdf')
+# step 1：实例化SignalDigger 通过output_folder和output_format指定因子绩效表现的输出路径和输出格式，通过signal_name指定绩效文件名称
+sd = SignalDigger(output_folder=".", output_format='pdf', signal_name="signal")
 ```
 
 # step 2 因子数据预处理
@@ -40,9 +41,10 @@ sd = SignalDigger(output_folder=".", output_format='pdf')
 |参数名|必选|类型|说明|
 |:----    |:---|:----- |-----   |
 |signal|是  |pandas.DataFrame|因子值,日期为索引，股票品种为columns|
-|price |是，price与ret二选一  |pandas.DataFrame|因子涉及到的股票的价格数据，用于作为进出场价用于计算收益,日期为索引，股票品种为columns|
-|ret |是，price与ret二选一  |pandas.DataFrame| 因子涉及到的股票的持有期收益，日期为索引，股票品种为columns|
-|benchmark_price | 否  |pandas.DataFrame or pandas.Series|基准价格，日期为索引。在price参数不为空的情况下，该参数生效，用于计算因子涉及到的股票的持有期**相对收益**--相对基准。默认为空，为空时计算的收益为**绝对收益**。|
+|price |是，price与daily_ret二选一  |pandas.DataFrame|因子涉及到的股票的价格数据，用于作为进出场价用于计算收益,日期为索引，股票品种为columns|
+|daily_ret |是，price与daily_ret二选一  |pandas.DataFrame| 因子涉及到的股票的每日收益，日期为索引，股票品种为columns|
+|benchmark_price | 否，benchmark_price与daily_benchmark_ret二选一  |pandas.DataFrame or pandas.Series|基准价格，日期为索引。用于计算因子涉及到的股票的持有期**相对收益**--相对基准。默认为空，为空时计算的收益为**绝对收益**。|
+|daily_benchmark_ret | 否，benchmark_price与daily_benchmark_ret二选一  |pandas.DataFrame or pandas.Series|基准日收益，日期为索引。用于计算因子涉及到的股票的持有期**相对收益**--相对基准。默认为空，为空时计算的收益为**绝对收益**。|
 |high |否  |pandas.DataFrame|因子涉及到的股票的最高价数据,用于计算持有期潜在最大上涨收益,日期为索引，股票品种为columns,默认为空|
 |low |否  |pandas.DataFrame|因子涉及到的股票的最低价数据,用于计算持有期潜在最大下跌收益,日期为索引，股票品种为columns,默认为空|
 |group |否  |pandas.DataFrame|因子涉及到的股票的分组(行业分类),日期为索引，股票品种为columns,默认为空|
@@ -88,18 +90,18 @@ can_exit = np.logical_and(down_limit < 1, can_trade)  # 未跌停未停牌
 
 ```python
 sd.process_signal_before_analysis(signal=dv.get_ts("pe"),
-                                   price=dv.get_ts("close_adj"),
-                                   high=dv.get_ts("high_adj"),
-                                   low=dv.get_ts("low_adj"),
-                                   group=dv.get_ts("sw1"),
-                                   n_quantiles=5,
-                                   mask=mask,
-                                   can_enter=can_enter,
-                                   can_exit=can_exit,
-                                   period=5,
-                                   benchmark_price=dv.data_benchmark,
-                                   forward=True,
-                                   commission=0.0008
+                                  price=dv.get_ts("close_adj"),
+                                  high=dv.get_ts("high_adj"),
+                                  low=dv.get_ts("low_adj"),
+                                  group=dv.get_ts("sw1"),
+                                  n_quantiles=5,
+                                  mask=mask,
+                                  can_enter=can_enter,
+                                  can_exit=can_exit,
+                                  period=5,
+                                  benchmark_price=dv.data_benchmark,
+                                  forward=True,
+                                  commission=0.0008
                                    )
 ```
 
@@ -176,7 +178,7 @@ sd.signal_data.head()
       <td>-0.005637</td>
       <td>-0.003045</td>
       <td>-0.042326</td>
-      <td>480000</td>
+      <td>银行</td>
       <td>1</td>
     </tr>
     <tr>
@@ -185,7 +187,7 @@ sd.signal_data.head()
       <td>0.011225</td>
       <td>0.016697</td>
       <td>-0.029432</td>
-      <td>430000</td>
+      <td>房地产</td>
       <td>1</td>
     </tr>
     <tr>
@@ -194,7 +196,7 @@ sd.signal_data.head()
       <td>-0.049408</td>
       <td>0.000463</td>
       <td>-0.092972</td>
-      <td>640000</td>
+      <td>机械设备</td>
       <td>4</td>
     </tr>
     <tr>
@@ -203,7 +205,7 @@ sd.signal_data.head()
       <td>-0.069822</td>
       <td>0.009714</td>
       <td>-0.095426</td>
-      <td>510000</td>
+      <td>综合</td>
       <td>5</td>
     </tr>
     <tr>
@@ -212,7 +214,7 @@ sd.signal_data.head()
       <td>-0.019517</td>
       <td>0.009404</td>
       <td>-0.041616</td>
-      <td>410000</td>
+      <td>公用事业</td>
       <td>2</td>
     </tr>
   </tbody>

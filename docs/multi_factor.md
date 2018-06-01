@@ -271,13 +271,15 @@ new_factors["pe"].head()
 |字段|必选|类型|说明|
 |:----    |:---|:----- |-----   |
 |factors_dict|是|dict of pandas.DataFrame | 若干因子组成的字典(dict),形式为:{"factor_name_1":factor_1,"factor_name_2":factor_2}。每个因子值格式为一个pd.DataFrame，索引(index)为date,column为asset|
-|price |是|pandas.DataFrame|因子涉及到的股票的价格数据，用于作为进出场价用于计算收益,日期为索引，股票品种为columns|
-|benchmark_price | 否  |pandas.DataFrame or pandas.Series|基准价格，日期为索引。在price参数不为空的情况下，该参数生效，用于计算因子涉及到的股票的持有期**相对收益**--相对基准。默认为空，为空时计算的收益为**绝对收益**。|
+|price |是，price与daily_ret二选一  |pandas.DataFrame|因子涉及到的股票的价格数据，用于作为进出场价用于计算收益,日期为索引，股票品种为columns|
+|daily_ret |是，price与daily_ret二选一  |pandas.DataFrame| 因子涉及到的股票的每日收益，日期为索引，股票品种为columns|
+|benchmark_price | 否，benchmark_price与daily_benchmark_ret二选一  |pandas.DataFrame or pandas.Series|基准价格，日期为索引。用于计算因子涉及到的股票的持有期**相对收益**--相对基准。默认为空，为空时计算的收益为**绝对收益**。|
+|daily_benchmark_ret | 否，benchmark_price与daily_benchmark_ret二选一  |pandas.DataFrame or pandas.Series|基准日收益，日期为索引。用于计算因子涉及到的股票的持有期**相对收益**--相对基准。默认为空，为空时计算的收益为**绝对收益**。|
 |high |否  |pandas.DataFrame|因子涉及到的股票的最高价数据,用于计算持有期潜在最大上涨收益,日期为索引，股票品种为columns,默认为空|
 |low |否  |pandas.DataFrame|因子涉及到的股票的最低价数据,用于计算持有期潜在最大下跌收益,日期为索引，股票品种为columns,默认为空|
 |group |否  |pandas.DataFrame|因子涉及到的股票的分组(行业分类),日期为索引，股票品种为columns,默认为空|
 |period |否  |int|持有周期,默认为5,即持有5天|
-|quantiles |否  |int|根据每日因子值的大小分成quantiles组,默认为5,即将因子每天分成5组|
+|n_quantiles |否  |int|根据每日因子值的大小分成n_quantiles组,默认为5,即将因子每天分成5组|
 |mask |否  |pandas.DataFrame|一张由bool值组成的表格,日期为索引，股票品种为columns，表示在做因子分析时是否要对某期的某个品种过滤。对应位置为True则**过滤**（剔除）——不纳入因子分析考虑。默认为空，不执行过滤操作|
 |can_enter |否  |pandas.DataFrame|一张由bool值组成的表格,日期为索引，股票品种为columns，表示某期的某个品种是否可以买入(进场)。对应位置为True则可以买入。默认为空，任何时间任何品种均可买入|
 |can_exit |否  |pandas.DataFrame|一张由bool值组成的表格,日期为索引，股票品种为columns，表示某期的某个品种是否可以卖出(出场)。对应位置为True则可以卖出。默认为空，任何时间任何品种均可卖出|
@@ -315,7 +317,7 @@ factor_ic_df = get_factors_ic_df(factors_dict,
                                  high=dv.get_ts("high_adj"), # 可为空
                                  low=dv.get_ts("low_adj"),# 可为空
                                  group=dv.get_ts("sw1"), # 可为空
-                                 quantiles=5,# quantile分类数
+                                 n_quantiles=5,# quantile分类数
                                  period=5,# 持有期
                                  benchmark_price=dv.data_benchmark, # 基准价格 可不传入，持有期收益（return）计算为绝对收益
                                  commission = 0.0008,
@@ -363,29 +365,29 @@ factor_ic_df.dropna(how="all").head()
   <tbody>
     <tr>
       <th rowspan="5" valign="top">20170503</th>
-      <th>110000</th>
+      <th>交通运输</th>
+      <td>0.308566</td>
+      <td>0.052632</td>
+    </tr>
+    <tr>
+      <th>休闲服务</th>
+      <td>0.200000</td>
+      <td>-0.800000</td>
+    </tr>
+    <tr>
+      <th>传媒</th>
+      <td>0.237878</td>
+      <td>-0.112633</td>
+    </tr>
+    <tr>
+      <th>公用事业</th>
+      <td>0.418182</td>
+      <td>0.572727</td>
+    </tr>
+    <tr>
+      <th>农林牧渔</th>
       <td>0.314286</td>
       <td>-0.600000</td>
-    </tr>
-    <tr>
-      <th>210000</th>
-      <td>0.214286</td>
-      <td>-0.261905</td>
-    </tr>
-    <tr>
-      <th>220000</th>
-      <td>0.021978</td>
-      <td>-0.032967</td>
-    </tr>
-    <tr>
-      <th>230000</th>
-      <td>0.100000</td>
-      <td>0.100000</td>
-    </tr>
-    <tr>
-      <th>240000</th>
-      <td>0.209790</td>
-      <td>0.510490</td>
     </tr>
   </tbody>
 </table>
@@ -405,13 +407,15 @@ factor_ic_df.dropna(how="all").head()
 |字段|必选|类型|说明|
 |:----    |:---|:----- |-----   |
 |factors_dict|是|dict of pandas.DataFrame | 若干因子组成的字典(dict),形式为:{"factor_name_1":factor_1,"factor_name_2":factor_2}。每个因子值格式为一个pd.DataFrame，索引(index)为date,column为asset|
-|price |是|pandas.DataFrame|因子涉及到的股票的价格数据，用于作为进出场价用于计算收益,日期为索引，股票品种为columns|
-|benchmark_price | 否  |pandas.DataFrame or pandas.Series|基准价格，日期为索引。在price参数不为空的情况下，该参数生效，用于计算因子涉及到的股票的持有期**相对收益**--相对基准。默认为空，为空时计算的收益为**绝对收益**。|
+|price |是，price与daily_ret二选一  |pandas.DataFrame|因子涉及到的股票的价格数据，用于作为进出场价用于计算收益,日期为索引，股票品种为columns|
+|daily_ret |是，price与daily_ret二选一  |pandas.DataFrame| 因子涉及到的股票的每日收益，日期为索引，股票品种为columns|
+|benchmark_price | 否，benchmark_price与daily_benchmark_ret二选一  |pandas.DataFrame or pandas.Series|基准价格，日期为索引。用于计算因子涉及到的股票的持有期**相对收益**--相对基准。默认为空，为空时计算的收益为**绝对收益**。|
+|daily_benchmark_ret | 否，benchmark_price与daily_benchmark_ret二选一  |pandas.DataFrame or pandas.Series|基准日收益，日期为索引。用于计算因子涉及到的股票的持有期**相对收益**--相对基准。默认为空，为空时计算的收益为**绝对收益**。|
 |high |否  |pandas.DataFrame|因子涉及到的股票的最高价数据,用于计算持有期潜在最大上涨收益,日期为索引，股票品种为columns,默认为空|
 |low |否  |pandas.DataFrame|因子涉及到的股票的最低价数据,用于计算持有期潜在最大下跌收益,日期为索引，股票品种为columns,默认为空|
 |group |否  |pandas.DataFrame|因子涉及到的股票的分组(行业分类),日期为索引，股票品种为columns,默认为空|
 |period |否  |int|持有周期,默认为5,即持有5天|
-|quantiles |否  |int|根据每日因子值的大小分成quantiles组,默认为5,即将因子每天分成5组|
+|n_quantiles |否  |int|根据每日因子值的大小分成n_quantiles组,默认为5,即将因子每天分成5组|
 |mask |否  |pandas.DataFrame|一张由bool值组成的表格,日期为索引，股票品种为columns，表示在做因子分析时是否要对某期的某个品种过滤。对应位置为True则**过滤**（剔除）——不纳入因子分析考虑。默认为空，不执行过滤操作|
 |can_enter |否  |pandas.DataFrame|一张由bool值组成的表格,日期为索引，股票品种为columns，表示某期的某个品种是否可以买入(进场)。对应位置为True则可以买入。默认为空，任何时间任何品种均可买入|
 |can_exit |否  |pandas.DataFrame|一张由bool值组成的表格,日期为索引，股票品种为columns，表示某期的某个品种是否可以卖出(出场)。对应位置为True则可以卖出。默认为空，任何时间任何品种均可卖出|
@@ -493,29 +497,29 @@ factor_ret_df.dropna(how="all").head()
   <tbody>
     <tr>
       <th rowspan="5" valign="top">20170503</th>
-      <th>110000</th>
+      <th>交通运输</th>
+      <td>-0.013851</td>
+      <td>-0.000394</td>
+    </tr>
+    <tr>
+      <th>休闲服务</th>
+      <td>-0.003584</td>
+      <td>-0.000479</td>
+    </tr>
+    <tr>
+      <th>传媒</th>
+      <td>0.009575</td>
+      <td>-0.003602</td>
+    </tr>
+    <tr>
+      <th>公用事业</th>
+      <td>-0.012407</td>
+      <td>-0.000983</td>
+    </tr>
+    <tr>
+      <th>农林牧渔</th>
       <td>-0.029078</td>
       <td>0.000052</td>
-    </tr>
-    <tr>
-      <th>210000</th>
-      <td>-0.010770</td>
-      <td>-0.000389</td>
-    </tr>
-    <tr>
-      <th>220000</th>
-      <td>-0.005822</td>
-      <td>-0.000566</td>
-    </tr>
-    <tr>
-      <th>230000</th>
-      <td>-0.058078</td>
-      <td>0.000080</td>
-    </tr>
-    <tr>
-      <th>240000</th>
-      <td>-0.041450</td>
-      <td>0.000142</td>
     </tr>
   </tbody>
 </table>
@@ -538,20 +542,22 @@ factor_ret_df.dropna(how="all").head()
 |standardize_type|否|string| 标准化方法，有"rank"（排序标准化）,"z_score"(z-score标准化)两种（"rank"/"z_score"），默认为"z_score"|
 |winsorization|否|bool| 是否对结果执行去极值操作。默认不执行（False）|
 |index_member |否|pandas.DataFrame of bool |是否是指数成分股。日期为索引,证券品种为columns的二维bool值表格,True代表该品种在该日期下属于指数成分股。传入该参数,则在对结果进行标准化/去极值操作时所纳入的样本只有每期横截面上属于对应指数成分股的股票，默认为空|
-|weighted_method|否|string | 组合方式，目前支持'equal_weight'(等权合成),'ic_weight'(以某个时间窗口的滚动平均ic为权重), 'ir_weight'(以某个时间窗口的滚动ic_ir为权重), 'max_IR'(最大化上个持有期的ic_ir为目标处理权重)，'max_IC'(最大化上个持有期的ic为目标处理权重)，'factors_ret_weight'(以某个时间窗口的滚动因子收益为权重)。默认采取'equal_weight'(等权合成)方式。若此处参数不为'equal_weight，则还需配置接下来的props参数|
+|weighted_method|否|string | 组合方式，目前支持'equal_weight'(等权合成),'ic_weight'(以某个时间窗口的滚动平均ic为权重), 'ir_weight'(以某个时间窗口的滚动ic_ir为权重), 'max_IR'(最大化上个持有期的ic_ir为目标处理权重)，'max_IC'(最大化上个持有期的ic为目标处理权重),'factors_ret_weight'(以某个时间窗口的滚动因子收益为权重)。默认采取'equal_weight'(等权合成)方式。若此处参数不为'equal_weight，则还需配置接下来的props参数|
 |props|weighted_method不等于'equal_weight'时必须,否则可以缺省|dict|计算加权合成因子时的必要配置信息。具体配置方式见下|
 
 **props配置参数**
 
 |字段|缺省值|类型|说明|
 |:----    |:---|:----- |-----   |
-|price |是|pandas.DataFrame|因子涉及到的股票的价格数据，用于作为进出场价用于计算收益,日期为索引，股票品种为columns|
+|price |是，price与daily_ret二选一  |pandas.DataFrame|因子涉及到的股票的价格数据，用于作为进出场价用于计算收益,日期为索引，股票品种为columns|
+|daily_ret |是，price与daily_ret二选一  |pandas.DataFrame| 因子涉及到的股票的每日收益，日期为索引，股票品种为columns|
+|benchmark_price | 否，benchmark_price与daily_benchmark_ret二选一  |pandas.DataFrame or pandas.Series|基准价格，日期为索引。用于计算因子涉及到的股票的持有期**相对收益**--相对基准。默认为空，为空时计算的收益为**绝对收益**。|
+|daily_benchmark_ret | 否，benchmark_price与daily_benchmark_ret二选一  |pandas.DataFrame or pandas.Series|基准日收益，日期为索引。用于计算因子涉及到的股票的持有期**相对收益**--相对基准。默认为空，为空时计算的收益为**绝对收益**。|
 |high |否  |pandas.DataFrame|因子涉及到的股票的最高价数据,用于计算持有期潜在最大上涨收益,日期为索引，股票品种为columns,默认为空|
 |low |否  |pandas.DataFrame|因子涉及到的股票的最低价数据,用于计算持有期潜在最大下跌收益,日期为索引，股票品种为columns,默认为空|
 |ret_type |否 |string|计算何种收益的ic。目前支持的收益类型有return, upside_ret, downside_ret,分别代表固定调仓收益,潜在最大上涨收益,潜在最大下跌收益。默认为return--固定调仓收益|
-|benchmark_price | 否  |pandas.DataFrame or pandas.Series|基准价格，日期为索引。在price参数不为空的情况下，该参数生效，用于计算因子涉及到的股票的持有期**相对收益**--相对基准。默认为空，为空时计算的收益为**绝对收益**。|
 |period |否  |int|持有周期,默认为5,即持有5天|
-|quantiles |否  |int|根据每日因子值的大小分成quantiles组,默认为5,即将因子每天分成5组|
+|n_quantiles |否  |int|根据每日因子值的大小分成n_quantiles组,默认为5,即将因子每天分成5组|
 |mask |否  |pandas.DataFrame|一张由bool值组成的表格,日期为索引，股票品种为columns，表示在做因子分析时是否要对某期的某个品种过滤。对应位置为True则**过滤**（剔除）——不纳入因子分析考虑。默认为空，不执行过滤操作|
 |can_enter |否  |pandas.DataFrame|一张由bool值组成的表格,日期为索引，股票品种为columns，表示某期的某个品种是否可以买入(进场)。对应位置为True则可以买入。默认为空，任何时间任何品种均可买入|
 |can_exit |否  |pandas.DataFrame|一张由bool值组成的表格,日期为索引，股票品种为columns，表示某期的某个品种是否可以卖出(出场)。对应位置为True则可以卖出。默认为空，任何时间任何品种均可卖出|
@@ -575,7 +581,7 @@ props = {
     'high':dv.get_ts("high_adj"), # 可为空
     'low':dv.get_ts("low_adj"),# 可为空
     'ret_type': 'return',#可选参数还有upside_ret/downside_ret 则组合因子将以优化潜在上行、下行空间为目标
-    'benchmark_price': dv.data_benchmark,  # 为空计算的是绝对收益　不为空计算相对收益
+    'daily_benchmark_ret': dv.data_benchmark.pct_change(1),  # 为空计算的是绝对收益　不为空计算相对收益
     'period': 30, # 30天的持有期
     'forward': True,
     'commission': 0.0008,
@@ -583,7 +589,7 @@ props = {
     "rollback_period": 30}  # 滚动窗口天数
 
 comb_factor = combine_factors(factors_dict,
-                              standardize_type="rank",
+                              standardize_type="z_score",
                               winsorization=False,
                               weighted_method="ic_weight",
                               props=props)
@@ -667,123 +673,123 @@ comb_factor.dropna(how="all").head()
   <tbody>
     <tr>
       <th>20170726</th>
-      <td>0.957447</td>
-      <td>0.775076</td>
-      <td>0.243161</td>
-      <td>0.118541</td>
-      <td>0.860182</td>
-      <td>0.376900</td>
-      <td>0.197568</td>
-      <td>0.133739</td>
-      <td>0.732523</td>
-      <td>0.884498</td>
+      <td>1.777932</td>
+      <td>0.919536</td>
+      <td>-0.807974</td>
+      <td>-1.249868</td>
+      <td>1.221546</td>
+      <td>-0.453661</td>
+      <td>-1.012164</td>
+      <td>-1.202203</td>
+      <td>0.745612</td>
+      <td>1.294838</td>
       <td>...</td>
-      <td>0.987842</td>
-      <td>0.328267</td>
-      <td>0.753799</td>
-      <td>0.902736</td>
-      <td>0.975684</td>
-      <td>0.033435</td>
-      <td>0.051672</td>
-      <td>0.422492</td>
-      <td>0.556231</td>
-      <td>0.066869</td>
+      <td>1.873679</td>
+      <td>-0.606958</td>
+      <td>0.822860</td>
+      <td>1.363824</td>
+      <td>1.819174</td>
+      <td>-1.559370</td>
+      <td>-1.496059</td>
+      <td>-0.308391</td>
+      <td>0.110494</td>
+      <td>-1.406211</td>
     </tr>
     <tr>
       <th>20170727</th>
-      <td>0.969605</td>
-      <td>0.765957</td>
-      <td>0.264438</td>
-      <td>0.124620</td>
-      <td>0.863222</td>
-      <td>0.382979</td>
-      <td>0.206687</td>
-      <td>0.139818</td>
-      <td>0.796353</td>
-      <td>0.881459</td>
+      <td>1.789675</td>
+      <td>0.921333</td>
+      <td>-0.770788</td>
+      <td>-1.240962</td>
+      <td>1.232906</td>
+      <td>-0.427585</td>
+      <td>-0.931221</td>
+      <td>-1.178000</td>
+      <td>1.022124</td>
+      <td>1.274817</td>
       <td>...</td>
-      <td>0.987842</td>
-      <td>0.343465</td>
-      <td>0.747720</td>
-      <td>0.899696</td>
-      <td>0.975684</td>
-      <td>0.024316</td>
-      <td>0.048632</td>
-      <td>0.419453</td>
-      <td>0.534954</td>
-      <td>0.082067</td>
+      <td>1.873890</td>
+      <td>-0.579308</td>
+      <td>0.817697</td>
+      <td>1.354356</td>
+      <td>1.825470</td>
+      <td>-1.581904</td>
+      <td>-1.512148</td>
+      <td>-0.348058</td>
+      <td>0.081561</td>
+      <td>-1.364542</td>
     </tr>
     <tr>
       <th>20170728</th>
-      <td>0.969605</td>
-      <td>0.759878</td>
-      <td>0.273556</td>
-      <td>0.121581</td>
-      <td>0.875380</td>
-      <td>0.398176</td>
-      <td>0.209726</td>
-      <td>0.142857</td>
-      <td>0.775076</td>
-      <td>0.872340</td>
+      <td>1.781449</td>
+      <td>0.853104</td>
+      <td>-0.752057</td>
+      <td>-1.257739</td>
+      <td>1.260455</td>
+      <td>-0.383558</td>
+      <td>-0.931522</td>
+      <td>-1.159573</td>
+      <td>0.933568</td>
+      <td>1.250720</td>
       <td>...</td>
-      <td>0.987842</td>
-      <td>0.352584</td>
-      <td>0.762918</td>
-      <td>0.896657</td>
-      <td>0.975684</td>
-      <td>0.030395</td>
-      <td>0.048632</td>
-      <td>0.404255</td>
-      <td>0.525836</td>
-      <td>0.091185</td>
+      <td>1.877950</td>
+      <td>-0.520732</td>
+      <td>0.858098</td>
+      <td>1.352325</td>
+      <td>1.823944</td>
+      <td>-1.560053</td>
+      <td>-1.525730</td>
+      <td>-0.373445</td>
+      <td>0.057556</td>
+      <td>-1.363146</td>
     </tr>
     <tr>
       <th>20170731</th>
-      <td>0.966565</td>
-      <td>0.753799</td>
-      <td>0.285714</td>
-      <td>0.121581</td>
-      <td>0.887538</td>
-      <td>0.404255</td>
-      <td>0.203647</td>
-      <td>0.151976</td>
-      <td>0.775076</td>
-      <td>0.869301</td>
+      <td>1.787901</td>
+      <td>0.855996</td>
+      <td>-0.738105</td>
+      <td>-1.280330</td>
+      <td>1.280363</td>
+      <td>-0.356675</td>
+      <td>-0.958028</td>
+      <td>-1.126765</td>
+      <td>0.909647</td>
+      <td>1.247865</td>
       <td>...</td>
-      <td>0.987842</td>
-      <td>0.376900</td>
-      <td>0.759878</td>
-      <td>0.896657</td>
-      <td>0.975684</td>
-      <td>0.039514</td>
-      <td>0.036474</td>
-      <td>0.395137</td>
-      <td>0.522796</td>
-      <td>0.094225</td>
+      <td>1.871937</td>
+      <td>-0.441376</td>
+      <td>0.885835</td>
+      <td>1.361503</td>
+      <td>1.831151</td>
+      <td>-1.541315</td>
+      <td>-1.548003</td>
+      <td>-0.392538</td>
+      <td>0.040312</td>
+      <td>-1.348098</td>
     </tr>
     <tr>
       <th>20170801</th>
-      <td>0.960486</td>
-      <td>0.753799</td>
-      <td>0.282675</td>
-      <td>0.124620</td>
-      <td>0.887538</td>
-      <td>0.425532</td>
-      <td>0.237082</td>
-      <td>0.167173</td>
-      <td>0.765957</td>
-      <td>0.869301</td>
+      <td>1.773030</td>
+      <td>0.840944</td>
+      <td>-0.737895</td>
+      <td>-1.237729</td>
+      <td>1.312784</td>
+      <td>-0.297223</td>
+      <td>-0.869217</td>
+      <td>-1.074826</td>
+      <td>0.883651</td>
+      <td>1.237696</td>
       <td>...</td>
-      <td>0.990881</td>
-      <td>0.395137</td>
-      <td>0.738602</td>
-      <td>0.896657</td>
-      <td>0.975684</td>
-      <td>0.045593</td>
-      <td>0.033435</td>
-      <td>0.398176</td>
-      <td>0.510638</td>
-      <td>0.100304</td>
+      <td>1.875752</td>
+      <td>-0.397516</td>
+      <td>0.756331</td>
+      <td>1.344476</td>
+      <td>1.829015</td>
+      <td>-1.527066</td>
+      <td>-1.554451</td>
+      <td>-0.398535</td>
+      <td>0.025989</td>
+      <td>-1.326178</td>
     </tr>
   </tbody>
 </table>

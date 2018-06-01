@@ -24,12 +24,13 @@ Optimizer是optimizer模块中的一个核心类，提供了因子算法参数�
 |参数名|必选|类型|说明|
 |:----    |:---|:----- |-----   |
 |dataview|是 |jaqs.data.Dataview|包含了因子相关的所有标的证券及因子计算所要用到的所有字段的数据集|
-|formula|否 |string|需要优化的公式：如'(open - Delay(close, l1)) / Delay(close, l2)'|
+|formula|否 |string|需要优化的公式：如'(open - Delay(close, LEN1)) / Delay(close, LEN2)'|
 |params|否 |dict|需要优化的参数范围：如{"LEN1"：range(1,10,1),"LEN2":range(1,10,1)}|
 |name|否 |string|信号的名称|
-|price |是，price与ret二选一  |pandas.DataFrame|因子涉及到的股票的价格数据，用于作为进出场价用于计算收益,日期为索引，股票品种为columns|
-|ret |是，price与ret二选一  |pandas.DataFrame| 因子涉及到的股票的持有期收益，日期为索引，股票品种为columns|
-|benchmark_price | 否  |pandas.DataFrame or pandas.Series|基准价格，日期为索引。在price参数不为空的情况下，该参数生效，用于计算因子涉及到的股票的持有期**相对收益**--相对基准。默认为空，为空时计算的收益为**绝对收益**。|
+|price |是，price与daily_ret二选一  |pandas.DataFrame|因子涉及到的股票的价格数据，用于作为进出场价用于计算收益,日期为索引，股票品种为columns|
+|daily_ret |是，price与daily_ret二选一  |pandas.DataFrame| 因子涉及到的股票的每日收益，日期为索引，股票品种为columns|
+|benchmark_price | 否，benchmark_price与daily_benchmark_ret二选一  |pandas.DataFrame or pandas.Series|基准价格，日期为索引。用于计算因子涉及到的股票的持有期**相对收益**--相对基准。默认为空，为空时计算的收益为**绝对收益**。|
+|daily_benchmark_ret | 否，benchmark_price与daily_benchmark_ret二选一  |pandas.DataFrame or pandas.Series|基准日收益，日期为索引。用于计算因子涉及到的股票的持有期**相对收益**--相对基准。默认为空，为空时计算的收益为**绝对收益**。|
 |high |否  |pandas.DataFrame|因子涉及到的股票的最高价数据,用于计算持有期潜在最大上涨收益,日期为索引，股票品种为columns,默认为空|
 |low |否  |pandas.DataFrame|因子涉及到的股票的最低价数据,用于计算持有期潜在最大下跌收益,日期为索引，股票品种为columns,默认为空|
 |period |否  |int|持有周期,默认为5,即持有5天|
@@ -66,10 +67,10 @@ def _cut_negative(df):
 
 # step 1：实例化Optimizer
 optimizer = Optimizer(dataview=dv,
-                      formula='Cut_Neg(- Correlation(vwap_adj, high, LEN))',
-                      params={"LEN":range(2,5,1)},
+                      formula='CAL(- Correlation(vwap_adj, high, LEN))',
+                      params={"CAL":["Cut_Neg",""],"LEN":range(2,5,1),},
                       name='test',
-                      price=dv.get_ts('close_adj'),
+                      price = dv.get_ts('close_adj'),
                       high=dv.get_ts('high_adj'),
                       low=dv.get_ts('low_adj'),
                       benchmark_price=None,#=None求绝对收益 #=price_bench求相对收益
@@ -82,38 +83,6 @@ optimizer = Optimizer(dataview=dv,
 ```
 
     Dataview loaded successfully.
-
-
-
-```python
-dv.fields
-```
-
-
-
-
-    ['high',
-     'quarter',
-     'index_member',
-     'close_adj',
-     'total_oper_rev',
-     'trade_status',
-     'close',
-     'high_adj',
-     'oper_exp',
-     'vwap',
-     'open',
-     'pe',
-     'index_weight',
-     'ann_date',
-     'pb',
-     'vwap_adj',
-     'low',
-     'sw1',
-     'low_adj',
-     'adjust_factor',
-     'open_adj']
-
 
 
 # step 2 进行因子计算和参数优化
@@ -136,7 +105,7 @@ optimizer.dataview
 
 
 
-    <jaqs_fxdayu.data.dataview.DataView at 0x7f2084a09eb8>
+    <jaqs_fxdayu.data.dataview.DataView at 0x7fef58116e10>
 
 
 
@@ -158,7 +127,7 @@ optimizer.formula
 
 
 
-    'Cut_Neg(- Correlation(vwap_adj, high, LEN))'
+    'CAL(- Correlation(vwap_adj, high, LEN))'
 
 
 
@@ -180,7 +149,7 @@ optimizer.params
 
 
 
-    {'LEN': range(2, 5)}
+    {'CAL': ['Cut_Neg', ''], 'LEN': range(2, 5)}
 
 
 
@@ -265,22 +234,25 @@ optimizer.get_all_signals()
     Nan Data Count (should be zero) : 0;  Percentage of effective data: 13%
     Nan Data Count (should be zero) : 0;  Percentage of effective data: 5%
     Nan Data Count (should be zero) : 0;  Percentage of effective data: 2%
+    Nan Data Count (should be zero) : 0;  Percentage of effective data: 92%
+    Nan Data Count (should be zero) : 0;  Percentage of effective data: 94%
+    Nan Data Count (should be zero) : 0;  Percentage of effective data: 94%
 
 
 
 ```python
 print(optimizer.all_signals.keys())
-print(optimizer.all_signals["test{'LEN': 2}"].head())
+print(optimizer.all_signals["test{'CAL': '', 'LEN': 2}"].head())
 ```
 
-    dict_keys(["test{'LEN': 2}", "test{'LEN': 3}", "test{'LEN': 4}"])
+    dict_keys(["test{'CAL': 'Cut_Neg', 'LEN': 2}", "test{'CAL': 'Cut_Neg', 'LEN': 3}", "test{'CAL': 'Cut_Neg', 'LEN': 4}", "test{'CAL': '', 'LEN': 2}", "test{'CAL': '', 'LEN': 3}", "test{'CAL': '', 'LEN': 4}"])
                           signal    return  upside_ret  downside_ret  quantile
     trade_date symbol                                                         
-    20170503   000039.SZ     1.0  0.074825    0.103575     -0.098925         5
-               000413.SZ     1.0  0.014553    0.046193     -0.085562         4
-               000568.SZ     1.0  0.072790    0.144421     -0.080269         4
-               000718.SZ     1.0 -0.032261    0.014552     -0.097524         2
-               000793.SZ     1.0 -0.103177    0.068670     -0.113231         2
+    20170503   000001.SZ    -1.0  0.011546    0.031748     -0.038959         2
+               000002.SZ    -1.0  0.109486    0.165690     -0.021479         2
+               000008.SZ    -1.0 -0.071442   -0.005851     -0.119487         3
+               000009.SZ    -1.0 -0.089585   -0.003136     -0.165520         2
+               000027.SZ    -1.0 -0.016835    0.051678     -0.060567         5
 
 
 ## all_signals_perf
@@ -333,11 +305,11 @@ optimizer.get_all_signals_perf()
 
 ```python
 print(optimizer.all_signals_perf.keys())
-print(optimizer.all_signals_perf["test{'LEN': 2}"].keys())
-optimizer.all_signals_perf["test{'LEN': 2}"]["ic"]
+print(optimizer.all_signals_perf["test{'CAL': '', 'LEN': 2}"].keys())
+optimizer.all_signals_perf["test{'CAL': '', 'LEN': 2}"]["ic"]
 ```
 
-    dict_keys(["test{'LEN': 2}", "test{'LEN': 3}", "test{'LEN': 4}"])
+    dict_keys(["test{'CAL': 'Cut_Neg', 'LEN': 2}", "test{'CAL': 'Cut_Neg', 'LEN': 3}", "test{'CAL': 'Cut_Neg', 'LEN': 4}", "test{'CAL': '', 'LEN': 2}", "test{'CAL': '', 'LEN': 3}", "test{'CAL': '', 'LEN': 4}"])
     dict_keys(['ic', 'ret', 'space', 'signal_name'])
 
 
@@ -370,45 +342,45 @@ optimizer.all_signals_perf["test{'LEN': 2}"]["ic"]
   <tbody>
     <tr>
       <th>IC Mean</th>
-      <td>0.017783</td>
-      <td>1.129418e-01</td>
-      <td>1.053663e-01</td>
+      <td>-0.025674</td>
+      <td>-0.038612</td>
+      <td>0.001965</td>
     </tr>
     <tr>
       <th>IC Std.</th>
-      <td>0.169546</td>
-      <td>1.670488e-01</td>
-      <td>1.517479e-01</td>
+      <td>0.058703</td>
+      <td>0.063177</td>
+      <td>0.058535</td>
     </tr>
     <tr>
       <th>t-stat(IC)</th>
-      <td>0.914376</td>
-      <td>5.894107e+00</td>
-      <td>6.053210e+00</td>
+      <td>-3.812846</td>
+      <td>-5.328101</td>
+      <td>0.292652</td>
     </tr>
     <tr>
       <th>p-value(IC)</th>
-      <td>0.363450</td>
-      <td>1.005366e-07</td>
-      <td>5.192371e-08</td>
+      <td>0.000280</td>
+      <td>0.000001</td>
+      <td>0.770596</td>
     </tr>
     <tr>
       <th>IC Skew</th>
-      <td>0.138918</td>
-      <td>-2.151916e-01</td>
-      <td>1.253665e+00</td>
+      <td>0.625732</td>
+      <td>0.689323</td>
+      <td>0.226355</td>
     </tr>
     <tr>
       <th>IC Kurtosis</th>
-      <td>0.399807</td>
-      <td>3.517243e-01</td>
-      <td>3.078936e+00</td>
+      <td>0.434047</td>
+      <td>0.495804</td>
+      <td>0.149208</td>
     </tr>
     <tr>
       <th>Ann. IR</th>
-      <td>0.104886</td>
-      <td>6.761004e-01</td>
-      <td>6.943508e-01</td>
+      <td>-0.437363</td>
+      <td>-0.611175</td>
+      <td>0.033570</td>
     </tr>
   </tbody>
 </table>
@@ -477,9 +449,9 @@ print(ret_best[0]["signal_name"])
 ret_best[0]["ret"]
 ```
 
-    3
+    6
     dict_keys(['ic', 'ret', 'space', 'signal_name'])
-    test{'LEN': 4}
+    test{'CAL': 'Cut_Neg', 'LEN': 4}
 
 
 
