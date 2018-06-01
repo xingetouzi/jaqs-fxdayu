@@ -135,6 +135,12 @@ def daily_ret_to_cum(df_ret, axis=0):
 
 
 @auto_register_patch()
+def daily_ret_to_ret(daily_ret, period=5, axis=0):
+    ret = daily_ret.add(1).rolling(period,axis=axis).apply(np.product).sub(1)
+    return ret
+
+
+@auto_register_patch()
 def calc_ic_stats_table(ic_data):
     ic_data = ic_data.dropna()
     return __calc_ic_stats_stable(ic_data)
@@ -225,6 +231,7 @@ _mean_information_coefficient = mean_information_coefficient
 _calc_ic_stats_table = calc_ic_stats_table
 _calc_quantile_return_mean_std = calc_quantile_return_mean_std
 _daily_ret_to_cum = daily_ret_to_cum
+_daily_ret_to_ret = daily_ret_to_ret
 _price2ret = price2ret
 _period_wise_ret_to_cum = period_wise_ret_to_cum
 
@@ -234,6 +241,7 @@ calc_signal_ic = _calc_signal_ic
 mean_information_coefficient = _mean_information_coefficient
 calc_quantile_return_mean_std = _calc_quantile_return_mean_std
 daily_ret_to_cum = _daily_ret_to_cum
+daily_ret_to_ret = _daily_ret_to_ret
 price2ret = _price2ret
 calc_ic_stats_table = _calc_ic_stats_table
 period_wise_ret_to_cum = _period_wise_ret_to_cum

@@ -1,3 +1,5 @@
+# encoding = utf-8
+
 from collections import OrderedDict
 
 import numpy as np
@@ -17,12 +19,15 @@ import warnings
 
 @auto_register_patch(parent_level=2)
 class SignalDigger(OriginSignalDigger):
-    def __init__(self, *args, **kwargs):
+    def __init__(self, *args, signal_name=None, **kwargs):
         super(SignalDigger, self).__init__(*args, **kwargs)
         self.ret = None
+        self.signal_name = signal_name
 
     def process_signal_before_analysis(self,
-                                       signal, price=None, ret=None, benchmark_price=None,
+                                       signal,
+                                       price=None, daily_ret=None,
+                                       benchmark_price=None, daily_benchmark_ret=None,
                                        high=None, low=None,
                                        group=None,
                                        period=5, n_quantiles=5,
@@ -44,8 +49,10 @@ class SignalDigger(OriginSignalDigger):
             Index is date, columns are stocks.
         low : pd.DataFrame
             Index is date, columns are stocks.
-        ret : pd.DataFrame
+        daily_ret : pd.DataFrame
             Index is date, columns are stocks.
+        daily_benchmark_ret : pd.DataFrame or pd.Series or None
+            Daily ret of benchmark.
         group : pd.DataFrame
             Index is date, columns are stocks.
         benchmark_price : pd.DataFrame or pd.Series or None
@@ -53,9 +60,9 @@ class SignalDigger(OriginSignalDigger):
         mask : pd.DataFrame
             Data cells that should NOT be used.
         can_enter: pd.DataFrame
-            Date the security can be trade and BUY.
+            Date the security can be traded and BUY.
         can_exit:pd.DataFrame
-            Date the security can be trade and SELL.
+            Date the security can be traded and SELL.
         n_quantiles : int
         period : int
             periods to compute forward returns on.
@@ -63,6 +70,7 @@ class SignalDigger(OriginSignalDigger):
             Return cal method. True by default.
         commission: float
             commission ratio per trade.
+
         Returns
         -------
         res : pd.DataFrame
@@ -76,14 +84,17 @@ class SignalDigger(OriginSignalDigger):
         """
         # ----------------------------------------------------------------------
         # parameter validation
-        if price is None and ret is None:
-            raise ValueError("One of price / ret must be provided.")
-        if price is not None and ret is not None:
-            raise ValueError("Only one of price / ret should be provided.")
-        if ret is not None and benchmark_price is not None:
-            raise ValueError("You choose 'return' mode but benchmark_price is given.")
+        if price is None and daily_ret is None:
+            raise ValueError("One of price / daily_ret must be provided.")
+        if price is not None and daily_ret is not None:
+            raise ValueError("Only one of price / daily_ret should be provided.")
+        if benchmark_price is not None and daily_benchmark_ret is not None:
+            raise ValueError("Only one of benchmark_price / daily_benchmark_ret should be provided.")
         if not (n_quantiles > 0 and isinstance(n_quantiles, int)):
             raise ValueError("n_quantiles must be a positive integer. Input is: {}".format(n_quantiles))
+
+        if daily_ret is not None:
+            warnings.warn("Warning: 检查到使用daily_ret模式。未避免未来函数，请注意确保daily_ret格式为对应日期能实现的日收益.")
 
         # ensure inputs are aligned
         if mask is not None:
@@ -129,8 +140,6 @@ class SignalDigger(OriginSignalDigger):
                 warnings.warn("Warning: signal与group的index/columns不一致,请检查输入参数!")
                 group = group.reindex_like(signal)
 
-        signal = jutil.fillinf(signal)
-
         # ----------------------------------------------------------------------
         # save data
         self.n_quantiles = n_quantiles
@@ -138,9 +147,29 @@ class SignalDigger(OriginSignalDigger):
 
         # ----------------------------------------------------------------------
         # Get dependent variables
-        upside_ret = None
-        downside_ret = None
-        if price is not None:
+
+        # 计算benchmark收益
+        if benchmark_price is not None:
+            benchmark_price = benchmark_price.reindex(index=signal.index)
+            self.benchmark_ret = pfm.price2ret(benchmark_price, self.period, axis=0, compound=True)
+        elif daily_benchmark_ret is not None:
+            daily_benchmark_ret = daily_benchmark_ret.reindex(index=signal.index)
+            self.benchmark_ret = pfm.daily_ret_to_ret(daily_benchmark_ret,self.period)
+
+        # 计算区间持仓收益
+        isRealPrice = False
+        if daily_ret is not None:
+            try:
+                assert np.all(signal.index == daily_ret.index)
+                assert np.all(signal.columns == daily_ret.columns)
+            except:
+                warnings.warn("Warning: signal与daily_ret的index/columns不一致,请检查输入参数!")
+                daily_ret = daily_ret.reindex_like(signal)
+            daily_ret = jutil.fillinf(daily_ret).fillna(0)
+            price = pfm.daily_ret_to_cum(daily_ret)
+        else:
+            # 有price
+            isRealPrice=True
             try:
                 assert np.all(signal.index == price.index)
                 assert np.all(signal.columns == price.columns)
@@ -148,58 +177,62 @@ class SignalDigger(OriginSignalDigger):
                 warnings.warn("Warning: signal与price的index/columns不一致,请检查输入参数!")
                 price = price.reindex_like(signal)
             price = jutil.fillinf(price)
-            can_enter = np.logical_and(price != np.NaN, can_enter)
-            df_ret = pfm.price2ret(price, period=self.period, axis=0, compound=True)
-            price_can_exit = price.copy()
-            price_can_exit[~can_exit] = np.NaN
-            price_can_exit = price_can_exit.fillna(method="bfill")
-            ret_can_exit = pfm.price2ret(price_can_exit, period=self.period, axis=0, compound=True)
-            df_ret[~can_exit] = ret_can_exit[~can_exit]
-            if benchmark_price is not None:
-                benchmark_price = benchmark_price.loc[signal.index]
-                bench_ret = pfm.price2ret(benchmark_price, self.period, axis=0, compound=True)
-                self.benchmark_ret = bench_ret
-                residual_ret = df_ret.sub(bench_ret.values.flatten(), axis=0)
-            else:
-                residual_ret = df_ret
-            residual_ret = jutil.fillinf(residual_ret)
-            residual_ret -= commission
-            # 计算潜在上涨空间和潜在下跌空间
-            if high is not None:
-                try:
-                    assert np.all(signal.index == high.index)
-                    assert np.all(signal.columns == high.columns)
-                except:
-                    warnings.warn("Warning: signal与high的index/columns不一致,请检查输入参数!")
-                    high = high.reindex_like(signal)
-                high = jutil.fillinf(high)
-                upside_ret = compute_upside_returns(price, high, can_exit, self.period, compound=True)
-                upside_ret = jutil.fillinf(upside_ret)
-                upside_ret -= commission
-            if low is not None:
-                try:
-                    assert np.all(signal.index == low.index)
-                    assert np.all(signal.columns == low.columns)
-                except:
-                    warnings.warn("Warning: signal与low的index/columns不一致,请检查输入参数!")
-                    low = low.reindex_like(signal)
-                low = jutil.fillinf(low)
-                downside_ret = compute_downside_returns(price, low, can_exit, self.period, compound=True)
-                downside_ret = jutil.fillinf(downside_ret)
-                downside_ret -= commission
-        else:
-            residual_ret = jutil.fillinf(ret)
 
+        can_enter = np.logical_and(price != np.NaN, can_enter)
+        df_ret = pfm.price2ret(price, period=self.period, axis=0, compound=True)
+        price_can_exit = price.copy()
+        price_can_exit[~can_exit] = np.NaN
+        price_can_exit = price_can_exit.fillna(method="bfill")
+        ret_can_exit = pfm.price2ret(price_can_exit, period=self.period, axis=0, compound=True)
+        df_ret[~can_exit] = ret_can_exit[~can_exit]
+
+        if self.benchmark_ret is not None:
+            # 计算持有期相对收益
+            residual_ret = df_ret.sub(self.benchmark_ret.values.flatten(), axis=0)
+        else:
+            residual_ret = df_ret
+        residual_ret = jutil.fillinf(residual_ret)
+        residual_ret -= commission
+
+        # 计算潜在上涨空间和潜在下跌空间
+        if high is not None and isRealPrice:
+            try:
+                assert np.all(signal.index == high.index)
+                assert np.all(signal.columns == high.columns)
+            except:
+                warnings.warn("Warning: signal与high的index/columns不一致,请检查输入参数!")
+                high = high.reindex_like(signal)
+            high = jutil.fillinf(high)
+        else:
+            high = price
+        upside_ret = compute_upside_returns(price, high, can_exit, self.period, compound=True)
+        upside_ret = jutil.fillinf(upside_ret)
+        upside_ret -= commission
+
+        if low is not None and isRealPrice:
+            try:
+                assert np.all(signal.index == low.index)
+                assert np.all(signal.columns == low.columns)
+            except:
+                warnings.warn("Warning: signal与low的index/columns不一致,请检查输入参数!")
+                low = low.reindex_like(signal)
+            low = jutil.fillinf(low)
+        else:
+            low = price
+        downside_ret = compute_downside_returns(price, low, can_exit, self.period, compound=True)
+        downside_ret = jutil.fillinf(downside_ret)
+        downside_ret -= commission
+
+        # ----------------------------------------------------------------------
         # Get independent varibale
+        signal = jutil.fillinf(signal)
         signal = signal.shift(1)  # avoid forward-looking bias
         # forward or not
         if forward:
             # point-in-time signal and forward return
             residual_ret = residual_ret.shift(-self.period)
-            if upside_ret is not None:
-                upside_ret = upside_ret.shift(-self.period)
-            if downside_ret is not None:
-                downside_ret = downside_ret.shift(-self.period)
+            upside_ret = upside_ret.shift(-self.period)
+            downside_ret = downside_ret.shift(-self.period)
         else:
             # past signal and point-in-time return
             signal = signal.shift(self.period)
@@ -208,10 +241,8 @@ class SignalDigger(OriginSignalDigger):
 
         self.ret = dict()
         self.ret["return"] = residual_ret
-        if upside_ret is not None:
-            self.ret["upside_ret"] = upside_ret
-        if downside_ret is not None:
-            self.ret["downside_ret"] = downside_ret
+        self.ret["upside_ret"] = upside_ret
+        self.ret["downside_ret"] = downside_ret
 
         # ----------------------------------------------------------------------
         # get masks
@@ -246,22 +277,17 @@ class SignalDigger(OriginSignalDigger):
             df.sort_index(axis=0, level=['trade_date', 'symbol'], inplace=True)
             return df
 
-        mask = stack_td_symbol(mask)
-        df_quantile = stack_td_symbol(df_quantile)
-        residual_ret = stack_td_symbol(residual_ret)
-
         # ----------------------------------------------------------------------
         # concat signal value
         res = stack_td_symbol(signal)
         res.columns = ['signal']
-        res['return'] = residual_ret.fillna(0)
-        if upside_ret is not None:
-            res["upside_ret"] = stack_td_symbol(upside_ret).fillna(0)
-        if downside_ret is not None:
-            res["downside_ret"] = stack_td_symbol(downside_ret).fillna(0)
+        for ret_type in self.ret.keys():
+            res[ret_type] = stack_td_symbol(self.ret[ret_type]).fillna(0)
         if group is not None:
             res["group"] = stack_td_symbol(group)
-        res['quantile'] = df_quantile
+        res['quantile'] = stack_td_symbol(df_quantile)
+
+        mask = stack_td_symbol(mask)
         res = res.loc[~(mask.iloc[:, 0]), :]
 
         if len(res) > 0:
@@ -389,7 +415,10 @@ class SignalDigger(OriginSignalDigger):
         else:
             plotting.plot_event_dist(df_events, "", axs=[gf.next_cell() for _ in periods])
 
-        self.show_fig(gf.fig, 'event_report')
+        file_name = 'event_report'
+        if self.signal_name is not None:
+            file_name = self.signal_name + "#" + file_name
+        self.show_fig(gf.fig, file_name)
 
         # dic_res['df_res'] = df_res
         return df_all, df_events, df_stats
@@ -470,7 +499,10 @@ class SignalDigger(OriginSignalDigger):
                                                   "Portfolio Cumulative Return",
                                             ax=gf.next_row())
 
-            self.show_fig(gf.fig, 'returns_report')
+            file_name = 'returns_report'
+            if self.signal_name is not None:
+                file_name = self.signal_name+"#"+file_name
+            self.show_fig(gf.fig, file_name)
 
         self.returns_report_data = {'period_wise_quantile_ret': period_wise_quantile_ret_stats,
                                     'cum_quantile_ret': cum_quantile_ret,
@@ -507,7 +539,10 @@ class SignalDigger(OriginSignalDigger):
 
             plotting.plot_monthly_ic_heatmap(monthly_ic, period=self.period, ax=gf.next_row())
 
-            self.show_fig(gf.fig, 'information_report')
+            file_name = 'information_report'
+            if self.signal_name is not None:
+                file_name = self.signal_name+"#"+file_name
+            self.show_fig(gf.fig, file_name)
 
         self.ic_report_data = {'daily_ic': ic,
                                'monthly_ic': monthly_ic}
