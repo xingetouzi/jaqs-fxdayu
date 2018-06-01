@@ -57,6 +57,7 @@ class SignalCreator(object):
         self.forward = forward
         self.commission = commission
 
+        self.benchmark_ret = None
         self.signal_data = None
         self.signal_ret = None
 
