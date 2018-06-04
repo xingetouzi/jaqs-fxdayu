@@ -1,6 +1,6 @@
 # encoding: utf-8
 
 from .signaldigger import Optimizer, SignalDigger, SignalCreator
-from .eventdigger import EventDigger
+from .timingdigger import TimingDigger
 
-__all__ = ['SignalDigger', "EventDigger", "Optimizer", "SignalCreator"]
+__all__ = ['SignalDigger', "TimingDigger", "Optimizer", "SignalCreator"]

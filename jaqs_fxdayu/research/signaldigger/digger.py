@@ -253,6 +253,8 @@ class SignalDigger(OriginSignalDigger):
         mask_signal = signal.isnull()
 
         mask = np.logical_or(mask.fillna(True), np.logical_or(mask_signal, ~(can_enter.fillna(False))))
+        mask = np.logical_or(mask,
+                             self.ret["return"].isnull())
         # mask = np.logical_or(mask, mask_signal)
 
         # if price is not None:
@@ -438,8 +440,8 @@ class SignalDigger(OriginSignalDigger):
             pfm.calc_period_wise_weighted_signal_return(self.signal_data, weight_method='long_only')
         period_wise_short_ret = \
             pfm.calc_period_wise_weighted_signal_return(self.signal_data, weight_method='short_only')
-        cum_long_ret = pfm.period_wise_ret_to_cum(period_wise_long_ret, period=self.period, compound=False)
-        cum_short_ret = pfm.period_wise_ret_to_cum(period_wise_short_ret, period=self.period, compound=False)
+        cum_long_ret = pfm.period_wise_ret_to_cum(period_wise_long_ret, period=self.period, compound=True)
+        cum_short_ret = pfm.period_wise_ret_to_cum(period_wise_short_ret, period=self.period, compound=True)
         # period_wise_ret_by_regression = perf.regress_period_wise_signal_return(signal_data)
         # period_wise_ls_signal_ret = \
         #     pfm.calc_period_wise_weighted_signal_return(signal_data, weight_method='long_short')
@@ -453,14 +455,14 @@ class SignalDigger(OriginSignalDigger):
 
         # quantile return
         period_wise_quantile_ret_stats = pfm.calc_quantile_return_mean_std(self.signal_data, time_series=True)
-        cum_quantile_ret = pd.concat({k: pfm.period_wise_ret_to_cum(v['mean'], period=self.period, compound=False)
+        cum_quantile_ret = pd.concat({k: pfm.period_wise_ret_to_cum(v['mean'], period=self.period, compound=True)
                                       for k, v in period_wise_quantile_ret_stats.items()},
                                      axis=1)
 
         # top quantile minus bottom quantile return
         period_wise_tmb_ret = pfm.calc_return_diff_mean_std(period_wise_quantile_ret_stats[n_quantiles],
                                                             period_wise_quantile_ret_stats[1])
-        cum_tmb_ret = pfm.period_wise_ret_to_cum(period_wise_tmb_ret['mean_diff'], period=self.period, compound=False)
+        cum_tmb_ret = pfm.period_wise_ret_to_cum(period_wise_tmb_ret['mean_diff'], period=self.period, compound=True)
 
         # ----------------------------------------------------------------------------------
         # Alpha and Beta
@@ -474,7 +476,7 @@ class SignalDigger(OriginSignalDigger):
         if self.output_format:
             vertical_sections = 6
             gf = plotting.GridFigure(rows=vertical_sections, cols=1)
-            gf.fig.suptitle("Returns Tear Sheet\n\n(no compound)\n (period length = {:d} days)".format(self.period))
+            gf.fig.suptitle("Returns Tear Sheet\n\n(compound)\n (period length = {:d} days)".format(self.period))
 
             plotting.plot_quantile_returns_ts(period_wise_quantile_ret_stats,
                                               ax=gf.next_row())
