@@ -105,6 +105,7 @@ def get_perf(ret):
                          perf.loc["win", "occurance"] / perf.loc["all", "occurance"]]
     perf["win_mean/loss_mean"] = [np.nan, np.nan,
                                   -1 * perf.loc["win", "mean"] / perf.loc["loss", "mean"]]
+    perf["expected_return_per_trade"] = perf["win_ratio"]*(1+perf["win_mean/loss_mean"]) -1
     return perf
 
 
