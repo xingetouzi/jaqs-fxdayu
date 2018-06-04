@@ -414,14 +414,14 @@ class TimingDigger():
                 # Daily Signal Return Time Series
                 # quantile return
                 period_wise_quantile_ret_stats = pfm.calc_quantile_return_mean_std(signal_data, time_series=True)
-                cum_quantile_ret = pd.concat({k: pfm.period_wise_ret_to_cum(v['mean'], period=self.period, compound=False)
+                cum_quantile_ret = pd.concat({k: pfm.period_wise_ret_to_cum(v['mean'], period=self.period, compound=True)
                                               for k, v in period_wise_quantile_ret_stats.items()},
                                              axis=1)
 
                 # top quantile minus bottom quantile return
                 period_wise_tmb_ret = pfm.calc_return_diff_mean_std(period_wise_quantile_ret_stats[n_quantiles],
                                                                     period_wise_quantile_ret_stats[1])
-                cum_tmb_ret = pfm.period_wise_ret_to_cum(period_wise_tmb_ret['mean_diff'], period=self.period, compound=False)
+                cum_tmb_ret = pfm.period_wise_ret_to_cum(period_wise_tmb_ret['mean_diff'], period=self.period, compound=True)
 
                 # start plotting
                 if self.output_format:

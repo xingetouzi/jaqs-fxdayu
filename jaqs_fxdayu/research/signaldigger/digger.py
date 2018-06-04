@@ -149,6 +149,7 @@ class SignalDigger(OriginSignalDigger):
         # Get dependent variables
 
         # 计算benchmark收益
+        self.benchmark_ret = None
         if benchmark_price is not None:
             benchmark_price = benchmark_price.reindex(index=signal.index)
             self.benchmark_ret = pfm.price2ret(benchmark_price, self.period, axis=0, compound=True)
