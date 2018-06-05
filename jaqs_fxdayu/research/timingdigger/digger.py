@@ -8,6 +8,13 @@ from . import plotting
 from . import performance as pfm
 
 
+def get_sig_pos(signal):
+    sig_pos = pd.DataFrame(signal.index.values.reshape(-1, 1).repeat(len(signal.columns), axis=1))
+    sig_pos.columns = signal.columns
+    sig_pos.index = signal.index
+    return sig_pos
+
+
 def get_exit_pos(signal,
                  value=None,
                  exit_type="close_long"):
@@ -19,9 +26,7 @@ def get_exit_pos(signal,
             value = [-1]
 
     # get sig pos
-    sig_pos = pd.DataFrame(signal.index.values.reshape(-1, 1).repeat(len(signal.columns), axis=1))
-    sig_pos.columns = signal.columns
-    sig_pos.index = signal.index
+    sig_pos = get_sig_pos(signal)
 
     # get exit bool
     can_exit = signal.isin(value)
@@ -31,9 +36,8 @@ def get_exit_pos(signal,
 
 
 def get_period_exit_pos(signal,period):
-    sig_pos = pd.DataFrame(signal.index.values.reshape(-1, 1).repeat(len(signal.columns), axis=1))
-    sig_pos.columns = signal.columns
-    sig_pos.index = signal.index
+    # get sig pos
+    sig_pos = get_sig_pos(signal)
     return sig_pos.shift(-period)
 
 
@@ -313,11 +317,18 @@ class TimingDigger():
             mask_signal = enter_signal != value
         else: # 普通因子
             mask_signal = enter_signal.isnull()
+
         mask_signal = np.logical_or(mask_signal,
                                     np.logical_or(sig_filter["mask"],
                                                   sig_filter["can_enter"]!=1))
         mask_signal = np.logical_or(mask_signal,
                                     self.ret[sig_type].isnull())
+
+        # ban掉出场信号在进场那天的
+        # get sig pos
+        sig_pos = get_sig_pos(self.final_exit_pos[sig_type])
+        mask_signal = np.logical_or(mask_signal,
+                                    sig_pos == self.final_exit_pos[sig_type])
 
         # calculate quantile
         if n_quantiles == 1:
