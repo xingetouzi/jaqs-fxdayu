@@ -744,7 +744,7 @@ td.process_signal(
 
 signal_data格式为：
 
-trade_date+symbol为MultiIndex,columns为signal(因子)、return(收益)、upside_ret(持有期潜在最大上涨收益)、downside_ret(持有期潜在最大下跌收益)、group(分组/行业分类)、quantile(按因子值分组)
+trade_date+symbol为MultiIndex,columns为signal(因子)、return(收益)、exit_time(出场时间)、group(分组/行业分类)、quantile(按因子值分组)
 
 **示例：**
 
