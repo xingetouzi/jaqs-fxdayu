@@ -46,7 +46,10 @@ def get_first_pos(a,b):
 
 def get_exit_value(value,exit_pos):
     def get_loc(x):
-        return x.loc[exit_pos[x.name]].values
+        if exit_pos[x.name].isnull().all():
+            return exit_pos[x.name].values
+        else:
+            return x.loc[exit_pos[x.name]].values
 
     exit_value = value.apply(lambda x: get_loc(x))
     return exit_value
@@ -107,7 +110,6 @@ def get_perf(ret):
                          perf.loc["win", "occurance"] / perf.loc["all", "occurance"]]
     perf["win_mean/loss_mean"] = [np.nan, np.nan,
                                   -1 * perf.loc["win", "mean"] / perf.loc["loss", "mean"]]
-    perf["expected_return_per_trade"] = perf["win_ratio"]*(1+perf["win_mean/loss_mean"]) -1
     return perf
 
 
@@ -119,13 +121,14 @@ class TimingDigger():
 
         self.returns_report_data = dict()
         self.ic_report_data = dict()
+        self.event_perf = dict()
+        self.symbol_event_perf = dict()
         self.fig_data = dict()
         self.fig_objs = dict()
 
         self.final_exit_pos = dict()
         self.ret = dict()
         self.signal_data = dict()
-        self.perf = dict()
 
         self.period = None
 
@@ -374,7 +377,8 @@ class TimingDigger():
 
     # todo show fig
     def create_event_report(self,
-                            sig_type="long"):
+                            sig_type="long",
+                            by_symbol=False):
         """
         sig_type:long/short
         """
@@ -384,7 +388,9 @@ class TimingDigger():
                 print("非事件因子不能进行事件分析.")
                 return
             ret = self.signal_data[sig_type]["return"]
-            self.perf[sig_type] = get_perf(ret)
+            perf = self.event_perf[sig_type] = get_perf(ret)
+            if by_symbol:
+                self.symbol_event_perf[sig_type]= ret.groupby("symbol").apply(lambda x: get_perf(x))
         elif sig_type=="long_short":
             if ("long" in self.signal_data.keys()) and ("short" in self.signal_data.keys()):
                 n_quantiles = max(self.signal_data["long"]['quantile'].max(),
@@ -394,7 +400,11 @@ class TimingDigger():
                     return
                 ret = pd.concat([self.signal_data["long"]["return"],
                                  self.signal_data["short"]["return"]])
-                self.perf["long_short"] = get_perf(ret)
+                perf = self.event_perf["long_short"] = get_perf(ret)
+                if by_symbol:
+                    self.symbol_event_perf["long_short"] = ret.groupby("symbol").apply(lambda x: get_perf(x))
+        print("*****-Summary-*****")
+        plotting.plot_event_table(perf)
 
     @plotting.customize
     def create_returns_report(self,sig_type="long"):
