@@ -165,7 +165,7 @@ class HFDataView(object):
 
     @staticmethod
     def _process_index_co(df, index_name):
-        df = df.astype(dtype={index_name: int})
+        df = df.astype(dtype={index_name: "int64"})
         df = df.drop_duplicates(subset=['symbol', index_name])
         return df
 
