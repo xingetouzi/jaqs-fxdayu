@@ -2,7 +2,6 @@ import os
 import numpy as np
 import pandas as pd
 from jaqs import util as jutil
-from jaqs.data.align import align
 from jaqs_fxdayu.data.search_doc import FuncDoc
 from jaqs_fxdayu.data.py_expression_eval import Parser
 
@@ -80,6 +79,7 @@ class HFDataView(object):
         """
         if self.data is not None:
             res = self.data.index.values
+        return res
 
     def _is_predefined_field(self, field_name):
         """
