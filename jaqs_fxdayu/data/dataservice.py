@@ -434,12 +434,9 @@ class LocalDataService():
         
         def query_by_field(field):
             _dir = daily_fp + '//' + field + '.hd5'
-            try:
-                dset = h5py.File(_dir)[field]
-                data = dset[start_index:end_index,symbol_index]
-            except:
-                dset = h5py.File(_dir)[field[1:]]
-                data = dset[start_index:end_index,symbol_index]
+            
+            dset = h5py.File(_dir)['data']
+            data = dset[start_index:end_index,symbol_index]
                 
             if field not in ['float','float32','float16','int']:
                 data = data.astype(str)
