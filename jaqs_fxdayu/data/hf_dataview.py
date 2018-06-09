@@ -273,7 +273,7 @@ class HFDataView(object):
                 print("Field name [{:s}] does not exist. Stop remove_field.".format(field_name))
                 return
             # remove field data
-            self.data = self.data(field_name, axis=1, level=1)
+            self.data = self.data.drop(field_name, axis=1, level=1)
             self.fields.remove(field_name)
 
     def _add_field(self, field_name):
@@ -525,7 +525,7 @@ class HFDataView(object):
         search = FuncDoc()
         return search
 
-    def get(self, symbol="", start_date=0, end_date=0, fields=""):
+    def get(self, symbol="", start_date=0, end_date=0, fields="", date_type="int"):
         """
         Basic API to get arbitrary data. If nothing fetched, return None.
 
@@ -546,6 +546,13 @@ class HFDataView(object):
             index is datetimeindex, columns are (symbol, fields) MultiIndex
 
         """
+
+        def trans_t(x):
+            value = str(int(x))
+            format = '%Y%m%d' if len(value) == 8 else '%Y%m%d%H%M%S'
+            pd.to_datetime(value, format=format)
+            return pd.to_datetime(value, format=format)
+
         sep = ','
 
         if not fields:
@@ -564,6 +571,8 @@ class HFDataView(object):
             end_date = self.end_date
 
         res = self.data.loc[pd.IndexSlice[start_date: end_date], pd.IndexSlice[symbol, fields]]
+        if date_type!="int":
+            res.index = pd.Series(res.index).apply(lambda x:trans_t(x))
         return res
 
     def get_snapshot(self, snapshot_date, symbol="", fields=""):
@@ -595,8 +604,8 @@ class HFDataView(object):
 
         return res
 
-    def get_symbol(self, symbol, start_date=0, end_date=0, fields=""):
-        res = self.get(symbol, start_date=start_date, end_date=end_date, fields=fields)
+    def get_symbol(self, symbol, start_date=0, end_date=0, fields="", date_type="int"):
+        res = self.get(symbol, start_date=start_date, end_date=end_date, fields=fields, date_type=date_type)
         if res is None:
             raise ValueError("No data. for "
                              "start_date={}, end_date={}, field={}, symbol={}".format(start_date, end_date,
@@ -605,7 +614,7 @@ class HFDataView(object):
         res.columns = res.columns.droplevel(level='symbol')
         return res
 
-    def get_ts(self, field, symbol="", start_date=0, end_date=0):
+    def get_ts(self, field, symbol="", start_date=0, end_date=0, date_type="int"):
         """
         Get time series data of single field.
 
@@ -626,7 +635,7 @@ class HFDataView(object):
             Index is int date, column is symbol.
 
         """
-        res = self.get(symbol, start_date=start_date, end_date=end_date, fields=field)
+        res = self.get(symbol, start_date=start_date, end_date=end_date, fields=field, date_type=date_type)
         if res is None:
             print("No data. for start_date={}, end_date={}, field={}, symbol={}".format(start_date,
                                                                                         end_date, field, symbol))
