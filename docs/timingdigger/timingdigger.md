@@ -861,7 +861,7 @@ td.signal_data["long"].head()
 
 事件分析报告的总体概述保存在TimingDigger.event_perf属性中
 
-若by_symbol=True。则还会对逐个品种进行绩效分析，并将相应分析报告保存在TimingDigger.symbol_event_perf属性中
+若by_symbol=True。则还会对逐个品种进行绩效分析，并将相应分析报告保存在TimingDigger.symbol_event_perf属性中,并将每个品种的进出场位置和进出场收益绘图保存
 
 **示例：**
 

@@ -133,6 +133,7 @@ class TimingDigger():
         self.final_exit_pos = dict()
         self.ret = dict()
         self.signal_data = dict()
+        self.price = None
 
         self.period = None
 
@@ -266,6 +267,8 @@ class TimingDigger():
             price = price.reindex_like(enter_signal)
             price = jutil.fillinf(price) # 取价格
 
+        self.price = price
+
         #=====================
         # 调整出场点
         pos = []
@@ -393,6 +396,15 @@ class TimingDigger():
         """
         sig_type:long/short
         """
+        def plot_entry_exit(x):
+            gf = plotting.GridFigure(rows=1, cols=1)
+            ax, symbol = plotting.get_entry_exit(x, self.price,
+                                                 ax=gf.next_row())
+            file_name = '%s_entry_exit_position/%s' % (sig_type,symbol)
+            if self.signal_name is not None:
+                file_name = self.signal_name + "/" + file_name
+            self.show_fig(gf.fig, file_name)
+
         if sig_type in self.signal_data.keys():
             n_quantiles = self.signal_data[sig_type]['quantile'].max()
             if n_quantiles != 1:
@@ -401,7 +413,10 @@ class TimingDigger():
             ret = self.signal_data[sig_type]["return"]
             perf = self.event_perf[sig_type] = get_perf(ret)
             if by_symbol:
-                self.symbol_event_perf[sig_type]= ret.groupby("symbol").apply(lambda x: get_perf(x))
+                # self.symbol_event_perf[sig_type]= ret.groupby("symbol").apply(lambda x: get_perf(x))
+                # 画图
+                if self.output_format:
+                    self.signal_data[sig_type].groupby("symbol").apply(lambda x: plot_entry_exit(x))
         elif sig_type=="long_short":
             if ("long" in self.signal_data.keys()) and ("short" in self.signal_data.keys()):
                 n_quantiles = max(self.signal_data["long"]['quantile'].max(),

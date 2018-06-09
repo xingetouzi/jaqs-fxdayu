@@ -125,6 +125,9 @@ from jaqs_fxdayu.research import Optimizer
 [详细文档地址](http://jaqs-fxdayu.readthedocs.io/zh_CN/latest/)
 
 ## 最新功能
+### 2018/6/9
+TimingDigger-create_event_report方法新增进出场点位画图功能
+
 ### 2018/6/5
 选股叠加择时研究(TimingDigger)新增功能,通过TimingDigger,可以在设计完选股因子和事件后,加入简单的择时出场条件对因子进行进一步测试.支持设置止盈，止损等出场方式.
 
