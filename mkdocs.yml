@@ -15,6 +15,7 @@ pages:
         - multi_factor: multi_factor.md
         - dp: dp.md
         - timingdigger: timingdigger/timingdigger.md
+        - hf_dataview: hf_dataview/hf_dataview.md
 
 theme: readthedocs
 

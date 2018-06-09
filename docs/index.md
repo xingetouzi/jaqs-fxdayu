@@ -48,6 +48,10 @@
 
 择时信号研究,通过TimingDigger,可以在设计完选股因子和事件后,加入简单的择时出场条件对因子进行进一步测试.支持设置止盈,止损等出场方式.新增模块
 
+- hf_dataview
+
+针对高频因子(bar级别)和事件设计的数据操作和信号计算模块，功能和Dataview一致.新增模块
+
 ## 安装和更新
 ### 依赖
 该模块基于JAQS进行拓展，且只支持`python3`，需要安装：`jaqs>=0.6.11`
@@ -126,7 +130,10 @@ from jaqs_fxdayu.research import Optimizer
 
 ## 最新功能
 ### 2018/6/9
+
 TimingDigger-create_event_report方法新增进出场点位画图功能
+
+新增hf_dataview-针对高频因子(bar级别)和事件设计的数据操作和信号计算模块，功能和Dataview一致.
 
 ### 2018/6/5
 选股叠加择时研究(TimingDigger)新增功能,通过TimingDigger,可以在设计完选股因子和事件后,加入简单的择时出场条件对因子进行进一步测试.支持设置止盈，止损等出场方式.
