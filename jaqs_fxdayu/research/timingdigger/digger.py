@@ -82,6 +82,9 @@ def get_stop_pos(price,
     count = 0
     length = len(price)
     pos = []
+
+    if sig_type=="short":
+        target = -1*target
     for index, row in price.iterrows():
         stop_row = row * (1+target)
         # data 止损价位
