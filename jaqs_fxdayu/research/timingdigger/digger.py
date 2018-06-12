@@ -42,8 +42,8 @@ def get_period_exit_pos(signal,period):
 
 
 def get_first_pos(a,b):
-    a = a.replace(np.nan, 99999999)
-    b = b.replace(np.nan, 99999999)
+    a = a.replace(np.nan, 999999999999999)
+    b = b.replace(np.nan, 999999999999999)
     c = (a[a <= b].fillna(0) + b[b < a].fillna(0))
     return c
 
@@ -297,7 +297,7 @@ class TimingDigger():
                                     exit_type="close_%s"%(sig_type,)))
 
         # 综合了各种出场条件，选择最先触发的出场条件出场
-        exit_pos = reduce(get_first_pos, pos).replace(99999999,np.nan)
+        exit_pos = reduce(get_first_pos, pos).replace(999999999999999,np.nan)
         # 每天允许出场的最近的出场点
         exit_permited_pos = get_exit_pos(sig_filter["can_exit"],
                                          value=[1])
@@ -353,6 +353,7 @@ class TimingDigger():
         if group is not None:
             res["group"] = stack_td_symbol(group)
         res['quantile'] = stack_td_symbol(df_quantile)
+        res["sig_type"] = sig_type
         mask_signal = stack_td_symbol(mask_signal)
         res = res.loc[~(mask_signal.iloc[:, 0]), :]
 
@@ -408,6 +409,7 @@ class TimingDigger():
                 file_name = self.signal_name + "/" + file_name
             self.show_fig(gf.fig, file_name)
 
+        perf = None
         if sig_type in self.signal_data.keys():
             n_quantiles = self.signal_data[sig_type]['quantile'].max()
             if n_quantiles != 1:
@@ -416,7 +418,7 @@ class TimingDigger():
             ret = self.signal_data[sig_type]["return"]
             perf = self.event_perf[sig_type] = get_perf(ret)
             if by_symbol:
-                # self.symbol_event_perf[sig_type]= ret.groupby("symbol").apply(lambda x: get_perf(x))
+                self.symbol_event_perf[sig_type] = ret.groupby("symbol").apply(lambda x: get_perf(x))
                 # 画图
                 if self.output_format:
                     self.signal_data[sig_type].groupby("symbol").apply(lambda x: plot_entry_exit(x))
@@ -432,8 +434,15 @@ class TimingDigger():
                 perf = self.event_perf["long_short"] = get_perf(ret)
                 if by_symbol:
                     self.symbol_event_perf["long_short"] = ret.groupby("symbol").apply(lambda x: get_perf(x))
-        print("*****-Summary-*****")
-        plotting.plot_event_table(perf)
+                    if self.output_format:
+                        signal_data = pd.concat([self.signal_data["long"],self.signal_data["short"]],axis=0).sort_index()
+                        signal_data.groupby("symbol").apply(lambda x: plot_entry_exit(x))
+
+        if perf is None:
+            raise ValueError("无法分析绩效.当前待分析信号类型为%s,而%s信号未计算(需通过process_data进行计算.)"%(sig_type,sig_type))
+        else:
+            print("*****-Summary-*****")
+            plotting.plot_event_table(perf)
 
     @plotting.customize
     def create_returns_report(self,sig_type="long"):

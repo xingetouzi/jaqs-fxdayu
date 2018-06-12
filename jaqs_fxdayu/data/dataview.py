@@ -373,9 +373,9 @@ class DataView(OriginDataView):
             return df
 
         # initialize parameters
-        self.start_date = multi_df.index.levels[0][0]
-        self.extended_start_date_d = self.start_date
-        self.end_date = multi_df.index.levels[0][-1]
+        self.start_date = int(multi_df.index.levels[0][0])
+        self.extended_start_date_d = int(self.start_date)
+        self.end_date = int(multi_df.index.levels[0][-1])
         self.fields = list(multi_df.columns)
         self.symbol = sorted(list(multi_df.index.levels[1]))
 
