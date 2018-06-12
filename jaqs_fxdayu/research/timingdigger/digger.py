@@ -7,6 +7,8 @@ import jaqs.util as jutil
 from . import plotting
 from . import performance as pfm
 
+LONGINT = 999999999999999
+
 
 def get_sig_pos(signal):
     sig_pos = pd.DataFrame(signal.index.values.reshape(-1, 1).repeat(len(signal.columns), axis=1))
@@ -42,8 +44,8 @@ def get_period_exit_pos(signal,period):
 
 
 def get_first_pos(a,b):
-    a = a.replace(np.nan, 999999999999999)
-    b = b.replace(np.nan, 999999999999999)
+    a = a.replace(np.nan, LONGINT)
+    b = b.replace(np.nan, LONGINT)
     c = (a[a <= b].fillna(0) + b[b < a].fillna(0))
     return c
 
@@ -297,7 +299,7 @@ class TimingDigger():
                                     exit_type="close_%s"%(sig_type,)))
 
         # 综合了各种出场条件，选择最先触发的出场条件出场
-        exit_pos = reduce(get_first_pos, pos).replace(999999999999999,np.nan)
+        exit_pos = reduce(get_first_pos, pos).replace(LONGINT,np.nan)
         # 每天允许出场的最近的出场点
         exit_permited_pos = get_exit_pos(sig_filter["can_exit"],
                                          value=[1])

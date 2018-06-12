@@ -7,6 +7,23 @@ import numpy as np
 import jaqs.util as jutil
 
 
+def _process_filter(_filter):
+    if _filter is not None:
+        _filter = jutil.fillinf(_filter)
+        _filter = _filter.astype(int).fillna(0).astype(bool)
+    return _filter
+
+
+def _assert(standard, tmp):
+    if tmp is not None:
+        assert np.all(standard.index == tmp.index)
+        assert np.all(standard.columns == tmp.columns)
+
+
+def _get_df(index,columns,value):
+    return pd.DataFrame(index=index, columns=columns, data=value)
+
+
 class SignalCreator(object):
     def __init__(self,
                  price=None, daily_ret=None,
@@ -35,21 +52,9 @@ class SignalCreator(object):
         self.low = low
         self.group = group
         self.n_quantiles = n_quantiles
-
-        if mask is not None:
-            mask = jutil.fillinf(mask)
-            mask = mask.astype(int).fillna(0).astype(bool)
-        self.mask = mask
-
-        if can_enter is not None:
-            can_enter = jutil.fillinf(can_enter)
-            can_enter = can_enter.astype(int).fillna(0).astype(bool)
-        self.can_enter = can_enter
-
-        if can_exit is not None:
-            can_exit = jutil.fillinf(can_exit)
-            can_exit = can_exit.astype(int).fillna(0).astype(bool)
-        self.can_exit = can_exit
+        self.mask = _process_filter(mask)
+        self.can_enter = _process_filter(can_enter)
+        self.can_exit = _process_filter(can_exit)
 
         self.period = period
         self.benchmark_price = benchmark_price
@@ -62,46 +67,25 @@ class SignalCreator(object):
         self.signal_ret = None
 
     def _judge(self, signal):
-        if self.mask is not None:
-            assert np.all(signal.index == self.mask.index)
-            assert np.all(signal.columns == self.mask.columns)
-        else:
-            self.mask = pd.DataFrame(index=signal.index, columns=signal.columns, data=False)
+        # 生成filter的dataframe
+        self.mask = _get_df(signal.index, signal.columns, False) if self.mask is None else self.mask
+        self.can_enter = _get_df(signal.index, signal.columns, True) if self.can_enter is None else self.can_enter
+        self.can_exit = _get_df(signal.index, signal.columns, True) if self.can_exit is None else self.can_exit
 
-        if self.can_enter is not None:
-            assert np.all(signal.index == self.can_enter.index)
-            assert np.all(signal.columns == self.can_enter.columns)
-        else:
-            self.can_enter = pd.DataFrame(index=signal.index, columns=signal.columns, data=True)
-
-        if self.can_exit is not None:
-            assert np.all(signal.index == self.can_exit.index)
-            assert np.all(signal.columns == self.can_exit.columns)
-        else:
-            self.can_exit = pd.DataFrame(index=signal.index, columns=signal.columns, data=True)
-
-        if self.group is not None:
-            assert np.all(signal.index == self.group.index)
-            assert np.all(signal.columns == self.group.columns)
+        # df shape确认
+        _assert(signal, self.mask)
+        _assert(signal, self.can_enter)
+        _assert(signal, self.can_exit)
+        _assert(signal, self.group)
 
         if self.signal_ret is not None:
             for ret_type in self.signal_ret.keys():
-                if self.signal_ret[ret_type] is not None:
-                    assert np.all(signal.index == self.signal_ret[ret_type].index)
-                    assert np.all(signal.columns == self.signal_ret[ret_type].columns)
+                _assert(signal, self.signal_ret[ret_type])
         else:
-            if self.price is not None:
-                assert np.all(signal.index == self.price.index)
-                assert np.all(signal.columns == self.price.columns)
-            elif self.daily_ret is not None:
-                assert np.all(signal.index == self.daily_ret.index)
-                assert np.all(signal.columns == self.daily_ret.columns)
-            if self.high is not None:
-                assert np.all(signal.index == self.high.index)
-                assert np.all(signal.columns == self.high.columns)
-            if self.low is not None:
-                assert np.all(signal.index == self.low.index)
-                assert np.all(signal.columns == self.low.columns)
+            _assert(signal, self.price)
+            _assert(signal, self.daily_ret)
+            _assert(signal, self.high)
+            _assert(signal, self.low)
 
     def _cal_ret(self):
         if self.signal_ret is not None:
