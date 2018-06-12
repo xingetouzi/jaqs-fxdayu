@@ -384,7 +384,7 @@ class TimingDigger():
         if self.output_format in ['pdf', 'png', 'jpg']:
             fp = os.path.join(self.output_folder, '.'.join([file_name, self.output_format]))
             jutil.create_dir(fp)
-            fig.savefig(fp)
+            fig.savefig(fp, dpi=200)
             print("Figure saved: {}".format(fp))
         elif self.output_format == 'base64':
             fig_b64 = jutil.fig2base64(fig, 'png')
