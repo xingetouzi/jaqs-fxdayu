@@ -7,6 +7,15 @@ import jaqs.util as jutil
 from . import plotting
 from . import performance as pfm
 
+LONGINT = 999999999999999
+
+
+def get_sig_pos(signal):
+    sig_pos = pd.DataFrame(signal.index.values.reshape(-1, 1).repeat(len(signal.columns), axis=1))
+    sig_pos.columns = signal.columns
+    sig_pos.index = signal.index
+    return sig_pos
+
 
 def get_exit_pos(signal,
                  value=None,
@@ -19,9 +28,7 @@ def get_exit_pos(signal,
             value = [-1]
 
     # get sig pos
-    sig_pos = pd.DataFrame(signal.index.values.reshape(-1, 1).repeat(len(signal.columns), axis=1))
-    sig_pos.columns = signal.columns
-    sig_pos.index = signal.index
+    sig_pos = get_sig_pos(signal)
 
     # get exit bool
     can_exit = signal.isin(value)
@@ -31,22 +38,24 @@ def get_exit_pos(signal,
 
 
 def get_period_exit_pos(signal,period):
-    sig_pos = pd.DataFrame(signal.index.values.reshape(-1, 1).repeat(len(signal.columns), axis=1))
-    sig_pos.columns = signal.columns
-    sig_pos.index = signal.index
+    # get sig pos
+    sig_pos = get_sig_pos(signal)
     return sig_pos.shift(-period)
 
 
 def get_first_pos(a,b):
-    a = a.replace(np.nan, 99999999)
-    b = b.replace(np.nan, 99999999)
+    a = a.replace(np.nan, LONGINT)
+    b = b.replace(np.nan, LONGINT)
     c = (a[a <= b].fillna(0) + b[b < a].fillna(0))
     return c
 
 
 def get_exit_value(value,exit_pos):
     def get_loc(x):
-        return x.loc[exit_pos[x.name]].values
+        if exit_pos[x.name].isnull().all():
+            return exit_pos[x.name].values
+        else:
+            return x.loc[exit_pos[x.name]].values
 
     exit_value = value.apply(lambda x: get_loc(x))
     return exit_value
@@ -75,6 +84,9 @@ def get_stop_pos(price,
     count = 0
     length = len(price)
     pos = []
+
+    if sig_type=="short":
+        target = -1*target
     for index, row in price.iterrows():
         stop_row = row * (1+target)
         # data 止损价位
@@ -107,7 +119,6 @@ def get_perf(ret):
                          perf.loc["win", "occurance"] / perf.loc["all", "occurance"]]
     perf["win_mean/loss_mean"] = [np.nan, np.nan,
                                   -1 * perf.loc["win", "mean"] / perf.loc["loss", "mean"]]
-    perf["expected_return_per_trade"] = perf["win_ratio"]*(1+perf["win_mean/loss_mean"]) -1
     return perf
 
 
@@ -119,13 +130,15 @@ class TimingDigger():
 
         self.returns_report_data = dict()
         self.ic_report_data = dict()
+        self.event_perf = dict()
+        self.symbol_event_perf = dict()
         self.fig_data = dict()
         self.fig_objs = dict()
 
         self.final_exit_pos = dict()
         self.ret = dict()
         self.signal_data = dict()
-        self.perf = dict()
+        self.price = None
 
         self.period = None
 
@@ -259,6 +272,8 @@ class TimingDigger():
             price = price.reindex_like(enter_signal)
             price = jutil.fillinf(price) # 取价格
 
+        self.price = price
+
         #=====================
         # 调整出场点
         pos = []
@@ -284,7 +299,7 @@ class TimingDigger():
                                     exit_type="close_%s"%(sig_type,)))
 
         # 综合了各种出场条件，选择最先触发的出场条件出场
-        exit_pos = reduce(get_first_pos, pos).replace(99999999,np.nan)
+        exit_pos = reduce(get_first_pos, pos).replace(LONGINT,np.nan)
         # 每天允许出场的最近的出场点
         exit_permited_pos = get_exit_pos(sig_filter["can_exit"],
                                          value=[1])
@@ -310,11 +325,18 @@ class TimingDigger():
             mask_signal = enter_signal != value
         else: # 普通因子
             mask_signal = enter_signal.isnull()
+
         mask_signal = np.logical_or(mask_signal,
                                     np.logical_or(sig_filter["mask"],
                                                   sig_filter["can_enter"]!=1))
         mask_signal = np.logical_or(mask_signal,
                                     self.ret[sig_type].isnull())
+
+        # ban掉出场信号在进场那天的
+        # get sig pos
+        sig_pos = get_sig_pos(self.final_exit_pos[sig_type])
+        mask_signal = np.logical_or(mask_signal,
+                                    sig_pos == self.final_exit_pos[sig_type])
 
         # calculate quantile
         if n_quantiles == 1:
@@ -333,6 +355,7 @@ class TimingDigger():
         if group is not None:
             res["group"] = stack_td_symbol(group)
         res['quantile'] = stack_td_symbol(df_quantile)
+        res["sig_type"] = sig_type
         mask_signal = stack_td_symbol(mask_signal)
         res = res.loc[~(mask_signal.iloc[:, 0]), :]
 
@@ -361,7 +384,7 @@ class TimingDigger():
         if self.output_format in ['pdf', 'png', 'jpg']:
             fp = os.path.join(self.output_folder, '.'.join([file_name, self.output_format]))
             jutil.create_dir(fp)
-            fig.savefig(fp)
+            fig.savefig(fp, dpi=200)
             print("Figure saved: {}".format(fp))
         elif self.output_format == 'base64':
             fig_b64 = jutil.fig2base64(fig, 'png')
@@ -374,17 +397,33 @@ class TimingDigger():
 
     # todo show fig
     def create_event_report(self,
-                            sig_type="long"):
+                            sig_type="long",
+                            by_symbol=False):
         """
         sig_type:long/short
         """
+        def plot_entry_exit(x):
+            gf = plotting.GridFigure(rows=1, cols=1)
+            ax, symbol = plotting.get_entry_exit(x, self.price,
+                                                 ax=gf.next_row())
+            file_name = '%s_entry_exit_position/%s' % (sig_type,symbol)
+            if self.signal_name is not None:
+                file_name = self.signal_name + "/" + file_name
+            self.show_fig(gf.fig, file_name)
+
+        perf = None
         if sig_type in self.signal_data.keys():
             n_quantiles = self.signal_data[sig_type]['quantile'].max()
             if n_quantiles != 1:
                 print("非事件因子不能进行事件分析.")
                 return
             ret = self.signal_data[sig_type]["return"]
-            self.perf[sig_type] = get_perf(ret)
+            perf = self.event_perf[sig_type] = get_perf(ret)
+            if by_symbol:
+                self.symbol_event_perf[sig_type] = ret.groupby("symbol").apply(lambda x: get_perf(x))
+                # 画图
+                if self.output_format:
+                    self.signal_data[sig_type].groupby("symbol").apply(lambda x: plot_entry_exit(x))
         elif sig_type=="long_short":
             if ("long" in self.signal_data.keys()) and ("short" in self.signal_data.keys()):
                 n_quantiles = max(self.signal_data["long"]['quantile'].max(),
@@ -394,7 +433,18 @@ class TimingDigger():
                     return
                 ret = pd.concat([self.signal_data["long"]["return"],
                                  self.signal_data["short"]["return"]])
-                self.perf["long_short"] = get_perf(ret)
+                perf = self.event_perf["long_short"] = get_perf(ret)
+                if by_symbol:
+                    self.symbol_event_perf["long_short"] = ret.groupby("symbol").apply(lambda x: get_perf(x))
+                    if self.output_format:
+                        signal_data = pd.concat([self.signal_data["long"],self.signal_data["short"]],axis=0).sort_index()
+                        signal_data.groupby("symbol").apply(lambda x: plot_entry_exit(x))
+
+        if perf is None:
+            raise ValueError("无法分析绩效.当前待分析信号类型为%s,而%s信号未计算(需通过process_data进行计算.)"%(sig_type,sig_type))
+        else:
+            print("*****-Summary-*****")
+            plotting.plot_event_table(perf)
 
     @plotting.customize
     def create_returns_report(self,sig_type="long"):

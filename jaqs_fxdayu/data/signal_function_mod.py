@@ -69,7 +69,7 @@ def ta(ta_method='MA',
         return None
     else:
         tmp = pd.concat(results, axis=1)
-        tmp = tmp.reindex(columns=candle_pannel.minor_axis)
+        tmp = tmp.reindex(columns=candle_pannel.minor_axis, index=candle_pannel.major_axis)
         return tmp
 
 

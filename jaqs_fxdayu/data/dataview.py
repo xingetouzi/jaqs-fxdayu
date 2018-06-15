@@ -364,6 +364,34 @@ class DataView(OriginDataView):
 
         return merge
 
+    def create_init_dv(self, multi_df):
+
+        def pivot_and_sort(df, index_name):
+            df = self._process_index_co(df, index_name)
+            df = df.pivot(index=index_name, columns='symbol')
+            df.columns = df.columns.swaplevel()
+            col_names = ['symbol', 'field']
+            df.columns.names = col_names
+            df = df.sort_index(axis=1, level=col_names)
+            df.index.name = index_name
+            return df
+
+        # initialize parameters
+        self.start_date = int(multi_df.index.levels[0][0])
+        self.extended_start_date_d = int(self.start_date)
+        self.end_date = int(multi_df.index.levels[0][-1])
+        self.fields = list(multi_df.columns)
+        self.symbol = sorted(list(multi_df.index.levels[1]))
+
+        # 处理data
+        list_pivot = []
+        for field in multi_df.columns:
+            df = multi_df[field].reset_index()
+            list_pivot.append(pivot_and_sort(df, self.TRADE_DATE_FIELD_NAME))
+        self.data_d = self._merge_data(list_pivot, self.TRADE_DATE_FIELD_NAME)
+        self.data_d = self._fill_missing_idx_col(self.data_d, index=self.dates, symbols=self.symbol)
+        print("Initialize dataview success.")
+
     def prepare_data(self):
         """Prepare data for the FIRST time."""
         # prepare benchmark and group

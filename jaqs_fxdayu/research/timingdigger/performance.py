@@ -6,7 +6,12 @@ def cal_return_stats(ret):
         ret = ret.values
     ret = ret.reshape(-1,1)
     summary_table = pd.DataFrame()
-
+    if len(ret)==0:
+        return pd.DataFrame(data=np.nan,
+                            columns=['t-stat','p-value',"mean","std","info_ratio",
+                                     "skewness","kurtosis","pct5","pct25","pct50",
+                                     "pct75","pct95","occurance"],
+                            index=[0])
     t_stats, p_values = scst.ttest_1samp(ret, np.zeros(ret.shape[1]), axis=0)
 
     summary_table['t-stat'] = t_stats
