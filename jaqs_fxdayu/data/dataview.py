@@ -48,11 +48,16 @@ class DataView(OriginDataView):
 
     def prepare_fields(self, data_api):
         mapper = data_api.predefined_fields()
+        custom_daily = set()
         for name in self.fields_mapper:
             self.fields_mapper[name].update(mapper.pop(name, set()))
         for api, param in mapper.items():
             self.external_fields.update(dict.fromkeys(param, api))
-            self.custom_daily_fields.extend(param)
+            custom_daily.update(set(param))
+        for fields in self.fields_mapper.values():
+            for f in fields:
+                custom_daily.discard(f)
+        self.custom_daily_fields.extend(custom_daily)
 
     def distributed_query(self, query_func_name, symbol, start_date, end_date, limit=100000, **kwargs):
 
