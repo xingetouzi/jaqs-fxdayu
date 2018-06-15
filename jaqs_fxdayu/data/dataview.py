@@ -173,6 +173,9 @@ class DataView(OriginDataView):
                 s.add(self.REPORT_DATE_FIELD_NAME)
 
         l = list(s)
+        if isinstance(fields, set):
+            for f in l:
+                fields.discard(f)
         return l
 
     def _find_external_params(self, fields):
@@ -288,6 +291,7 @@ class DataView(OriginDataView):
                 quarterly_list.append(df_fin_ind.loc[:, fields_fin_ind])
 
             # ----------------------------- query external -----------------------------
+            
             for data in self.query_external_daily(fields, self.extended_start_date_d, self.end_date, self.symbol):
                 daily_list.append(data)
             # ----------------------------- query external -----------------------------
