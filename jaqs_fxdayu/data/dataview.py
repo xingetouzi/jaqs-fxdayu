@@ -61,12 +61,16 @@ class DataView(OriginDataView):
         custom_daily = set()
         custom_quarterly = set()
         for name in self.fields_mapper:
-            self.fields_mapper[name].update(mapper.pop(name, set()))
+            offical = mapper.pop(name, set())
+            offical.difference_update({"trade_date", "symbol"})
+            self.fields_mapper[name].update(offical)
         for api, param in mapper.items():
             if self._is_quarterly(param):
+                param.difference_update({"ann_date", "symbol", "report_date"})
                 self.external_quarterly_fields.update(dict.fromkeys(param, api))
                 custom_quarterly.update(set(param))
             else:
+                param.difference_update({"trade_date", "symbol"})
                 self.external_fields.update(dict.fromkeys(param, api))
                 custom_daily.update(set(param))
         for fields in self.fields_mapper.values():
