@@ -600,7 +600,7 @@ class DataView(OriginDataView):
         # the_data = apply_in_subprocess(pd.merge, args=(the_data, df),
         #                            kwargs={'left_index': True, 'right_index': True, 'how': 'left'})  # runs in *only* one process
         # the_data = pd.merge(the_data, df, left_index=True, right_index=True, how='left')
-        the_data = quick_concat([the_data, df.reindex(the_data.index)], ["symbol", "field"], how="inner")
+        the_data = quick_concat([the_data, df.reindex(the_data.index)], ["symbol", "field"], index_name=the_data.index.name, how="inner")
         the_data = the_data.sort_index(axis=1)
         # merge = the_data.join(df, how='left')  # left: keep index of existing data unchanged
         # sort_columns(the_data)
