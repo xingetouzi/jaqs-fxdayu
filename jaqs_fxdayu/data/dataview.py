@@ -34,9 +34,12 @@ class DataView(OriginDataView):
             "lb.income": self.fin_stat_income,
             "lb.balanceSheet": self.fin_stat_balance_sheet,
             "lb.cashFlow": self.fin_stat_cash_flow,
-            "lb.finIndicator": self.fin_indicator
+            "lb.finIndicator": self.fin_indicator,
+            "daily": self.market_daily_fields,
+            "lb.secAdjFactor": {"adjust_factor"}
         }
         self.external_fields = {}
+        self.external_quarterly_fields = {}
         self.factor_fields = set()
 
     def init_from_config(self, props, data_api):
@@ -46,18 +49,35 @@ class DataView(OriginDataView):
             self.prepare_fields(data_api)
         super(DataView, self).init_from_config(_props, data_api)
 
+    @staticmethod
+    def _is_quarterly(params):
+        for name in ("ann_date", "report_date", "symbol"):
+            if name not in params:
+                return False
+        return True
+
     def prepare_fields(self, data_api):
         mapper = data_api.predefined_fields()
         custom_daily = set()
+        custom_quarterly = set()
         for name in self.fields_mapper:
-            self.fields_mapper[name].update(mapper.pop(name, set()))
+            offical = mapper.pop(name, set())
+            offical.difference_update({"trade_date", "symbol"})
+            self.fields_mapper[name].update(offical)
         for api, param in mapper.items():
-            self.external_fields.update(dict.fromkeys(param, api))
-            custom_daily.update(set(param))
+            if self._is_quarterly(param):
+                param.difference_update({"ann_date", "symbol", "report_date"})
+                self.external_quarterly_fields.update(dict.fromkeys(param, api))
+                custom_quarterly.update(set(param))
+            else:
+                param.difference_update({"trade_date", "symbol"})
+                self.external_fields.update(dict.fromkeys(param, api))
+                custom_daily.update(set(param))
         for fields in self.fields_mapper.values():
-            for f in fields:
-                custom_daily.discard(f)
+            custom_daily.difference_update(fields)
+            custom_quarterly.difference_update(fields)
         self.custom_daily_fields.extend(custom_daily)
+        self.custom_quarterly_fields.extend(custom_quarterly)
 
     def distributed_query(self, query_func_name, symbol, start_date, end_date, limit=100000, **kwargs):
 
@@ -183,12 +203,28 @@ class DataView(OriginDataView):
                 fields.discard(f)
         return l
 
-    def _find_external_params(self, fields):
+    @staticmethod
+    def _find_external_params(fields, external_map):
         dct = {}
         for field in fields:
-            dct.setdefault(self.external_fields.get(field, None), set()).add(field)
+            dct.setdefault(external_map.get(field, None), set()).add(field)
         dct.pop(None, None)
         return dct
+
+    def query_external_quaterly(self, fields, start, end, symbol):
+        if not isinstance(symbol, str):
+            from collections import Iterable
+            if isinstance(symbol, Iterable):
+                symbol = ",".join(symbol)
+        filters = "start_ann_date=%s&end_ann_date=%s&symbol=%s" % (start, end, symbol)
+        target = self._find_external_params(fields, self.external_quarterly_fields)
+        for view, params in target.items():
+            params.update({"ann_date", "report_date", "symbol"})
+            data, msg = self.data_api.query(view, filters, ",".join(params))
+            if msg == "0,":
+                yield data
+            else:
+                raise Exception(msg)
 
     def query_external_daily(self, fields, start, end, symbol):
         if not isinstance(symbol, str):
@@ -196,13 +232,18 @@ class DataView(OriginDataView):
             if isinstance(symbol, Iterable):
                 symbol = ",".join(symbol)
         filters = "start_date=%s&end_date=%s&symbol=%s" % (start, end, symbol)
-        target = self._find_external_params(fields)
+        target = self._find_external_params(fields, self.external_fields)
         for view, params in target.items():
             data, msg = self.data_api.query(view, filters, ",".join(params))
             if msg == "0,":
                 yield data
             else:
                 raise Exception(msg)
+
+        if isinstance(fields, set):
+            for view, params in target.items():
+                for p in params: 
+                    fields.discard(p)
 
     def _query_data(self, symbol, fields):
         """
@@ -296,9 +337,14 @@ class DataView(OriginDataView):
                 quarterly_list.append(df_fin_ind.loc[:, fields_fin_ind])
 
             # ----------------------------- query external -----------------------------
-            
+            # daily
             for data in self.query_external_daily(fields, self.extended_start_date_d, self.end_date, self.symbol):
                 daily_list.append(data)
+            
+            # quarterly
+            for data in self.query_external_quaterly(fields, self.extended_start_date_d, self.end_date, self.symbol):
+                quarterly_list.append(data)
+            
             # ----------------------------- query external -----------------------------
         else:
             raise NotImplementedError("freq = {}".format(self.freq))
@@ -604,7 +650,7 @@ class DataView(OriginDataView):
         the_data = the_data.sort_index(axis=1)
         # merge = the_data.join(df, how='left')  # left: keep index of existing data unchanged
         # sort_columns(the_data)
-
+        
         if is_quarterly:
             self.data_q = the_data
         else:
