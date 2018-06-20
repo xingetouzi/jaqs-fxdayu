@@ -42,6 +42,12 @@ class DataView(OriginDataView):
         self.external_fields = {}
         self.external_quarterly_fields = {}
         self.factor_fields = set()
+        self.meta_data_list = ['start_date', 'end_date',
+                               'extended_start_date_d', 'extended_start_date_q',
+                               'freq', 'fields', 'symbol', 'universe', 'benchmark',
+                               'custom_daily_fields', 'custom_quarterly_fields',
+                               'adjust_mode','_prepare_fields']
+        self._prepare_fields = False
 
     def init_from_config(self, props, data_api):
         self.adjust_mode = props.get("adjust_mode", "post")
@@ -58,6 +64,7 @@ class DataView(OriginDataView):
         return True
 
     def prepare_fields(self, data_api):
+        self._prepare_fields = True
         mapper = data_api.predefined_fields()
         custom_daily = set()
         custom_quarterly = set()
@@ -978,6 +985,7 @@ class DataView(OriginDataView):
                                         "symbol":",".join(self.symbol),
                                         'fields':",".join(self.fields),
                                         "adjust_mode":self.adjust_mode,
+                                        "prepare_fields":self._prepare_fields
                                     })
             tmp_dv.benchmark = self.benchmark
             tmp_dv.universe = self.universe
