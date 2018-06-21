@@ -1052,8 +1052,8 @@ class DataView(OriginDataView):
                 "end_date": min(end_date, self.end_date),
                 "symbol":",".join(self.symbol),
                 "fields":",".join(self.fields),
-                "adjust_mode":self.adjust_mode,
-                PF: True,
+                "adjust_mode": self.adjust_mode,
+                "prepare_fields": self._prepare_fields,
             }
             dv.init_from_config(data_api = data_api or self.data_api, props=props)
             benchmark = self.benchmark
