@@ -965,9 +965,55 @@ class DataView(OriginDataView):
 
         print("Dataview loaded successfully.")
 
-    def add_symbol(self, symbol):
+    def add_symbol(self, symbol, data_api=None):
         # TODO to realize it.
-        pass
+        data_api = data_api or self.data_api
+        if self.data_api is None:
+            self.data_api = data_api
+        if self.data_api is None:
+            raise ValueError("You must provide the data_api to refresh data.")
+        tmp_dv = DataView()
+        new_symbol = list(set(symbol.split(",")).difference(self.symbol)) 
+        props={
+            "start_date": self.start_date,
+            "end_date": self.end_date,
+            "symbol": ",".join(new_symbol),
+            "fields": ",".join(self.fields),
+            "adjust_mode": self.adjust_mode,
+            "prepare_fields": self._prepare_fields,
+        }
+        tmp_dv.init_from_config(data_api=data_api, props=props)
+        tmp_dv.universe = self.universe
+        tmp_dv.prepare_data()
+        if self.data_d is not None and tmp_dv.data_d is not None:
+            self.data_d = pd.concat([self.data_d,tmp_dv.data_d],axis=1)
+        else:
+            self.data_d = self.data_d or tmp_dv.data_d
+        if self.data_q is not None and tmp_dv.data_q is not None:
+            self.data_q = pd.concat([self.data_q,tmp_dv.data_q],axis=1)
+        else:
+            self.data_q = self.data_q or tmp_dv.data_q
+
+    def _prepare_comp_info(self):
+        # if a symbol is index member of any one universe, its value of index_member will be 1.0
+        res = dict()
+        for univ in self.universe:
+            df = self.data_api.query_index_member_daily(univ, self.extended_start_date_d, self.end_date)
+            res[univ] = df
+        df_res = pd.concat(res, axis=0)
+        df = df_res.groupby(by='trade_date').apply(lambda df: df.any(axis=0)).astype(float)
+        extra_symbol = list(set(self.symbol) - set(df.columns))
+        if extra_symbol:
+            df = pd.concat([df, pd.DataFrame(np.zeros((len(df.index), len(extra_symbol))), index=df.index, columns=extra_symbol)], axis=1)
+        self.append_df(df, 'index_member', is_quarterly=False)
+    
+        # use weights of the first universe
+        df_weights = self.data_api.query_index_weights_daily(self.universe[0], self.extended_start_date_d, self.end_date)
+        extra_symbol_weights = df_weights.columns
+        extra_symbol_weights = list(set(self.symbol) - set(df_weights.columns))
+        if extra_symbol_weights:
+            df_weights = pd.concat([df_weights, pd.DataFrame(np.zeros((len(df_weights.index), len(extra_symbol_weights))), index=df_weights.index, columns=extra_symbol_weights)], axis=1)
+        self.append_df(df_weights, 'index_weight', is_quarterly=False)
 
     def refresh_data(self, end_date, symbol="", data_api=None):
         """
@@ -1029,15 +1075,22 @@ class DataView(OriginDataView):
             tmp_dv.benchmark = self.benchmark
             tmp_dv.universe = self.universe
             tmp_dv.prepare_data()
-            new_symbol = list(set(tmp_dv.symbol).difference(self.symbol))
-            if len(new_symbol) > 0:
-                self.add_symbol(",".join(new_symbol))
-            # TODO change to quick concat.
-            if self.data_d is not None:
-                self.data_d = pd.concat([self.data_d,tmp_dv.data_d.loc[self.end_date+1:]],axis=0)
-            if self.data_q is not None:
-                self.data_q = pd.concat([self.data_q,tmp_dv.data_q.loc[self.end_date+1:]],axis=0)
+            new_symbol_dv = list(set(tmp_dv.symbol).difference(self.symbol))
+            new_symbol_tmp_dv = list(set(self.symbol).difference(tmp_dv.symbol))
+            if len(new_symbol_dv) > 0:
+                self.add_symbol(",".join(new_symbol_dv))
+            if len(new_symbol_tmp_dv) > 0:
+                tmp_dv.add_symbol(",".join(new_symbol_tmp_dv))
 
+            # TODO change to quick concat.
+            if self.data_d is not None and tmp_dv.data_d is not None:
+                self.data_d = pd.concat([self.data_d,tmp_dv.data_d.loc[self.end_date+1:]],axis=0)
+            else:
+                self.data_d = self.data_d or tmp_dv.data_d
+            if self.data_q is not None and tmp_dv.data_q is not None:
+                self.data_q = pd.concat([self.data_q,tmp_dv.data_q.loc[self.end_date+1:]],axis=0)
+            else:
+                self.data_q = self.data_q or tmp_dv.data_q
             if self.benchmark:
                 self._data_benchmark = pd.concat([self._data_benchmark,tmp_dv._data_benchmark.loc[self.end_date+1:]],axis=0)
             self.end_date = end_date
