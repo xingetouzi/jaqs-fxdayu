@@ -42,14 +42,14 @@ class DataView(OriginDataView):
         self.external_fields = {}
         self.external_quarterly_fields = {}
         self.factor_fields = set()
-        self.meta_data_list = self.meta_data_list + ['prepare_fields']
-        self.prepare_fields = False
+        self.meta_data_list = self.meta_data_list + ['_prepare_fields']
+        self._prepare_fields = False
 
     def init_from_config(self, props, data_api):
         self.adjust_mode = props.get("adjust_mode", "post") 
         _props = props.copy()
-        self.prepare_fields = _props.pop(PF, False)
-        if self.prepare_fields:
+        self._prepare_fields = _props.pop(PF, False)
+        if self._prepare_fields:
             self.prepare_fields(data_api)
         super(DataView, self).init_from_config(_props, data_api)
 
@@ -1013,7 +1013,7 @@ class DataView(OriginDataView):
                     "universe": ",".join(self.universe),
                     'fields': ",".join(self.fields),
                     "adjust_mode":self.adjust_mode,
-                    "prepare_fields":self.prepare_fields
+                    "prepare_fields":self._prepare_fields
                 }
             # if you use symbol and in you logic
             else:
@@ -1023,7 +1023,7 @@ class DataView(OriginDataView):
                     "symbol": ",".join(union_symbol),
                     "fields": ",".join(self.fields),
                     "adjust_mode":self.adjust_mode,
-                    "prepare_fields":self.prepare_fields
+                    "prepare_fields":self._prepare_fields
                 }
             tmp_dv.init_from_config(data_api=data_api, props=props)
             tmp_dv.benchmark = self.benchmark
