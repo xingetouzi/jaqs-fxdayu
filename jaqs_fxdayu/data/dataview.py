@@ -42,11 +42,14 @@ class DataView(OriginDataView):
         self.external_fields = {}
         self.external_quarterly_fields = {}
         self.factor_fields = set()
+        self.meta_data_list = self.meta_data_list + ['prepare_fields']
+        self.prepare_fields = False
 
     def init_from_config(self, props, data_api):
         self.adjust_mode = props.get("adjust_mode", "post") 
         _props = props.copy()
-        if _props.pop(PF, False):
+        self.prepare_fields = _props.pop(PF, False)
+        if self.prepare_fields:
             self.prepare_fields(data_api)
         super(DataView, self).init_from_config(_props, data_api)
 
@@ -1010,7 +1013,7 @@ class DataView(OriginDataView):
                     "universe": ",".join(self.universe),
                     'fields': ",".join(self.fields),
                     "adjust_mode":self.adjust_mode,
-                    PF: True,
+                    "prepare_fields":self.prepare_fields
                 }
             # if you use symbol and in you logic
             else:
@@ -1020,7 +1023,7 @@ class DataView(OriginDataView):
                     "symbol": ",".join(union_symbol),
                     "fields": ",".join(self.fields),
                     "adjust_mode":self.adjust_mode,
-                    PF: True,
+                    "prepare_fields":self.prepare_fields
                 }
             tmp_dv.init_from_config(data_api=data_api, props=props)
             tmp_dv.benchmark = self.benchmark
@@ -1029,6 +1032,7 @@ class DataView(OriginDataView):
             new_symbol = list(set(tmp_dv.symbol).difference(self.symbol))
             if len(new_symbol) > 0:
                 self.add_symbol(",".join(new_symbol))
+            # TODO change to quick concat.
             if self.data_d is not None:
                 self.data_d = pd.concat([self.data_d,tmp_dv.data_d.loc[self.end_date+1:]],axis=0)
             if self.data_q is not None:
