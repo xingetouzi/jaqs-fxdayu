@@ -973,8 +973,8 @@ class DataView(OriginDataView):
         if self.data_api is None:
             raise ValueError("You must provide the data_api to refresh data.")
         tmp_dv = DataView()
-        new_symbol = list(set(symbol.split(",")).difference(self.symbol))
-        if len(new_symbol) == 0:
+        new_symbol = list(set(symbol.split(",")).difference(self.symbol + [""]))
+        if not new_symbol:
             return
         props={
             "start_date": self.start_date,
@@ -1044,7 +1044,7 @@ class DataView(OriginDataView):
             raise when no data_api is provided.
         """
         if self.end_date < end_date:
-            union_symbol = list(set(self.symbol + symbol.split(",")))
+            union_symbol = list(set(self.symbol + symbol.split(","))-set([""]))
             data_api = data_api or self.data_api
             if self.data_api is None:
                 self.data_api = data_api
@@ -1079,9 +1079,9 @@ class DataView(OriginDataView):
             tmp_dv.prepare_data()
             new_symbol_dv = list(set(tmp_dv.symbol).difference(self.symbol))
             new_symbol_tmp_dv = list(set(self.symbol).difference(tmp_dv.symbol))
-            if len(new_symbol_dv) > 0:
+            if new_symbol_dv:
                 self.add_symbol(",".join(new_symbol_dv))
-            if len(new_symbol_tmp_dv) > 0:
+            if new_symbol_tmp_dv:
                 tmp_dv.add_symbol(",".join(new_symbol_tmp_dv))
 
             # TODO change to quick concat.
