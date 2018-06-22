@@ -995,6 +995,7 @@ class DataView(OriginDataView):
             self.data_q = pd.concat([self.data_q,tmp_dv.data_q],axis=1)
         else:
             self.data_q = self.data_q or tmp_dv.data_q
+        self._data_inst = pd.concat([self.data_inst, tmp_dv.data_inst], axis=0).drop_duplicates()
 
     def _prepare_comp_info(self):
         # if a symbol is index member of any one universe, its value of index_member will be 1.0
@@ -1093,6 +1094,7 @@ class DataView(OriginDataView):
                 self.data_q = pd.concat([self.data_q,tmp_dv.data_q.loc[self.end_date+1:]],axis=0)
             else:
                 self.data_q = self.data_q or tmp_dv.data_q
+            self._data_inst = pd.concat([self.data_inst, tmp_dv.data_inst], axis=0).drop_duplicates()
             if self.benchmark:
                 self._data_benchmark = pd.concat([self._data_benchmark,tmp_dv._data_benchmark.loc[self.end_date+1:]],axis=0)
             self.end_date = end_date
