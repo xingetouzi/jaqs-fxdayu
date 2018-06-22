@@ -973,7 +973,9 @@ class DataView(OriginDataView):
         if self.data_api is None:
             raise ValueError("You must provide the data_api to refresh data.")
         tmp_dv = DataView()
-        new_symbol = list(set(symbol.split(",")).difference(self.symbol)) 
+        new_symbol = list(set(symbol.split(",")).difference(self.symbol))
+        if len(new_symbol) == 0:
+            return
         props={
             "start_date": self.start_date,
             "end_date": self.end_date,
