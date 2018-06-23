@@ -107,6 +107,7 @@ ENV/
 .ropeproject
 
 .idea/
+.vscode/
 output
 .persist
 docs/_source/data

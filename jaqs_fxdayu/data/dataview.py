@@ -1,4 +1,5 @@
 import os
+import copy
 import numpy as np
 import pandas as pd
 from jaqs import util as jutil
@@ -41,6 +42,12 @@ class DataView(OriginDataView):
         self.external_fields = {}
         self.external_quarterly_fields = {}
         self.factor_fields = set()
+        self.meta_data_list = ['start_date', 'end_date',
+                               'extended_start_date_d', 'extended_start_date_q',
+                               'freq', 'fields', 'symbol', 'universe', 'benchmark',
+                               'custom_daily_fields', 'custom_quarterly_fields',
+                               'adjust_mode','_prepare_fields']
+        self._prepare_fields = False
 
     def init_from_config(self, props, data_api):
         self.adjust_mode = props.get("adjust_mode", "post")
@@ -57,6 +64,7 @@ class DataView(OriginDataView):
         return True
 
     def prepare_fields(self, data_api):
+        self._prepare_fields = True
         mapper = data_api.predefined_fields()
         custom_daily = set()
         custom_quarterly = set()
@@ -984,6 +992,7 @@ class DataView(OriginDataView):
                                         "symbol":",".join(self.symbol),
                                         'fields':",".join(self.fields),
                                         "adjust_mode":self.adjust_mode,
+                                        "prepare_fields":self._prepare_fields
                                     })
             tmp_dv.benchmark = self.benchmark
             tmp_dv.universe = self.universe
@@ -996,7 +1005,26 @@ class DataView(OriginDataView):
             if self.benchmark:
                 self._data_benchmark = pd.concat([self._data_benchmark,tmp_dv._data_benchmark.loc[self.end_date+1:]],axis=0)
             self.end_date = end_date
+        
+    def slice_dv(self, start_date, end_date, data_api=None, inplace=False):
+        if start_date < self.start_date:
+            raise IndexError("Sliced dataview beyond its start_date %s: %s!" % (self.start_date, start_date))
+        if inplace:
+            dv =  self
+        else:
+            dv = copy.copy(self)
+        dv.start_date = start_date
+        dv.extended_start_date_d = jutil.shift(dv.start_date, n_weeks=-8) 
+        if end_date > dv.end_date:
+            print("Sliced dataview's end_date is %s, expected %s, refresh_data is called to extend it." % (dv.end_date, end_date))
+            dv.refresh_data(end_date, data_api)
+        else:
+            dv.end_date = end_date
+        dv.data_d = dv.data_d.loc[dv.extended_start_date_d:dv.end_date]
+        dv.data_benchmark = dv.data_benchmark.loc[dv.extended_start_date_d:dv.end_date]
+        dv.end_date = dv.data_d.index[-1]
+        return dv
 
-        def _prepare_daily_quarterly(self, fields):
+    def _prepare_daily_quarterly(self, fields):
             data_d, data_q = super(DataView, self)._prepare_daily_quarterly(fields)
             return data_d, data_q.ffill()
