@@ -222,6 +222,8 @@ class DataView(OriginDataView):
             params.update({"ann_date", "report_date", "symbol"})
             data, msg = self.data_api.query(view, filters, ",".join(params))
             if msg == "0,":
+                for key in ["ann_date", "report_date"]:
+                    data[key] = data[key].apply(int)
                 yield data
             else:
                 raise Exception(msg)
@@ -334,6 +336,7 @@ class DataView(OriginDataView):
                     self.extended_start_date_q, self.end_date,
                     sep.join(fields_fin_ind),
                     drop_dup_cols=['symbol', self.REPORT_DATE_FIELD_NAME])
+
                 quarterly_list.append(df_fin_ind.loc[:, fields_fin_ind])
 
             # ----------------------------- query external -----------------------------
@@ -348,6 +351,7 @@ class DataView(OriginDataView):
             # ----------------------------- query external -----------------------------
         else:
             raise NotImplementedError("freq = {}".format(self.freq))
+        
         return daily_list, quarterly_list
 
     def _fill_missing_idx_col(self, df, index=None, symbols=None):
@@ -398,6 +402,9 @@ class DataView(OriginDataView):
 
         # 这里用优化后的快速concat方法取代原生pandas的concat方法，在columns较长的情况下有明显提速
         # merge = pd.concat(dfs, axis=1, join='outer')
+        # for df in dfs:
+        #     df.rename_axis(lambda s: int(s), inplace=True)
+            
         merge = quick_concat(dfs, ['symbol', 'field'])
 
         # drop duplicated columns. ONE LINE EFFICIENT version
@@ -989,3 +996,7 @@ class DataView(OriginDataView):
             if self.benchmark:
                 self._data_benchmark = pd.concat([self._data_benchmark,tmp_dv._data_benchmark.loc[self.end_date+1:]],axis=0)
             self.end_date = end_date
+
+        def _prepare_daily_quarterly(self, fields):
+            data_d, data_q = super(DataView, self)._prepare_daily_quarterly(fields)
+            return data_d, data_q.ffill()
