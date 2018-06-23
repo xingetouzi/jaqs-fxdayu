@@ -42,17 +42,14 @@ class DataView(OriginDataView):
         self.external_fields = {}
         self.external_quarterly_fields = {}
         self.factor_fields = set()
-        self.meta_data_list = ['start_date', 'end_date',
-                               'extended_start_date_d', 'extended_start_date_q',
-                               'freq', 'fields', 'symbol', 'universe', 'benchmark',
-                               'custom_daily_fields', 'custom_quarterly_fields',
-                               'adjust_mode','_prepare_fields']
+        self.meta_data_list = self.meta_data_list + ['_prepare_fields']
         self._prepare_fields = False
 
     def init_from_config(self, props, data_api):
-        self.adjust_mode = props.get("adjust_mode", "post")
+        self.adjust_mode = props.get("adjust_mode", "post") 
         _props = props.copy()
-        if _props.pop(PF, False):
+        self._prepare_fields = _props.pop(PF, False)
+        if self._prepare_fields:
             self.prepare_fields(data_api)
         super(DataView, self).init_from_config(_props, data_api)
 
@@ -64,7 +61,6 @@ class DataView(OriginDataView):
         return True
 
     def prepare_fields(self, data_api):
-        self._prepare_fields = True
         mapper = data_api.predefined_fields()
         custom_daily = set()
         custom_quarterly = set()
@@ -976,35 +972,141 @@ class DataView(OriginDataView):
 
         print("Dataview loaded successfully.")
 
-    def refresh_data(self, end_date=None, data_api=None):
+    def add_symbol(self, symbol, data_api=None):
+        # TODO to realize it.
+        data_api = data_api or self.data_api
+        if self.data_api is None:
+            self.data_api = data_api
+        if self.data_api is None:
+            raise ValueError("You must provide the data_api to refresh data.")
+        tmp_dv = DataView()
+        new_symbol = list(set(symbol.split(",")).difference(self.symbol + [""]))
+        if not new_symbol:
+            return
+        props={
+            "start_date": self.start_date,
+            "end_date": self.end_date,
+            "symbol": ",".join(new_symbol),
+            "fields": ",".join(self.fields),
+            "adjust_mode": self.adjust_mode,
+            "prepare_fields": self._prepare_fields,
+        }
+        tmp_dv.init_from_config(data_api=data_api, props=props)
+        tmp_dv.universe = self.universe
+        tmp_dv.prepare_data()
+        if self.data_d is not None and tmp_dv.data_d is not None:
+            self.data_d = pd.concat([self.data_d,tmp_dv.data_d],axis=1)
+        else:
+            self.data_d = self.data_d or tmp_dv.data_d
+        if self.data_q is not None and tmp_dv.data_q is not None:
+            self.data_q = pd.concat([self.data_q,tmp_dv.data_q],axis=1)
+        else:
+            self.data_q = self.data_q or tmp_dv.data_q
+        self._data_inst = pd.concat([self.data_inst, tmp_dv.data_inst], axis=0).drop_duplicates()
+
+    def _prepare_comp_info(self):
+        # if a symbol is index member of any one universe, its value of index_member will be 1.0
+        res = dict()
+        for univ in self.universe:
+            df = self.data_api.query_index_member_daily(univ, self.extended_start_date_d, self.end_date)
+            res[univ] = df
+        df_res = pd.concat(res, axis=0)
+        df = df_res.groupby(by='trade_date').apply(lambda df: df.any(axis=0)).astype(float)
+        extra_symbol = list(set(self.symbol) - set(df.columns))
+        if extra_symbol:
+            df = pd.concat([df, pd.DataFrame(np.zeros((len(df.index), len(extra_symbol))), index=df.index, columns=extra_symbol)], axis=1)
+        self.append_df(df, 'index_member', is_quarterly=False)
+    
+        # use weights of the first universe
+        df_weights = self.data_api.query_index_weights_daily(self.universe[0], self.extended_start_date_d, self.end_date)
+        extra_symbol_weights = df_weights.columns
+        extra_symbol_weights = list(set(self.symbol) - set(df_weights.columns))
+        if extra_symbol_weights:
+            df_weights = pd.concat([df_weights, pd.DataFrame(np.zeros((len(df_weights.index), len(extra_symbol_weights))), index=df_weights.index, columns=extra_symbol_weights)], axis=1)
+        self.append_df(df_weights, 'index_weight', is_quarterly=False)
+
+    def refresh_data(self, end_date, symbol="", data_api=None):
+        """
+        Update the dataview's data to new end_date.
+        
+        Parameters
+        ----------
+        end_date : int 
+            The dataview will refresh it's data to the end_date.
+        symbol : str, optional
+            The dataview's symbol will be the union set of self.symbol and symbol, 
+            and all data will be prepared automatically.
+            Using it when you calcualtor logic need also update new symbols.
+            (the default is "", which means no symbol will be update)
+        data_api : DataService, optional
+            The data_api by which to fetch the data (the default is None, which means using this dataview's data_api)
+        
+        Notes
+        -----
+        If you using universe rather than symbol, you needn't to handle new universe member yourself,
+        This fucntion will automatically handle it.
+
+        Raises
+        ------
+        ValueError
+            raise when no data_api is provided.
+        """
         if self.end_date < end_date:
-            if data_api is not None:
+            union_symbol = list(set(self.symbol + symbol.split(","))-set([""]))
+            data_api = data_api or self.data_api
+            if self.data_api is None:
                 self.data_api = data_api
             if self.data_api is None:
                 raise ValueError("You must provide the data_api to refresh data.")
             start = self.end_date
             end = end_date
             tmp_dv = DataView()
-            tmp_dv.init_from_config(data_api=self.data_api,
-                                    props={
-                                        "start_date":start,
-                                        "end_date":end,
-                                        "symbol":",".join(self.symbol),
-                                        'fields':",".join(self.fields),
-                                        "adjust_mode":self.adjust_mode,
-                                        "prepare_fields":self._prepare_fields
-                                    })
+            # if you use universe, it will automate update symbol.
+            if self.universe and len(self.universe) > 0:
+                props={
+                    "start_date":start,
+                    "end_date": end,
+                    "universe": ",".join(self.universe),
+                    'fields': ",".join(self.fields),
+                    "adjust_mode":self.adjust_mode,
+                    "prepare_fields":self._prepare_fields
+                }
+            # if you use symbol and in you logic
+            else:
+                props={
+                    "start_date": start,
+                    "end_date": end,
+                    "symbol": ",".join(union_symbol),
+                    "fields": ",".join(self.fields),
+                    "adjust_mode":self.adjust_mode,
+                    "prepare_fields":self._prepare_fields
+                }
+            tmp_dv.init_from_config(data_api=data_api, props=props)
             tmp_dv.benchmark = self.benchmark
             tmp_dv.universe = self.universe
             tmp_dv.prepare_data()
-            if self.data_d is not None:
-                self.data_d = pd.concat([self.data_d,tmp_dv.data_d.loc[self.end_date+1:]],axis=0)
-            if self.data_q is not None:
-                self.data_q = pd.concat([self.data_q,tmp_dv.data_q.loc[self.end_date+1:]],axis=0)
+            new_symbol_dv = list(set(tmp_dv.symbol).difference(self.symbol))
+            new_symbol_tmp_dv = list(set(self.symbol).difference(tmp_dv.symbol))
+            if new_symbol_dv:
+                self.add_symbol(",".join(new_symbol_dv))
+            if new_symbol_tmp_dv:
+                tmp_dv.add_symbol(",".join(new_symbol_tmp_dv))
 
+            # TODO change to quick concat.
+            if self.data_d is not None and tmp_dv.data_d is not None:
+                self.data_d = pd.concat([self.data_d,tmp_dv.data_d.loc[self.end_date+1:]],axis=0)
+            else:
+                self.data_d = self.data_d or tmp_dv.data_d
+            if self.data_q is not None and tmp_dv.data_q is not None:
+                self.data_q = pd.concat([self.data_q,tmp_dv.data_q.loc[self.end_date+1:]],axis=0)
+            else:
+                self.data_q = self.data_q or tmp_dv.data_q
+            self._data_inst = pd.concat([self.data_inst, tmp_dv.data_inst], axis=0).drop_duplicates()
             if self.benchmark:
                 self._data_benchmark = pd.concat([self._data_benchmark,tmp_dv._data_benchmark.loc[self.end_date+1:]],axis=0)
             self.end_date = end_date
+        else:
+            print("New end_date %s is earlier than dv's end_date %s, skip." % (end_date, self.end_date))
         
     def slice_dv(self, start_date, end_date, data_api=None, inplace=False):
         if start_date < self.start_date:
@@ -1012,16 +1114,25 @@ class DataView(OriginDataView):
         if inplace:
             dv =  self
         else:
-            dv = copy.copy(self)
-        dv.start_date = start_date
-        dv.extended_start_date_d = jutil.shift(dv.start_date, n_weeks=-8) 
+            dv = self.__class__()
+            props={
+                "start_date": start_date,
+                "end_date": min(end_date, self.end_date),
+                "symbol":",".join(self.symbol),
+                "fields":",".join(self.fields),
+                "adjust_mode": self.adjust_mode,
+                "prepare_fields": self._prepare_fields,
+            }
+            dv.init_from_config(data_api = data_api or self.data_api, props=props)
+            benchmark = self.benchmark
+            dv.universe = self.universe
+            dv.data_q = self.data_q.loc[dv.extended_start_date_q:dv.end_date]
+            dv.data_d = self.data_d.loc[dv.extended_start_date_d:dv.end_date]
+            dv.data_benchmark = self.data_benchmark.loc[dv.extended_start_date_d:dv.end_date]
+
         if end_date > dv.end_date:
             print("Sliced dataview's end_date is %s, expected %s, refresh_data is called to extend it." % (dv.end_date, end_date))
             dv.refresh_data(end_date, data_api)
-        else:
-            dv.end_date = end_date
-        dv.data_d = dv.data_d.loc[dv.extended_start_date_d:dv.end_date]
-        dv.data_benchmark = dv.data_benchmark.loc[dv.extended_start_date_d:dv.end_date]
         dv.end_date = dv.data_d.index[-1]
         return dv
 
