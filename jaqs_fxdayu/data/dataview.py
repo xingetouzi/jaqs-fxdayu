@@ -1104,7 +1104,7 @@ class DataView(OriginDataView):
             self._data_inst = pd.concat([self.data_inst, tmp_dv.data_inst], axis=0).drop_duplicates()
             if self.benchmark:
                 self._data_benchmark = pd.concat([self._data_benchmark,tmp_dv._data_benchmark.loc[self.end_date+1:]],axis=0)
-            self.end_date = end_date
+            self.end_date = self.data_d.index[-1]
         else:
             print("New end_date %s is earlier than dv's end_date %s, skip." % (end_date, self.end_date))
         
@@ -1124,7 +1124,7 @@ class DataView(OriginDataView):
                 "prepare_fields": self._prepare_fields,
             }
             dv.init_from_config(data_api = data_api or self.data_api, props=props)
-            benchmark = self.benchmark
+            dv.benchmark = self.benchmark
             dv.universe = self.universe
             dv.data_q = self.data_q.loc[dv.extended_start_date_q:dv.end_date]
             dv.data_d = self.data_d.loc[dv.extended_start_date_d:dv.end_date]
