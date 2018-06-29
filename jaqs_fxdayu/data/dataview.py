@@ -1136,6 +1136,10 @@ class DataView(OriginDataView):
         dv.end_date = dv.data_d.index[-1]
         return dv
 
+    # data_q存在NaN时会导致合并数据丢失，这里做用前值填充data_q的处理
     def _prepare_daily_quarterly(self, fields):
             data_d, data_q = super(DataView, self)._prepare_daily_quarterly(fields)
-            return data_d, data_q.ffill()
+            # 判断data_q 是否为DataFrame
+            if isinstance(data_q, pd.DataFrame):
+                data_q = data_q.ffill()
+            return data_d, data_q
