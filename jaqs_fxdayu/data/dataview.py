@@ -226,6 +226,8 @@ class DataView(OriginDataView):
             params.update({"ann_date", "report_date", "symbol"})
             data, msg = self.data_api.query(view, filters, ",".join(params))
             if msg == "0,":
+                for key in ["ann_date", "report_date"]:
+                    data[key] = data[key].apply(int)
                 yield data
             else:
                 raise Exception(msg)
@@ -338,6 +340,7 @@ class DataView(OriginDataView):
                     self.extended_start_date_q, self.end_date,
                     sep.join(fields_fin_ind),
                     drop_dup_cols=['symbol', self.REPORT_DATE_FIELD_NAME])
+
                 quarterly_list.append(df_fin_ind.loc[:, fields_fin_ind])
 
             # ----------------------------- query external -----------------------------
@@ -352,6 +355,7 @@ class DataView(OriginDataView):
             # ----------------------------- query external -----------------------------
         else:
             raise NotImplementedError("freq = {}".format(self.freq))
+        
         return daily_list, quarterly_list
 
     def _fill_missing_idx_col(self, df, index=None, symbols=None):
@@ -402,6 +406,9 @@ class DataView(OriginDataView):
 
         # 这里用优化后的快速concat方法取代原生pandas的concat方法，在columns较长的情况下有明显提速
         # merge = pd.concat(dfs, axis=1, join='outer')
+        # for df in dfs:
+        #     df.rename_axis(lambda s: int(s), inplace=True)
+            
         merge = quick_concat(dfs, ['symbol', 'field'])
 
         # drop duplicated columns. ONE LINE EFFICIENT version
@@ -1128,3 +1135,11 @@ class DataView(OriginDataView):
             dv.refresh_data(end_date, data_api)
         dv.end_date = int(dv.data_d.index[-1])
         return dv
+
+    # data_q存在NaN时会导致合并数据丢失，这里做用前值填充data_q的处理
+    def _prepare_daily_quarterly(self, fields):
+            data_d, data_q = super(DataView, self)._prepare_daily_quarterly(fields)
+            # 判断data_q 是否为DataFrame
+            if isinstance(data_q, pd.DataFrame):
+                data_q = data_q.ffill()
+            return data_d, data_q
