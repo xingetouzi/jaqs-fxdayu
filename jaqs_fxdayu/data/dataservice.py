@@ -67,17 +67,7 @@ class RemoteDataService(OriginRemoteDataService):
         df_industry = df_industry.fillna(method='bfill')
         df_industry = df_industry.astype(str)
 
-        return df_industry
-
-    def predefined_fields(self):
-        params, msg = self.query("help.predefine", "", "")
-        if msg != "0,":
-            raise Exception(msg)
-        mapper = {}
-        for api, param in params[params.ptype == "OUT"][["api", "param"]].values:
-            mapper.setdefault(api, set()).add(param)
-        return mapper
-
+        return df_indust
 
 class LocalDataService():
     def __init__(self,fp):
@@ -85,7 +75,6 @@ class LocalDataService():
         import h5py
         import sqlite3 as sql
         self.fp = fp
-        h5_path = fp + '//' + 'data.hd5'
         sql_path = fp + '//' + 'data.sqlite'
         
         #if not (os.path.exists(sql_path) and os.path.exists(h5_path)):
@@ -99,7 +88,11 @@ class LocalDataService():
     def query(self, view, filter, fields, data_format='pandas'):
         #"help.apiParam", "api=factor&ptype=OUT", "param"
         self.c.execute('select * from sqlite_master where type="table";')
+ 
         sql_tables = [i[1] for i in self.c.fetchall()]
+        
+        if fields == '':
+            fields = '*' 
         
         if view in sql_tables:
             flt = filter.split('&')
@@ -277,27 +270,13 @@ class LocalDataService():
         return data.set_index('symbol')   
     
     def query_lb_dailyindicator(self, symbol, start_date, end_date, fields=""):
-        special_fields = set(['pb','pe','ps'])
-        field = fields.split(',')
-        sf = list(set(field)&special_fields)
-        
-        dic = {}
-        if sf:      
-            bz_sf = ['_' + i  for i in sf]
-            for i in range(len(sf)):
-               field.remove(sf[i])
-               field.append(bz_sf[i])
-               dic[bz_sf[i]] = sf[i]
-               
-            df , msg = self.daily(symbol, start_date, end_date,fields = field)
-            df = df.rename_axis(dic,axis=1)
-            return df ,msg
-        else:    
-            return self.daily(symbol, start_date, end_date,fields = fields)
+        return self.daily(symbol, start_date, end_date,fields = fields,dir_name='SecDailyIndicator')
 
     def query_adj_factor_daily(self, symbol_str, start_date, end_date, div=False):
         data,msg =  self.daily(symbol_str, start_date, end_date,fields = 'adjust_factor')
-        data = data.pivot(index = 'trade_date',columns='symbol',values='adjust_factor')
+        data = data.loc[:,['trade_date','symbol','adjust_factor']]
+        data = data.drop_duplicates()
+        data = data.pivot_table(index = 'trade_date',columns='symbol',values='adjust_factor',aggfunc=np.mean)
         return data
 
     def query_index_weights_range(self, universe, start_date, end_date):
@@ -383,81 +362,78 @@ class LocalDataService():
         return res
     
     def daily(self, symbol, start_date, end_date,
-              fields="", adjust_mode=None):  
+              fields="", adjust_mode=None ,dir_name = 'STOCK_D'):
         
         if isinstance(fields,str):
             fields = fields.split(',')
         if isinstance(symbol,str):
             symbol = symbol.split(',')
-            
-        daily_fp = self.fp + '//' +'daily'
-        
+
+        daily_fp = self.fp + '//' + dir_name
+
         exist_field = [i[:-4] for i in os.listdir(daily_fp)]
-        dset = h5py.File(daily_fp + '//' + 'symbol.hd5')
-        exist_symbol = dset['symbol_flag'][:,0].astype(str)
-        _symbol = [x for x in symbol if x in exist_symbol]
-        exist_dates = dset['date_flag'][:,0].astype(int)
-        
-        fld = [i for i in fields if i in exist_field] + ['symbol','trade_date']
-        fld = list(set(fld))
+        if dir_name == 'STOCK_D':
+            basic_field = ['code','freq','symbol','trade_date','trade_status']
+            fields = list(set(fields + basic_field))
+        fld = list(set(exist_field)&set(fields))
         
         need_dates = self.query_trade_dates(start_date, end_date)
         start = need_dates[0]
         end = need_dates[-1]
-        
-        if start not in exist_dates or end not in exist_dates:
-            raise ValueError('起止日期超限')    
-            
-        #--------------------------query index----------------------------
-        df, msg = self.query(view="jz.instrumentInfo",
-                                      fields="symbol,market",
-                                      filter="inst_type=100",
-                                      data_format='pandas')
-        
-        df = df[(df['market']=='SZ')|(df['market']=='SH')]
-        all_univ = df['symbol'].values
-    
-        #--------------------------adjust----------------------------
-        if adjust_mode == 'post' and symbol[0] not in all_univ: 
-            fld.extend(['open_adj', 'high_adj', 'low_adj', 'close_adj','vwap_adj'])
-            fld = list(set(fld) - set(['open','high','low','close','vwap']))
 
-        
+        #--------------------------adjust----------------------------
+        if adjust_mode:
+            fld = list(set(fld + ['adjust_factor']))
+
         #--------------------------query&trans----------------------------
-        symbol_index = [np.where(exist_symbol == i)[0][0] for i in _symbol]
-        symbol_index.sort()
-        start_index = np.where(exist_dates == start)[0][0]
-        end_index = np.where(exist_dates == end)[0][0] + 1
-        
-        sorted_symbol = [exist_symbol[i] for i in symbol_index]
-        cols_multi = pd.MultiIndex.from_product([fld,sorted_symbol], names=['fields','symbol'])
-        
         def query_by_field(field):
             _dir = daily_fp + '//' + field + '.hd5'
-            
-            dset = h5py.File(_dir)['data']
-            data = dset[start_index:end_index,symbol_index]
-                
-            if field not in ['float','float32','float16','int']:
-                data = data.astype(str)
-            if field == 'trade_date':
-                data = data.astype(float).astype(int)                
-            return data
-            
-        data = [query_by_field(f) for f in fld]   
-        df = pd.DataFrame(np.concatenate(data,axis=1))
-        
-        df.columns = cols_multi
+            with h5py.File(_dir) as file:
+                dset = file['data']
+                exist_symbol = file['symbol_flag'][:,0].astype(str)
+                exist_dates = file['date_flag'][:,0].astype(int)
+
+                if start not in exist_dates or end not in exist_dates:
+                    raise ValueError('起止日期超限')
+
+                _symbol = [x for x in symbol if x in exist_symbol]
+                symbol_index = [np.where(exist_symbol == i)[0][0] for i in _symbol]
+                symbol_index.sort()
+                sorted_symbol = [exist_symbol[i] for i in symbol_index]
+
+                start_index = np.where(exist_dates == start)[0][0]
+                end_index = np.where(exist_dates == end)[0][0] + 1
+
+                if symbol_index == []:
+                    return None
+
+                data = dset[start_index:end_index,symbol_index]
+
+                if data.dtype not in ['float','float32','float16','int']:
+                    data = data.astype(str)
+                if field == 'trade_date':
+                    data = data.astype(float).astype(int)
+                cols_multi = pd.MultiIndex.from_product([[field], sorted_symbol], names=['fields', 'symbol'])
+                return pd.DataFrame(index = file['date_flag'][start_index:end_index,0],columns = cols_multi,data = data)
+
+        df = pd.concat([query_by_field(f) for f in fld],axis=1)
         df.index.name = 'trade_date'
         df = df.stack().reset_index(drop=True)
 
-        for i in df.columns:
-            if i == 'trade_date':
-                df[i] = df[i].astype(int)
-            elif i == 'symbol':
-                df[i] = df[i].astype(str)
-            else:
-                df[i] = df[i].astype(float)
+        if adjust_mode == 'post':
+            if 'adjust_factor' not in df.columns:
+                df['adjust_factor'] = 1
+            for f in list(set(df.columns)&set(['open','high','low','close','vwap'])):
+                df[f] = df[f]*df['adjust_factor']
+
+        if adjust_mode == 'pre':
+            if 'adjust_factor' not in df.columns:
+                df['adjust_factor'] = 1
+            for f in list(set(df.columns)&set(['open','high','low','close','vwap'])):
+                df[f] = df[f]/df['adjust_factor']
+
+        if ('adjust_factor' not in fields) and adjust_mode:
+            df = df.drop(['adjust_factor'],axis=1)
 
         return df.sort_values(by = ['symbol','trade_date']) , "0,"
     
