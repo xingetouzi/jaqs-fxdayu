@@ -344,7 +344,15 @@ class TimingDigger():
         else:
             signal_masked = enter_signal.copy()
             signal_masked = signal_masked[~mask_signal]
-            df_quantile = jutil.to_quantile(signal_masked, n_quantiles=n_quantiles)
+            if group is None:
+                df_quantile = jutil.to_quantile(signal_masked, n_quantiles=n_quantiles)
+            else:
+                from jaqs_fxdayu.data.py_expression_eval import Parser
+                ps = Parser()
+                ps.index_member = None
+                df_quantile = ps.group_quantile(df=signal_masked,
+                                                group=group,
+                                                n_quantiles=n_quantiles)
 
         # ----------------------------------------------------------------------
         # concat signal value
@@ -352,9 +360,9 @@ class TimingDigger():
         res.columns = ['signal']
         res["return"] = stack_td_symbol(self.ret[sig_type])
         res["exit_time"] = stack_td_symbol(self.final_exit_pos[sig_type])
+        res['quantile'] = stack_td_symbol(df_quantile)
         if group is not None:
             res["group"] = stack_td_symbol(group)
-        res['quantile'] = stack_td_symbol(df_quantile)
         res["sig_type"] = sig_type
         mask_signal = stack_td_symbol(mask_signal)
         res = res.loc[~(mask_signal.iloc[:, 0]), :]

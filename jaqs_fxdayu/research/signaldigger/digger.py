@@ -270,8 +270,15 @@ class SignalDigger(OriginSignalDigger):
             df_quantile = signal_masked.copy()
             df_quantile.loc[:, :] = 1.0
         else:
-            df_quantile = jutil.to_quantile(signal_masked, n_quantiles=n_quantiles)
-
+            if group is None:
+                df_quantile = jutil.to_quantile(signal_masked, n_quantiles=n_quantiles)
+            else:
+                from jaqs_fxdayu.data.py_expression_eval import Parser
+                ps = Parser()
+                ps.index_member = None
+                df_quantile = ps.group_quantile(df=signal_masked,
+                                                group=group,
+                                                n_quantiles=n_quantiles)
         # ----------------------------------------------------------------------
         # stack
         def stack_td_symbol(df):
@@ -286,10 +293,9 @@ class SignalDigger(OriginSignalDigger):
         res.columns = ['signal']
         for ret_type in self.ret.keys():
             res[ret_type] = stack_td_symbol(self.ret[ret_type]).fillna(0)
+        res['quantile'] = stack_td_symbol(df_quantile)
         if group is not None:
             res["group"] = stack_td_symbol(group)
-        res['quantile'] = stack_td_symbol(df_quantile)
-
         mask = stack_td_symbol(mask)
         res = res.loc[~(mask.iloc[:, 0]), :]
 

@@ -51,8 +51,8 @@ td = TimingDigger(output_folder=".", output_format='pdf', signal_name="signal")
 |mask |否  |pandas.DataFrame|一张由bool值组成的表格,日期为索引，股票品种为columns，表示在做分析时是否要对某期的某个品种过滤。对应位置为True则**过滤**（剔除）——不纳入分析考虑。默认为空，不执行过滤操作|
 |can_enter |否  |pandas.DataFrame|一张由bool值组成的表格,日期为索引，股票品种为columns，表示某期的某个品种是否可以进场。对应位置为True则可以进场。默认为空，任何时间任何品种均可进场|
 |can_exit |否  |pandas.DataFrame|一张由bool值组成的表格,日期为索引，股票品种为columns，表示某期的某个品种是否可以出场。对应位置为True则可以出场。默认为空，任何时间任何品种均可出场|
-|group |否  |pandas.DataFrame|因子涉及到的股票的分组(行业分类),日期为索引，股票品种为columns,默认为空|
-|n_quantiles |否  |int|根据每日信号的大小分成n_quantiles组。当测试进场事件信号时需指定为1。默认为1|
+|group |否  |pandas.DataFrame|因子涉及到的股票的分组(行业分类),日期为索引，股票品种为columns,默认为空。**注：当group不为空时，quantile计算会在group内进行，即在每个组别下进行排序划分quantile** |
+|n_quantiles |否  |int|根据每日信号的大小分成n_quantiles组。当测试进场事件信号时需指定为1。默认为1。**注：当group不为空时，quantile计算会在group内进行，即在每个组别下进行排序划分quantile**|
 |commission |否 |float|手续费比例,每笔交易收取的手续费百分比,默认为万分之八0.0008|
 
 
@@ -857,7 +857,7 @@ td.signal_data["long"].head()
 
 **返回：**
 
-输出事件分析报告；
+输出事件分析报告
 
 事件分析报告的总体概述保存在TimingDigger.event_perf属性中
 

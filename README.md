@@ -129,6 +129,12 @@ from jaqs_fxdayu.research import Optimizer
 [详细文档地址](http://jaqs-fxdayu.readthedocs.io/zh_CN/latest/)
 
 ## 最新功能
+### 2018/7/2
+
+TimingDigger/SignalDigger 支持根据group划分组内quantile
+
+预处理因子/信号数据时,若传入group参数,quantile计算会在组内进行而非在全数据集上进行.
+
 ### 2018/6/9
 
 TimingDigger-create_event_report方法新增进出场点位画图功能
