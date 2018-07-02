@@ -66,8 +66,16 @@ class RemoteDataService(OriginRemoteDataService):
         # TODO before industry classification is available, we assume they belong to their first group.
         df_industry = df_industry.fillna(method='bfill')
         df_industry = df_industry.astype(str)
+        return df_industry
 
-        return df_indust
+    def predefined_fields(self):
+        params, msg = self.query("help.predefine", "", "")
+        if msg != "0,":
+            raise Exception(msg)
+        mapper = {}
+        for api, param in params[params.ptype == "OUT"][["api", "param"]].values:
+            mapper.setdefault(api, set()).add(param)
+        return mapper
 
 class LocalDataService():
     def __init__(self,fp):
