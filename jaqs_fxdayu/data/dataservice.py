@@ -15,7 +15,6 @@ class RemoteDataService(OriginRemoteDataService):
     def __init__(self):
         super(OriginRemoteDataService, self).__init__()
         self.data_api = None
-
         self._address = ""
         self._username = ""
         self._password = ""
@@ -66,6 +65,7 @@ class RemoteDataService(OriginRemoteDataService):
         # TODO before industry classification is available, we assume they belong to their first group.
         df_industry = df_industry.fillna(method='bfill')
         df_industry = df_industry.astype(str)
+
         return df_industry
 
     def predefined_fields(self):
@@ -77,96 +77,114 @@ class RemoteDataService(OriginRemoteDataService):
             mapper.setdefault(api, set()).add(param)
         return mapper
 
-class LocalDataService():
-    def __init__(self,fp):
-        
-        import h5py
+
+class LocalDataService(object):
+    def __init__(self, fp):
         import sqlite3 as sql
         self.fp = fp
         sql_path = fp + '//' + 'data.sqlite'
-        
+
         #if not (os.path.exists(sql_path) and os.path.exists(h5_path)):
         if not os.path.exists(sql_path):
             raise FileNotFoundError("在{}目录下没有找到数据文件".format(fp))
-            
+
         conn = sql.connect(sql_path)
+        self.conn = conn
         self.c = conn.cursor()
 
-#------------------------q-----------------------------------
+    @staticmethod
+    def _dic2url(d):
+        l = ['='.join([key, str(value)]) for key, value in d.items()]
+        return '&'.join(l)
+
+    def predefined_fields(self):
+        params, msg = self.query("help.predefine", "", "")
+        if msg != "0,":
+            raise Exception(msg)
+        mapper = {}
+        for api, param in params[params.ptype == "OUT"][["api", "param"]].values:
+            mapper.setdefault(api, set()).add(param)
+
+        keys = os.listdir(self.fp)
+        updater = {k: set([i[:-4] for i in os.listdir(self.fp+'//%s'%(k)) if i.endswith('hd5')]) for k in keys if os.path.isfile(k)}
+        mapper.update(updater)
+        return mapper
+
     def query(self, view, filter, fields, data_format='pandas'):
-        #"help.apiParam", "api=factor&ptype=OUT", "param"
-        self.c.execute('select * from sqlite_master where type="table";')
- 
+        self.c.execute('''select * from sqlite_master where type="table";''')
         sql_tables = [i[1] for i in self.c.fetchall()]
         
         if fields == '':
             fields = '*' 
         
         if view in sql_tables:
+            self.c.execute('''PRAGMA table_info([%s])''' % (view))
+            cols = [i[1] for i in self.c.fetchall()]
+            date_names = [i for i in cols if 'date' in i]
+            if 'report_date' in date_names:
+                date_name = 'report_date'
+            elif len(date_names) == 0:
+                date_name = None
+            else:
+                date_name = date_names[0]
+
             flt = filter.split('&')
             if flt[0] != '':  
                 k,v = flt[0].split('=')
                 if 'start_date' in flt[0]:
-                    condition = '''SELECT %s FROM "%s" WHERE trade_date >= "%s"'''%(fields ,view, v)
+                    condition = '''SELECT %s FROM "%s" WHERE %s >= "%s"''' % (fields, view, date_name, v)
                 elif 'end_date' in flt[0]:
-                    condition = '''SELECT %s FROM "%s" WHERE trade_date <= "%s"'''%(fields ,view, v)
+                    condition = '''SELECT %s FROM "%s" WHERE %s <= "%s"''' % (fields, view, date_name, v)
                 else:
-                    condition = '''SELECT %s FROM "%s" WHERE %s = "%s"'''%(fields ,view, k, v)
+                    condition = '''SELECT %s FROM "%s" WHERE %s = "%s"''' % (fields, view, k, v)
                 
                 for i in flt[1:]:
                     k,v = i.split('=')
                     if k == 'start_date':
-                        condition += ''' AND trade_date >= "%s"'''%(v)
+                        condition += ''' AND %s >= "%s"''' % (date_name, v)
                     elif k == 'end_date':
-                        condition += ''' AND trade_date <= "%s"'''%(v) 
+                        condition += ''' AND %s <= "%s"''' % (date_name, v)
+                    elif k == 'symbol':
+                        symbols = '("' + '","'.join(v.split(',')) + '")'
+                        condition += ''' AND %s IN %s''' % (k, symbols)
                     else:
-                        condition += ''' AND %s = "%s"'''%(k,v)
+                        condition += ''' AND %s = "%s"''' % (k, v)
                 condition = condition + ';'
             
             else:
-                condition = '''SELECT %s FROM "%s";'''%(fields ,view)
-                
-            self.c.execute(condition)
+                condition = '''SELECT %s FROM "%s";''' % (fields, view)
             
             if data_format == 'list':
                 data = [i[0] for i in self.c.fetchall()]
-                return  data , '0, '
+                return data, '0, '
             elif data_format == 'pandas':
-                data = pd.DataFrame([i for i in self.c.fetchall()],columns = fields.split(','))
-                return data , "0,"
-          
+                data = pd.read_sql(condition, self.conn)
+                return data, "0,"
+
         elif view == 'factor':      
             dic = {}
             for i in filter.split('&'):
                 k,v = i.split('=')
                 dic[k] = v
-            return self.daily(dic['symbol'], dic['start'],dic['end'],fields, adjust_mode=None) 
-     
-    def predefined_fields(self,):
+            return self.daily(dic['symbol'], dic['start'], dic['end'], fields, adjust_mode=None)
+
+    @staticmethod
+    def predefined_fields():
         return dict()
         
     def query_trade_dates(self,start_date, end_date):
-        self.c.execute('''SELECT * FROM "jz.secTradeCal" 
-                      WHERE trade_date>=%s 
-                      AND trade_date<=%s '''%(start_date,end_date))
+        sql = '''SELECT * FROM "jz.secTradeCal" 
+                 WHERE trade_date>=%s 
+                 AND trade_date<=%s ''' % (start_date, end_date)
 
-        data = pd.DataFrame([list(i) for i in self.c.fetchall()])
-        
-        self.c.execute('PRAGMA table_info([jz.secTradeCal])')
-        cols = [i[1] for i in self.c.fetchall()]
-        data.columns = cols
+        data = pd.read_sql(sql,self.conn)
         return data['trade_date'].values
-    
-    
+
     def query_index_member(self, universe, start_date, end_date,data_format='list'):
-        self.c.execute('''SELECT * FROM "lb.indexCons"
-                          WHERE index_code = "%s" '''%(universe))
-        
-        data = pd.DataFrame([list(i) for i in self.c.fetchall()])
-        
-        self.c.execute('PRAGMA table_info([lb.indexCons])')
-        cols = [i[1] for i in self.c.fetchall()]
-        data.columns = cols
+        sql = '''SELECT * FROM "lb.indexCons"
+                 WHERE index_code = "%s" ''' % (universe)
+
+        data = pd.read_sql(sql, self.conn)
         
         symbols = [i for i in data['symbol'] if (i[0] == '2' or i[0] == '9')]
         data = data[~data['symbol'].isin(symbols)]
@@ -176,11 +194,10 @@ class LocalDataService():
         data['out_date'] = data['out_date'].astype(int)
         data = data[(data['in_date'] <= end_date)&(data['out_date'] >= start_date)]
         if data_format == 'list':
-            return data['symbol'].values
+            return list(set(data['symbol'].values))
         elif data_format == 'pandas':
-            return data , "0,"
- 
-    
+            return data, "0,"
+
     def query_index_member_daily(self, index, start_date, end_date):
         """
         Get index components on each day during start_date and end_date.
@@ -199,7 +216,7 @@ class LocalDataService():
             values are 0 (not in) or 1 (in)
 
         """
-        df_io, err_msg = self.query_index_member(index, start_date, end_date ,data_format='pandas')
+        df_io, err_msg = self.query_index_member(index, start_date, end_date, data_format='pandas')
         if err_msg != '0,':
             print(err_msg)
         
@@ -230,61 +247,67 @@ class LocalDataService():
         
         return res
     
-    def query_lb_fin_stat(self, type_, symbol, start_date, end_date, field, drop_dup_cols):
-        #fld = ','.join(set(field) - set(drop_dup_cols))
+    def query_lb_fin_stat(self, type_, symbol, start_date, end_date, fields, drop_dup_cols=False):
         view_map = {'income': 'lb.income', 'cash_flow': 'lb.cashFlow', 'balance_sheet': 'lb.balanceSheet',
                     'fin_indicator': 'lb.finIndicator'}
         view_name = view_map.get(type_, None)
         if view_name is None:
             raise NotImplementedError("type_ = {:s}".format(type_))
         
-        fld = field
-        symbols =  '("' + '","'.join(symbol.split(',')) + '")'
+        fld = fields
+        symbols = '("' + '","'.join(symbol.split(',')) + '")'
         report_type = '408001000'
+
+        if fields == "":
+            fld = '*'
         
         if view_name == 'lb.finIndicator':
-            self.c.execute('''SELECT %s FROM "%s" 
+            sql = '''SELECT %s FROM "%s" 
               WHERE report_date>=%s 
               AND report_date<=%s 
-              AND symbol IN %s '''%(fld ,view_name ,start_date ,end_date ,symbols))
+              AND symbol IN %s ''' % (fld, view_name, start_date, end_date, symbols)
             
         else:
-            self.c.execute('''SELECT %s FROM "%s" 
+            sql = '''SELECT %s FROM "%s" 
               WHERE report_date>=%s 
               AND report_date<=%s 
               AND symbol IN %s 
-              AND report_type = "%s"'''%(fld ,view_name ,start_date ,end_date ,symbols ,report_type))
+              AND report_type = "%s"''' % (fld, view_name, start_date, end_date, symbols, report_type)
 
-        data = pd.DataFrame([list(i) for i in self.c.fetchall()],columns = fld.split(','))
-        return data , "0,"
- 
-    
-    def query_inst_info(self ,symbol, fields, inst_type=""):
+        data = pd.read_sql(sql,self.conn)
+        if drop_dup_cols:
+            data = data.drop_duplicates()
+        return data, "0,"
+
+    def query_inst_info(self, symbol, fields, inst_type=""):
         symbol = symbol.split(',')
-        symbols =  '("' + '","'.join(symbol) + '")'
+        symbols = '("' + '","'.join(symbol) + '")'
         
         self.c.execute('PRAGMA table_info([jz.instrumentInfo])')
         cols = [i[1] for i in self.c.fetchall()]
         if 'setlot' not in cols:
-            fields = fields.replace('setlot','selllot')
+            fields = fields.replace('setlot', 'selllot')
         
         if inst_type == "":
             inst_type = "1"
         
         self.c.execute('''SELECT %s FROM "jz.instrumentInfo"
                       WHERE symbol IN %s 
-                     AND inst_type = "%s"'''%(fields ,symbols ,inst_type))
-        data = pd.DataFrame([list(i) for i in self.c.fetchall()],columns = fields.split(','))
+                     AND inst_type = "%s"''' % (fields, symbols, inst_type))
+        data = pd.DataFrame([list(i) for i in self.c.fetchall()], columns=fields.split(','))
         return data.set_index('symbol')   
     
     def query_lb_dailyindicator(self, symbol, start_date, end_date, fields=""):
-        return self.daily(symbol, start_date, end_date,fields = fields,dir_name='SecDailyIndicator')
+        return self.daily(symbol, start_date, end_date, fields=fields, dir_name='SecDailyIndicator')
+
 
     def query_adj_factor_daily(self, symbol_str, start_date, end_date, div=False):
-        data,msg =  self.daily(symbol_str, start_date, end_date,fields = 'adjust_factor')
-        data = data.loc[:,['trade_date','symbol','adjust_factor']]
+        data, msg = self.daily(symbol_str, start_date, end_date,fields='adjust_factor')
+        data = data.loc[:, ['trade_date', 'symbol', 'adjust_factor']]
         data = data.drop_duplicates()
-        data = data.pivot_table(index = 'trade_date',columns='symbol',values='adjust_factor',aggfunc=np.mean)
+        data = data.pivot_table(index='trade_date', columns='symbol', values='adjust_factor', aggfunc=np.mean)
+        if div:
+            pass
         return data
 
     def query_index_weights_range(self, universe, start_date, end_date):
@@ -293,14 +316,14 @@ class LocalDataService():
         
         Parameters
         ----------
-        index : str
+        universe : str
             separated by ','
-        trade_date : int
+        start_date : int
+        end_date : int
 
         Returns
         -------
         pd.DataFrame
-
         """
         universe = universe.split(',')
         if '000300.SH' in universe:
@@ -309,24 +332,20 @@ class LocalDataService():
             
         if len(universe) == 1:
             universe = universe[0] 
-            self.c.execute('''SELECT * FROM "lb.indexWeightRange"
+            sql = '''SELECT * FROM "lb.indexWeightRange"
                       WHERE trade_date>=%s 
                       AND trade_date<=%s 
-                      AND index_code = "%s" '''%(start_date ,end_date, universe))          
+                      AND index_code = "%s" '''%(start_date, end_date, universe)
         else:
-            universe =  '("' + '","'.join(universe.split(',')) + '")'
-            self.c.execute('''SELECT * FROM "lb.indexWeightRange"
+            universe = '("' + '","'.join(universe) + '")'
+            sql = '''SELECT * FROM "lb.indexWeightRange"
                       WHERE trade_date>=%s 
                       AND trade_date<=%s 
-                      AND index_code IN %s '''%(start_date ,end_date, universe))
+                      AND index_code IN %s ''' % (start_date, end_date, universe)
             
-        data = pd.DataFrame([list(i) for i in self.c.fetchall()])
+        data = pd.read_sql(sql, self.conn).drop_duplicates()
         
         if len(data) > 0:
-            self.c.execute('PRAGMA table_info([lb.indexWeightRange])')
-            cols = [i[1] for i in self.c.fetchall()]
-            data.columns = cols
-        
             # df_io = df_io.set_index('symbol')
             df_io = data.astype({'weight': float, 'trade_date': np.integer})
             df_io.loc[:, 'weight'] = df_io['weight'] / 100.
@@ -334,7 +353,7 @@ class LocalDataService():
             df_io = df_io.fillna(0.0)
             return df_io
         else:
-            print ('没有找到指数%s的权重数据'%self.universe)
+            print ('没有找到指数%s的权重数据' % self.universe)
             return data
 
     def query_index_weights_daily(self, index, start_date, end_date):
@@ -370,36 +389,41 @@ class LocalDataService():
         return res
     
     def daily(self, symbol, start_date, end_date,
-              fields="", adjust_mode=None ,dir_name = 'STOCK_D'):
-        
-        if isinstance(fields,str):
-            fields = fields.split(',')
-        if isinstance(symbol,str):
-            symbol = symbol.split(',')
+              fields="", adjust_mode=None, dir_name='STOCK_D'):
 
         daily_fp = self.fp + '//' + dir_name
+        exist_field = [i[:-4] for i in os.listdir(daily_fp) if i.endswith('hd5')]
+        if fields in ['', []]:
+            fields = exist_field
 
-        exist_field = [i[:-4] for i in os.listdir(daily_fp)]
+        if isinstance(fields, str):
+            fields = fields.split(',')
+        if isinstance(symbol, str):
+            symbol = symbol.split(',')
+
         if dir_name == 'STOCK_D':
-            basic_field = ['code','freq','symbol','trade_date','trade_status']
-            fields = list(set(fields + basic_field))
-        fld = list(set(exist_field)&set(fields))
+            basic_field = ['symbol', 'trade_date', 'freq']
+        else:
+            basic_field = ['symbol', 'trade_date']
+        fields = list(set(fields + basic_field))
+        fld = list(set(exist_field) & set(fields))
         
         need_dates = self.query_trade_dates(start_date, end_date)
         start = need_dates[0]
         end = need_dates[-1]
 
-        #--------------------------adjust----------------------------
         if adjust_mode:
             fld = list(set(fld + ['adjust_factor']))
 
-        #--------------------------query&trans----------------------------
         def query_by_field(field):
             _dir = daily_fp + '//' + field + '.hd5'
             with h5py.File(_dir) as file:
-                dset = file['data']
-                exist_symbol = file['symbol_flag'][:,0].astype(str)
-                exist_dates = file['date_flag'][:,0].astype(int)
+                try:
+                    dset = file['data']
+                    exist_symbol = file['symbol_flag'][:, 0].astype(str)
+                    exist_dates = file['date_flag'][:, 0].astype(int)
+                except:
+                    return None
 
                 if start not in exist_dates or end not in exist_dates:
                     raise ValueError('起止日期超限')
@@ -415,14 +439,14 @@ class LocalDataService():
                 if symbol_index == []:
                     return None
 
-                data = dset[start_index:end_index,symbol_index]
+                data = dset[start_index:end_index, symbol_index]
 
-                if data.dtype not in ['float','float32','float16','int']:
+                if data.dtype not in ['float', 'float32', 'float16', 'int']:
                     data = data.astype(str)
                 if field == 'trade_date':
                     data = data.astype(float).astype(int)
                 cols_multi = pd.MultiIndex.from_product([[field], sorted_symbol], names=['fields', 'symbol'])
-                return pd.DataFrame(index = file['date_flag'][start_index:end_index,0],columns = cols_multi,data = data)
+                return pd.DataFrame( columns=cols_multi, data=data)
 
         df = pd.concat([query_by_field(f) for f in fld],axis=1)
         df.index.name = 'trade_date'
@@ -431,19 +455,19 @@ class LocalDataService():
         if adjust_mode == 'post':
             if 'adjust_factor' not in df.columns:
                 df['adjust_factor'] = 1
-            for f in list(set(df.columns)&set(['open','high','low','close','vwap'])):
+            for f in list(set(df.columns) & set(['open', 'high', 'low', 'close', 'vwap'])):
                 df[f] = df[f]*df['adjust_factor']
 
         if adjust_mode == 'pre':
             if 'adjust_factor' not in df.columns:
                 df['adjust_factor'] = 1
-            for f in list(set(df.columns)&set(['open','high','low','close','vwap'])):
+            for f in list(set(df.columns) & set(['open', 'high', 'low', 'close', 'vwap'])):
                 df[f] = df[f]/df['adjust_factor']
 
         if ('adjust_factor' not in fields) and adjust_mode:
-            df = df.drop(['adjust_factor'],axis=1)
+            df = df.drop(['adjust_factor'], axis=1)
 
-        return df.sort_values(by = ['symbol','trade_date']) , "0,"
+        return df.sort_values(by=['symbol', 'trade_date']), "0,"
     
     def query_industry_raw(self, symbol_str, type_='ZZ', level=1):
         """
@@ -451,7 +475,7 @@ class LocalDataService():
         
         Parameters
         ----------
-        symbol : str
+        symbol_str : str
             separated by ','
         type_ : {'SW', 'ZZ'}
         level : {1, 2, 3, 4}
@@ -474,21 +498,15 @@ class LocalDataService():
             raise ValueError("type_ must be one of SW of ZZ")
         
         symbol = symbol_str.split(',')
-        symbols =  '("' + '","'.join(symbol) + '")'
-        self.c.execute('''SELECT * FROM "lb.secIndustry"
-                          WHERE symbol IN %s
-                          AND industry_src == "%s" '''%(symbols, src))
-        
-        
-        df = pd.DataFrame([list(i) for i in self.c.fetchall()]) 
-        
-        self.c.execute('PRAGMA table_info([lb.secIndustry])')
-        cols = [i[1] for i in self.c.fetchall()]
-        df.columns = cols
-        
+        symbols = '("' + '","'.join(symbol) + '")'
+        sql = '''SELECT * FROM "lb.secIndustry"
+                 WHERE symbol IN %s
+                 AND industry_src == "%s" ''' % (symbols, src)
+
+        df = pd.read_sql(sql, self.conn)
         df = df.astype(dtype={'in_date': np.integer,
-                                      # 'out_date': np.integer
-                                     })
+                              # 'out_date': np.integer
+                              })
         return df.drop_duplicates()
 
     def query_industry_daily(self, symbol, start_date, end_date, type_='SW', level=1):
@@ -542,3 +560,23 @@ class LocalDataService():
         df_industry = df_industry.astype(str)
         
         return df_industry
+
+    def query_dividend(self, symbol, start_date, end_date):
+        filter_argument = self._dic2url({'symbol': symbol,
+                                         'start_date': start_date,
+                                         'end_date': end_date})
+        df, err_msg = self.query(view="lb.secDividend",
+                                 fields="",
+                                 filter=filter_argument,
+                                 data_format='pandas')
+
+        '''
+        # df = df.set_index('exdiv_date').sort_index(axis=0)
+        df = df.astype({'cash': float, 'cash_tax': float,
+                        # 'bonus_list_date': np.integer,
+                        # 'cashpay_date': np.integer,
+                        'exdiv_date': np.integer,
+                        'publish_date': np.integer,
+                        'record_date': np.integer})
+        '''
+        return df, err_msg
