@@ -3,6 +3,7 @@ from jaqs.data.dataservice import *
 from jaqs.data.dataservice import RemoteDataService as OriginRemoteDataService
 import os
 import h5py
+import json
 import numpy as np
 import pandas as pd
 from jaqs.data.align import align
@@ -92,6 +93,24 @@ class LocalDataService(object):
         self.conn = conn
         self.c = conn.cursor()
 
+    def _get_attrs(self):
+        dic = {}
+        for root, dirs, files in os.walk(self.fp):
+            name = root.split(self.fp)[-1][1:]
+            for file_name in files:
+                if file_name.endswith('.hd5'):
+                    with h5py.File(root + '//%s' % (file_name)) as file:
+                        if 'meta' in file.attrs:
+                            value = json.loads(file.attrs['meta'])
+                            dic[name + '_' + file_name[:-4]] = value
+                        else:
+                            dic[name + '_' + file_name[:-4]] = None
+
+        sql = '''select * from "attrs";'''
+        data = pd.read_sql(sql, self.conn)
+        dic.update(data.set_index(['view']).to_dict(orient='index'))
+        return dic
+
     @staticmethod
     def _dic2url(d):
         l = ['='.join([key, str(value)]) for key, value in d.items()]
@@ -110,7 +129,10 @@ class LocalDataService(object):
         mapper.update(updater)
         return mapper
 
-    def query(self, view, filter, fields, data_format='pandas'):
+    def query(self, view, filter, fields, **kwargs):
+        if view == 'attrs':
+            return self._get_attrs()
+
         self.c.execute('''select * from sqlite_master where type="table";''')
         sql_tables = [i[1] for i in self.c.fetchall()]
         
@@ -153,7 +175,11 @@ class LocalDataService(object):
             
             else:
                 condition = '''SELECT %s FROM "%s";''' % (fields, view)
-            
+
+            data_format = kwargs.get('data_format')
+            if not data_format:
+                data_format = 'pandas'
+
             if data_format == 'list':
                 data = [i[0] for i in self.c.fetchall()]
                 return data, '0, '
@@ -167,10 +193,6 @@ class LocalDataService(object):
                 k,v = i.split('=')
                 dic[k] = v
             return self.daily(dic['symbol'], dic['start'], dic['end'], fields, adjust_mode=None)
-
-    @staticmethod
-    def predefined_fields():
-        return dict()
         
     def query_trade_dates(self,start_date, end_date):
         sql = '''SELECT * FROM "jz.secTradeCal" 
@@ -446,23 +468,31 @@ class LocalDataService(object):
                 if field == 'trade_date':
                     data = data.astype(float).astype(int)
                 cols_multi = pd.MultiIndex.from_product([[field], sorted_symbol], names=['fields', 'symbol'])
-                return pd.DataFrame( columns=cols_multi, data=data)
+                return pd.DataFrame(columns=cols_multi, data=data)
 
-        df = pd.concat([query_by_field(f) for f in fld],axis=1)
+        df = pd.concat([query_by_field(f) for f in fld], axis=1)
         df.index.name = 'trade_date'
         df = df.stack().reset_index(drop=True)
 
         if adjust_mode == 'post':
             if 'adjust_factor' not in df.columns:
                 df['adjust_factor'] = 1
+            else:
+                df['adjust_factor'] = df['adjust_factor'].fillna(1)
+
             for f in list(set(df.columns) & set(['open', 'high', 'low', 'close', 'vwap'])):
                 df[f] = df[f]*df['adjust_factor']
+            df = df.dropna()
 
         if adjust_mode == 'pre':
             if 'adjust_factor' not in df.columns:
                 df['adjust_factor'] = 1
+            else:
+                df['adjust_factor'] = df['adjust_factor'].fillna(1)
+
             for f in list(set(df.columns) & set(['open', 'high', 'low', 'close', 'vwap'])):
                 df[f] = df[f]/df['adjust_factor']
+            df = df.dropna()
 
         if ('adjust_factor' not in fields) and adjust_mode:
             df = df.drop(['adjust_factor'], axis=1)
