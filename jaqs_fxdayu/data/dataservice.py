@@ -111,6 +111,24 @@ class LocalDataService(object):
         dic.update(data.set_index(['view']).to_dict(orient='index'))
         return dic
 
+    def _get_last_updated_date(self):
+        lst = []
+        for path, fields in self._walk_path().items():
+            view = path.split('data\\')[-1]
+            for i in fields:
+                with h5py.File(path + '//%s.hd5' % (i,)) as file:
+                    try:
+                        lst.append({'view': view + '.' + i,
+                                    'updated_date': file['date_flag'][-1][0]})
+                    except:
+                        pass
+        d1 = pd.DataFrame(lst)
+        d1['freq'] = '1d'
+
+        sql = '''select * from "attrs";'''
+        d2 = pd.read_sql(sql, self.conn)
+        return pd.concat([d1, d2])
+
     @staticmethod
     def _dic2url(d):
         l = ['='.join([key, str(value)]) for key, value in d.items()]
@@ -131,7 +149,10 @@ class LocalDataService(object):
 
     def query(self, view, filter, fields, **kwargs):
         if view == 'attrs':
-            return self._get_attrs()
+            return pd.DataFrame(self._get_attrs()).T
+
+        if view == 'updated_date':
+            return self._get_last_updated_date()
 
         self.c.execute('''select * from sqlite_master where type="table";''')
         sql_tables = [i[1] for i in self.c.fetchall()]
@@ -320,7 +341,7 @@ class LocalDataService(object):
         return data.set_index('symbol')   
     
     def query_lb_dailyindicator(self, symbol, start_date, end_date, fields=""):
-        return self.daily(symbol, start_date, end_date, fields=fields, dir_name='SecDailyIndicator')
+        return self.daily(symbol, start_date, end_date, fields=fields, view='SecDailyIndicator')
 
 
     def query_adj_factor_daily(self, symbol_str, start_date, end_date, div=False):
@@ -409,21 +430,43 @@ class LocalDataService(object):
         res = res.loc[:, mask_col]
         
         return res
-    
-    def daily(self, symbol, start_date, end_date,
-              fields="", adjust_mode=None, dir_name='STOCK_D'):
 
-        daily_fp = self.fp + '//' + dir_name
-        exist_field = [i[:-4] for i in os.listdir(daily_fp) if i.endswith('hd5')]
-        if fields in ['', []]:
-            fields = exist_field
+    def _walk_path(self, path=None):
+        res = {}
+        if not path:
+            path = self.fp
+
+        for a, b, c in os.walk(path):
+            lst = []
+            for i in c:
+                if '.hd5' in i:
+                    lst.append(i[:-4])
+            res[a] = lst
+        return res
+
+    def daily(self, symbol, start_date, end_date,
+              fields="", adjust_mode=None, view='Stock_D'):
 
         if isinstance(fields, str):
             fields = fields.split(',')
         if isinstance(symbol, str):
             symbol = symbol.split(',')
 
-        if dir_name == 'STOCK_D':
+        file_info = self._walk_path()
+        for path, exists in file_info.items():
+            if set(fields) & set(exists) == set(fields) and len(fields) > 0:
+                daily_fp = path
+                exist_field = exists
+                view = daily_fp.split('data\\')[-1]
+
+        if 'daily_fp' not in dir():
+            daily_fp = self.fp + '\\' + view
+            exist_field = file_info[daily_fp]
+
+        if fields in [[''], []]:
+            fields = exist_field
+
+        if view == 'Stock_D':
             basic_field = ['symbol', 'trade_date', 'freq']
         else:
             basic_field = ['symbol', 'trade_date']
