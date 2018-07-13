@@ -10,6 +10,8 @@ from jaqs.data.align import align
 import jaqs.util as jutil
 from jaqs_fxdayu.patch_util import auto_register_patch
 
+class DataNotFoundError(Exception):
+    pass
 
 @auto_register_patch(parent_level=1)
 class RemoteDataService(OriginRemoteDataService):
@@ -220,7 +222,7 @@ class LocalDataService(object):
                  WHERE trade_date>=%s 
                  AND trade_date<=%s ''' % (start_date, end_date)
 
-        data = pd.read_sql(sql,self.conn)
+        data = pd.read_sql(sql, self.conn)
         return data['trade_date'].values
 
     def query_index_member(self, universe, start_date, end_date,data_format='list'):
@@ -229,13 +231,13 @@ class LocalDataService(object):
 
         data = pd.read_sql(sql, self.conn)
         
-        symbols = [i for i in data['symbol'] if (i[0] == '2' or i[0] == '9')]
-        data = data[~data['symbol'].isin(symbols)]
+        symbols = [i for i in data['symbol'] if (i[0] == '0' or i[0] == '3' or i[0] == '6')]
+        data = data[data['symbol'].isin(symbols)]
                 
         data['out_date'][data['out_date'] == ''] = '20990101'
         data['in_date'] = data['in_date'].astype(int)
         data['out_date'] = data['out_date'].astype(int)
-        data = data[(data['in_date'] <= end_date)&(data['out_date'] >= start_date)]
+        data = data[(data['in_date'] <= end_date) & (data['out_date'] >= start_date)]
         if data_format == 'list':
             return list(set(data['symbol'].values))
         elif data_format == 'pandas':
@@ -317,7 +319,7 @@ class LocalDataService(object):
               AND symbol IN %s 
               AND report_type = "%s"''' % (fld, view_name, start_date, end_date, symbols, report_type)
 
-        data = pd.read_sql(sql,self.conn)
+        data = pd.read_sql(sql, self.conn)
         if drop_dup_cols:
             data = data.drop_duplicates()
         return data, "0,"
@@ -485,7 +487,7 @@ class LocalDataService(object):
                     exist_symbol = file['symbol_flag'][:, 0].astype(str)
                     exist_dates = file['date_flag'][:, 0].astype(int)
                 except:
-                    return None
+                    raise DataNotFoundError('empty hdf5 file')
 
                 if start not in exist_dates or end not in exist_dates:
                     raise ValueError('起止日期超限')
