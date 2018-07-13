@@ -89,7 +89,7 @@ class LocalDataService(object):
         if not os.path.exists(sql_path):
             raise FileNotFoundError("在{}目录下没有找到数据文件".format(fp))
 
-        conn = sql.connect(sql_path)
+        conn = sql.connect("file:%s?mode=ro" % sql_path, uri=True)
         self.conn = conn
         self.c = conn.cursor()
 
