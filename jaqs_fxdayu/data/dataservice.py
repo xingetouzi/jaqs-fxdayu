@@ -322,6 +322,7 @@ class LocalDataService(object):
         data = pd.read_sql(sql, self.conn)
         if drop_dup_cols:
             data = data.drop_duplicates()
+        data[data == ''] = np.NaN
         return data, "0,"
 
     def query_inst_info(self, symbol, fields, inst_type=""):
@@ -515,7 +516,7 @@ class LocalDataService(object):
 
                 if data.dtype not in ['float', 'float32', 'float16', 'int']:
                     data = data.astype(str)
-                if field == 'trade_date':
+                if field == 'trade_date' and data.dtype in ['float', 'float32', 'float16']:
                     data = data.astype(float).astype(int)
                 cols_multi = pd.MultiIndex.from_product([[field], sorted_symbol], names=['fields', 'symbol'])
                 return pd.DataFrame(columns=cols_multi, data=data)
@@ -546,6 +547,9 @@ class LocalDataService(object):
         if ('adjust_factor' not in fields) and adjust_mode:
             df = df.drop(['adjust_factor'], axis=1)
 
+        df = df.dropna(how='all')
+        df = df[df['trade_date'] > 0]
+        df = df.reset_index(drop=True)
         return df.sort_values(by=['symbol', 'trade_date']), "0,"
     
     def query_industry_raw(self, symbol_str, type_='ZZ', level=1):
