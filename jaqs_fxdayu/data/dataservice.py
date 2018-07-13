@@ -82,8 +82,8 @@ class RemoteDataService(OriginRemoteDataService):
 class LocalDataService(object):
     def __init__(self, fp):
         import sqlite3 as sql
-        self.fp = fp
-        sql_path = fp + '//' + 'data.sqlite'
+        self.fp = os.path.abspath(fp)
+        sql_path = os.path.join(fp, 'data.sqlite')
 
         #if not (os.path.exists(sql_path) and os.path.exists(h5_path)):
         if not os.path.exists(sql_path):
@@ -99,7 +99,7 @@ class LocalDataService(object):
             name = root.split(self.fp)[-1][1:]
             for file_name in files:
                 if file_name.endswith('.hd5'):
-                    with h5py.File(root + '//%s' % (file_name)) as file:
+                    with h5py.File(os.path.join(root, (file_name))) as file:
                         if 'meta' in file.attrs:
                             value = json.loads(file.attrs['meta'])
                             dic[name + '_' + file_name[:-4]] = value
@@ -114,9 +114,9 @@ class LocalDataService(object):
     def _get_last_updated_date(self):
         lst = []
         for path, fields in self._walk_path().items():
-            view = path.split('data\\')[-1]
+            view = path
             for i in fields:
-                with h5py.File(path + '//%s.hd5' % (i,)) as file:
+                with h5py.File(os.path.join(self.fp, path, "%s.hd5" % i)) as file:
                     try:
                         lst.append({'view': view + '.' + i,
                                     'updated_date': file['date_flag'][-1][0]})
@@ -143,7 +143,7 @@ class LocalDataService(object):
             mapper.setdefault(api, set()).add(param)
 
         keys = os.listdir(self.fp)
-        updater = {k: set([i[:-4] for i in os.listdir(self.fp+'//%s'%(k)) if i.endswith('hd5')]) for k in keys if os.path.isfile(k)}
+        updater = {k: set([i[:-4] for i in os.listdir(os.path.join(self.fp, k)) if i.endswith('hd5')]) for k in keys if os.path.isfile(k)}
         mapper.update(updater)
         return mapper
 
@@ -396,7 +396,7 @@ class LocalDataService(object):
             df_io = df_io.fillna(0.0)
             return df_io
         else:
-            print ('没有找到指数%s的权重数据' % self.universe)
+            print('没有找到指数%s的权重数据' % self.universe)
             return data
 
     def query_index_weights_daily(self, index, start_date, end_date):
@@ -435,13 +435,15 @@ class LocalDataService(object):
         res = {}
         if not path:
             path = self.fp
-
+        path = path[:-1] if path.endswith(os.path.sep) else path
         for a, b, c in os.walk(path):
             lst = []
             for i in c:
                 if '.hd5' in i:
-                    lst.append(i[:-4])
-            res[a] = lst
+                    lst.append(i[:-4].split(os.path.sep)[-1])
+            dr = a.replace(path, "")
+            dr = dr[1:] if dr.startswith(os.path.sep) else dr
+            res[dr] = lst
         return res
 
     def daily(self, symbol, start_date, end_date,
@@ -455,17 +457,12 @@ class LocalDataService(object):
         file_info = self._walk_path()
         for path, exists in file_info.items():
             if set(fields) & set(exists) == set(fields) and len(fields) > 0:
-                daily_fp = path
-                exist_field = exists
-                view = daily_fp.split('data\\')[-1]
-
-        if 'daily_fp' not in dir():
-            daily_fp = self.fp + '\\' + view
-            exist_field = file_info[daily_fp]
+                view = path
+                break
 
         if fields in [[''], []]:
-            fields = exist_field
-
+            fields = file_info[view]
+        exist_field = file_info[view]
         if view == 'Stock_D':
             basic_field = ['symbol', 'trade_date', 'freq']
         else:
@@ -481,7 +478,7 @@ class LocalDataService(object):
             fld = list(set(fld + ['adjust_factor']))
 
         def query_by_field(field):
-            _dir = daily_fp + '//' + field + '.hd5'
+            _dir = os.path.join(self.fp, view, field + '.hd5')
             with h5py.File(_dir) as file:
                 try:
                     dset = file['data']
