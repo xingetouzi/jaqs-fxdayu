@@ -322,7 +322,7 @@ class LocalDataService(object):
         data = pd.read_sql(sql, self.conn)
         if drop_dup_cols:
             data = data.drop_duplicates()
-        data[data == ''] = np.NaN
+        data['ann_date'] = data['ann_date'].replace('', np.NaN)
         return data, "0,"
 
     def query_inst_info(self, symbol, fields, inst_type=""):
