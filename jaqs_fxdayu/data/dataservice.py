@@ -10,6 +10,8 @@ from jaqs.data.align import align
 import jaqs.util as jutil
 from jaqs_fxdayu.patch_util import auto_register_patch
 
+class DataNotFoundError(Exception):
+    pass
 
 @auto_register_patch(parent_level=1)
 class RemoteDataService(OriginRemoteDataService):
@@ -82,14 +84,14 @@ class RemoteDataService(OriginRemoteDataService):
 class LocalDataService(object):
     def __init__(self, fp):
         import sqlite3 as sql
-        self.fp = fp
-        sql_path = fp + '//' + 'data.sqlite'
+        self.fp = os.path.abspath(fp)
+        sql_path = os.path.join(fp, 'data.sqlite')
 
         #if not (os.path.exists(sql_path) and os.path.exists(h5_path)):
         if not os.path.exists(sql_path):
             raise FileNotFoundError("在{}目录下没有找到数据文件".format(fp))
 
-        conn = sql.connect(sql_path)
+        conn = sql.connect("file:%s?mode=ro" % sql_path, uri=True)
         self.conn = conn
         self.c = conn.cursor()
 
@@ -99,7 +101,7 @@ class LocalDataService(object):
             name = root.split(self.fp)[-1][1:]
             for file_name in files:
                 if file_name.endswith('.hd5'):
-                    with h5py.File(root + '//%s' % (file_name)) as file:
+                    with h5py.File(os.path.join(root, (file_name))) as file:
                         if 'meta' in file.attrs:
                             value = json.loads(file.attrs['meta'])
                             dic[name + '_' + file_name[:-4]] = value
@@ -114,9 +116,9 @@ class LocalDataService(object):
     def _get_last_updated_date(self):
         lst = []
         for path, fields in self._walk_path().items():
-            view = path.split('data\\')[-1]
+            view = path
             for i in fields:
-                with h5py.File(path + '//%s.hd5' % (i,)) as file:
+                with h5py.File(os.path.join(self.fp, path, "%s.hd5" % i)) as file:
                     try:
                         lst.append({'view': view + '.' + i,
                                     'updated_date': file['date_flag'][-1][0]})
@@ -143,7 +145,7 @@ class LocalDataService(object):
             mapper.setdefault(api, set()).add(param)
 
         keys = os.listdir(self.fp)
-        updater = {k: set([i[:-4] for i in os.listdir(self.fp+'//%s'%(k)) if i.endswith('hd5')]) for k in keys if os.path.isfile(k)}
+        updater = {k: set([i[:-4] for i in os.listdir(os.path.join(self.fp, k)) if i.endswith('hd5')]) for k in keys if os.path.isfile(k)}
         mapper.update(updater)
         return mapper
 
@@ -220,7 +222,7 @@ class LocalDataService(object):
                  WHERE trade_date>=%s 
                  AND trade_date<=%s ''' % (start_date, end_date)
 
-        data = pd.read_sql(sql,self.conn)
+        data = pd.read_sql(sql, self.conn)
         return data['trade_date'].values
 
     def query_index_member(self, universe, start_date, end_date,data_format='list'):
@@ -229,13 +231,13 @@ class LocalDataService(object):
 
         data = pd.read_sql(sql, self.conn)
         
-        symbols = [i for i in data['symbol'] if (i[0] == '2' or i[0] == '9')]
-        data = data[~data['symbol'].isin(symbols)]
+        symbols = [i for i in data['symbol'] if (i[0] == '0' or i[0] == '3' or i[0] == '6')]
+        data = data[data['symbol'].isin(symbols)]
                 
         data['out_date'][data['out_date'] == ''] = '20990101'
         data['in_date'] = data['in_date'].astype(int)
         data['out_date'] = data['out_date'].astype(int)
-        data = data[(data['in_date'] <= end_date)&(data['out_date'] >= start_date)]
+        data = data[(data['in_date'] <= end_date) & (data['out_date'] >= start_date)]
         if data_format == 'list':
             return list(set(data['symbol'].values))
         elif data_format == 'pandas':
@@ -317,9 +319,10 @@ class LocalDataService(object):
               AND symbol IN %s 
               AND report_type = "%s"''' % (fld, view_name, start_date, end_date, symbols, report_type)
 
-        data = pd.read_sql(sql,self.conn)
+        data = pd.read_sql(sql, self.conn)
         if drop_dup_cols:
             data = data.drop_duplicates()
+        data[data == ''] = np.NaN
         return data, "0,"
 
     def query_inst_info(self, symbol, fields, inst_type=""):
@@ -396,7 +399,7 @@ class LocalDataService(object):
             df_io = df_io.fillna(0.0)
             return df_io
         else:
-            print ('没有找到指数%s的权重数据' % self.universe)
+            print('没有找到指数%s的权重数据' % self.universe)
             return data
 
     def query_index_weights_daily(self, index, start_date, end_date):
@@ -435,13 +438,18 @@ class LocalDataService(object):
         res = {}
         if not path:
             path = self.fp
-
+        path = path[:-1] if path.endswith(os.path.sep) else path
         for a, b, c in os.walk(path):
+            dr = a.replace(path, "")
+            dr = dr[1:] if dr.startswith(os.path.sep) else dr
+            depth = len(dr.split(os.path.sep))
+            if not dr or depth != 1:
+                continue
             lst = []
             for i in c:
                 if '.hd5' in i:
-                    lst.append(i[:-4])
-            res[a] = lst
+                    lst.append(i[:-4].split(os.path.sep)[-1])
+            res[dr] = lst
         return res
 
     def daily(self, symbol, start_date, end_date,
@@ -453,19 +461,19 @@ class LocalDataService(object):
             symbol = symbol.split(',')
 
         file_info = self._walk_path()
+        exist_views = []
         for path, exists in file_info.items():
             if set(fields) & set(exists) == set(fields) and len(fields) > 0:
-                daily_fp = path
-                exist_field = exists
-                view = daily_fp.split('data\\')[-1]
-
-        if 'daily_fp' not in dir():
-            daily_fp = self.fp + '\\' + view
-            exist_field = file_info[daily_fp]
+                exist_views.append(path)
+        
+        if "Stock_D" in set(exist_views):
+            view = "Stock_D"
+        elif exist_views:
+            view = exist_views[0]
 
         if fields in [[''], []]:
-            fields = exist_field
-
+            fields = file_info[view]
+        exist_field = file_info[view]
         if view == 'Stock_D':
             basic_field = ['symbol', 'trade_date', 'freq']
         else:
@@ -481,14 +489,14 @@ class LocalDataService(object):
             fld = list(set(fld + ['adjust_factor']))
 
         def query_by_field(field):
-            _dir = daily_fp + '//' + field + '.hd5'
+            _dir = os.path.join(self.fp, view, field + '.hd5')
             with h5py.File(_dir) as file:
                 try:
                     dset = file['data']
                     exist_symbol = file['symbol_flag'][:, 0].astype(str)
                     exist_dates = file['date_flag'][:, 0].astype(int)
                 except:
-                    return None
+                    raise DataNotFoundError('empty hdf5 file')
 
                 if start not in exist_dates or end not in exist_dates:
                     raise ValueError('起止日期超限')
@@ -508,11 +516,10 @@ class LocalDataService(object):
 
                 if data.dtype not in ['float', 'float32', 'float16', 'int']:
                     data = data.astype(str)
-                if field == 'trade_date':
+                if field == 'trade_date' and data.dtype in ['float', 'float32', 'float16']:
                     data = data.astype(float).astype(int)
                 cols_multi = pd.MultiIndex.from_product([[field], sorted_symbol], names=['fields', 'symbol'])
                 return pd.DataFrame(columns=cols_multi, data=data)
-
         df = pd.concat([query_by_field(f) for f in fld], axis=1)
         df.index.name = 'trade_date'
         df = df.stack().reset_index(drop=True)
@@ -540,6 +547,9 @@ class LocalDataService(object):
         if ('adjust_factor' not in fields) and adjust_mode:
             df = df.drop(['adjust_factor'], axis=1)
 
+        df = df.dropna(how='all')
+        df = df[df['trade_date'] > 0]
+        df = df.reset_index(drop=True)
         return df.sort_values(by=['symbol', 'trade_date']), "0,"
     
     def query_industry_raw(self, symbol_str, type_='ZZ', level=1):
