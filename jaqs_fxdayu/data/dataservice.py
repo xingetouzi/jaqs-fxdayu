@@ -69,6 +69,70 @@ class RemoteDataService(OriginRemoteDataService):
 
         return df_industry
 
+    def query_lb_fin_stat(self, type_, symbol, start_date, end_date, fields="", drop_dup_cols=None,
+                          report_type='408001000'):
+        """
+        Helper function to call data_api.query with 'lb.income' more conveniently.
+
+        Parameters
+        ----------
+        type_ : {'income', 'balance_sheet', 'cash_flow'}
+        symbol : str
+            separated by ','
+        start_date : int
+            Annoucement date in results will be no earlier than start_date
+        end_date : int
+            Annoucement date in results will be no later than start_date
+        fields : str, optional
+            separated by ',', default ""
+        drop_dup_cols : list or tuple
+            Whether drop duplicate entries according to drop_dup_cols.
+
+        Returns
+        -------
+        df : pd.DataFrame
+            index date, columns fields
+        err_msg : str
+
+        """
+        view_map = {'income': 'lb.income', 'cash_flow': 'lb.cashFlow', 'balance_sheet': 'lb.balanceSheet',
+                    'fin_indicator': 'lb.finIndicator'}
+        view_name = view_map.get(type_, None)
+        if view_name is None:
+            raise NotImplementedError("type_ = {:s}".format(type_))
+
+        dic_argument = {'symbol': symbol,
+                        'start_date': start_date,
+                        'end_date': end_date,
+                        # 'update_flag': '0'
+                        }
+        if view_name != 'lb.finIndicator':
+            dic_argument.update({'report_type': report_type})  # we do not use single quarter single there are zeros
+            """
+            408001000: joint
+            408002000: joint (single quarter)
+            """
+
+        filter_argument = self._dic2url(dic_argument)  # 0 means first time, not update
+
+        res, err_msg = self.query(view_name, fields=fields, filter=filter_argument,
+                                  order_by=self._REPORT_DATE_FIELD_NAME)
+        self._raise_error_if_msg(err_msg)
+
+        # change data type
+        try:
+            cols = list(set.intersection({'ann_date', 'report_date'}, set(res.columns)))
+            dic_dtype = {col: np.integer for col in cols}
+            res = res.astype(dtype=dic_dtype)
+        except:
+            pass
+
+        if drop_dup_cols is not None:
+            res = res.sort_values(by=drop_dup_cols, axis=0)
+            res = res.drop_duplicates(subset=drop_dup_cols, keep='first')
+
+        return res, err_msg
+
     def predefined_fields(self):
         params, msg = self.query("help.predefine", "", "")
         if msg != "0,":

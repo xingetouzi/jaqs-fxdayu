@@ -42,11 +42,13 @@ class DataView(OriginDataView):
         self.external_fields = {}
         self.external_quarterly_fields = {}
         self.factor_fields = set()
-        self.meta_data_list = self.meta_data_list + ['_prepare_fields']
+        self.meta_data_list = self.meta_data_list + ['_prepare_fields','report_type']
         self._prepare_fields = False
+        self.report_type = None
 
     def init_from_config(self, props, data_api):
-        self.adjust_mode = props.get("adjust_mode", "post") 
+        self.adjust_mode = props.get("adjust_mode", "post")
+        self.report_type = props.get("report_type", "408001000") # 默认报表类型为合并报表
         _props = props.copy()
         self._prepare_fields = _props.pop(PF, False)
         if self._prepare_fields:
@@ -251,7 +253,7 @@ class DataView(OriginDataView):
                 for p in params: 
                     fields.discard(p)
 
-    def _query_data(self, symbol, fields):
+    def _query_data(self, symbol, fields, report_type='408001000'):
         """
         Query data using different APIs, then store them in dict.
         period, start_date and end_date are fixed.
@@ -314,7 +316,8 @@ class DataView(OriginDataView):
                 df_income, msg3 = self.data_api.query_lb_fin_stat('income', symbol_str, self.extended_start_date_q,
                                                                   self.end_date,
                                                                   sep.join(fields_income),
-                                                                  drop_dup_cols=['symbol', self.REPORT_DATE_FIELD_NAME])
+                                                                  drop_dup_cols=['symbol', self.REPORT_DATE_FIELD_NAME],
+                                                                  report_type=report_type)
                 quarterly_list.append(df_income.loc[:, fields_income])
 
             fields_balance = self._get_fields('balance_sheet', fields, append=True)
@@ -322,7 +325,8 @@ class DataView(OriginDataView):
                 df_balance, msg3 = self.data_api.query_lb_fin_stat(
                     'balance_sheet', symbol_str,
                     self.extended_start_date_q, self.end_date,
-                    sep.join(fields_balance), drop_dup_cols=['symbol', self.REPORT_DATE_FIELD_NAME])
+                    sep.join(fields_balance), drop_dup_cols=['symbol', self.REPORT_DATE_FIELD_NAME],
+                    report_type=report_type)
                 quarterly_list.append(df_balance.loc[:, fields_balance])
 
             fields_cf = self._get_fields('cash_flow', fields, append=True)
@@ -330,7 +334,8 @@ class DataView(OriginDataView):
                 df_cf, msg3 = self.data_api.query_lb_fin_stat('cash_flow', symbol_str, self.extended_start_date_q,
                                                               self.end_date,
                                                               sep.join(fields_cf),
-                                                              drop_dup_cols=['symbol', self.REPORT_DATE_FIELD_NAME])
+                                                              drop_dup_cols=['symbol', self.REPORT_DATE_FIELD_NAME],
+                                                              report_type=report_type)
                 quarterly_list.append(df_cf.loc[:, fields_cf])
 
             fields_fin_ind = self._get_fields('fin_indicator', fields, append=True)
@@ -339,7 +344,8 @@ class DataView(OriginDataView):
                     'fin_indicator', symbol_str,
                     self.extended_start_date_q, self.end_date,
                     sep.join(fields_fin_ind),
-                    drop_dup_cols=['symbol', self.REPORT_DATE_FIELD_NAME])
+                    drop_dup_cols=['symbol', self.REPORT_DATE_FIELD_NAME],
+                    report_type=report_type)
 
                 quarterly_list.append(df_fin_ind.loc[:, fields_fin_ind])
 
@@ -459,7 +465,7 @@ class DataView(OriginDataView):
         # prepare benchmark and group
         print("Query data...")
         self.fields = list(set(self.fields)|set(["trade_status"]))
-        data_d, data_q = self._prepare_daily_quarterly(self.fields)
+        data_d, data_q = self._prepare_daily_quarterly(self.fields, self.report_type)
         self.data_d, self.data_q = data_d, data_q
 
         if self.data_q is not None:
@@ -514,7 +520,7 @@ class DataView(OriginDataView):
             else:
                 self.custom_daily_fields.append(field_name)
 
-    def add_field(self, field_name, data_api=None):
+    def add_field(self, field_name, data_api=None, report_type='408001000'):
         """
         Query and append new field to DataView.
 
@@ -580,7 +586,7 @@ class DataView(OriginDataView):
                 self._add_field("ann_date")
                 self._prepare_report_date()
                 self._align_and_merge_q_into_d()
-            _, merge = self._prepare_daily_quarterly([field_name])
+            _, merge = self._prepare_daily_quarterly([field_name],report_type)
             is_quarterly = True
 
         df = merge.loc[:, pd.IndexSlice[:, field_name]]
@@ -1137,9 +1143,40 @@ class DataView(OriginDataView):
         return dv
 
     # data_q存在NaN时会导致合并数据丢失，这里做用前值填充data_q的处理
-    def _prepare_daily_quarterly(self, fields):
-            data_d, data_q = super(DataView, self)._prepare_daily_quarterly(fields)
-            # 判断data_q 是否为DataFrame
-            if isinstance(data_q, pd.DataFrame):
-                data_q = data_q.ffill()
-            return data_d, data_q
+    def _prepare_daily_quarterly(self, fields, report_type='408001000'):
+        if not fields:
+            return None, None
+
+        # query data
+        print("Query data - query...")
+        daily_list, quarterly_list = self._query_data(self.symbol, fields, report_type)
+
+        def pivot_and_sort(df, index_name):
+            df = self._process_index_co(df, index_name)
+            df = df.pivot(index=index_name, columns='symbol')
+            df.columns = df.columns.swaplevel()
+            col_names = ['symbol', 'field']
+            df.columns.names = col_names
+            df = df.sort_index(axis=1, level=col_names)
+            df.index.name = index_name
+            return df
+
+        multi_daily = None
+        multi_quarterly = None
+        if daily_list:
+            daily_list_pivot = [pivot_and_sort(df, self.TRADE_DATE_FIELD_NAME) for df in daily_list]
+            multi_daily = self._merge_data(daily_list_pivot, self.TRADE_DATE_FIELD_NAME)
+            # use self.dates as index because original data have weekends
+            multi_daily = self._fill_missing_idx_col(multi_daily, index=self.dates, symbols=self.symbol)
+            print("Query data - daily fields prepared.")
+        if quarterly_list:
+            quarterly_list_pivot = [pivot_and_sort(df, self.REPORT_DATE_FIELD_NAME) for df in quarterly_list]
+            multi_quarterly = self._merge_data(quarterly_list_pivot, self.REPORT_DATE_FIELD_NAME)
+            multi_quarterly = self._fill_missing_idx_col(multi_quarterly, index=None, symbols=self.symbol)
+            print("Query data - quarterly fields prepared.")
+
+        data_d, data_q = multi_daily, multi_quarterly
+        # 判断data_q 是否为DataFrame
+        if isinstance(data_q, pd.DataFrame):
+            data_q = data_q.ffill()
+        return data_d, data_q
