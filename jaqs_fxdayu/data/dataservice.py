@@ -10,8 +10,10 @@ from jaqs.data.align import align
 import jaqs.util as jutil
 from jaqs_fxdayu.patch_util import auto_register_patch
 
+
 class DataNotFoundError(Exception):
     pass
+
 
 @auto_register_patch(parent_level=1)
 class RemoteDataService(OriginRemoteDataService):
@@ -101,7 +103,7 @@ class LocalDataService(object):
             name = root.split(self.fp)[-1][1:]
             for file_name in files:
                 if file_name.endswith('.hd5'):
-                    with h5py.File(os.path.join(root, (file_name))) as file:
+                    with h5py.File(os.path.join(root, (file_name, )), 'r') as file:
                         if 'meta' in file.attrs:
                             value = json.loads(file.attrs['meta'])
                             dic[name + '_' + file_name[:-4]] = value
@@ -118,7 +120,7 @@ class LocalDataService(object):
         for path, fields in self._walk_path().items():
             view = path
             for i in fields:
-                with h5py.File(os.path.join(self.fp, path, "%s.hd5" % i)) as file:
+                with h5py.File(os.path.join(self.fp, path, "%s.hd5" % i), 'r') as file:
                     try:
                         lst.append({'view': view + '.' + i,
                                     'updated_date': file['date_flag'][-1][0]})
@@ -346,7 +348,6 @@ class LocalDataService(object):
     def query_lb_dailyindicator(self, symbol, start_date, end_date, fields=""):
         return self.daily(symbol, start_date, end_date, fields=fields, view='SecDailyIndicator')
 
-
     def query_adj_factor_daily(self, symbol_str, start_date, end_date, div=False):
         data, msg = self.daily(symbol_str, start_date, end_date,fields='adjust_factor')
         data = data.loc[:, ['trade_date', 'symbol', 'adjust_factor']]
@@ -490,7 +491,7 @@ class LocalDataService(object):
 
         def query_by_field(field):
             _dir = os.path.join(self.fp, view, field + '.hd5')
-            with h5py.File(_dir) as file:
+            with h5py.File(_dir, 'r') as file:
                 try:
                     dset = file['data']
                     exist_symbol = file['symbol_flag'][:, 0].astype(str)
