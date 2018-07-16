@@ -49,6 +49,7 @@ dv = DataView()
 # step 3
 props = {'start_date': 20170501, 'end_date': 20171001, 'universe':'000300.SH',
          'fields': "pb,pe,total_oper_rev,oper_exp,sw1",
+         'report_type':'408003000',
          'freq': 1}
 
 dv.init_from_config(props, ds)
@@ -71,11 +72,11 @@ dv.prepare_data()
     Query data - query...
     NOTE: price adjust method is [post adjust]
     当前请求daily...
-    {'adjust_mode': None, 'fields': 'trade_status,symbol,open_adj,vwap,trade_date,low,close_adj,high,open,high_adj,low_adj,vwap_adj,close'}
+    {'adjust_mode': None, 'fields': 'symbol,open_adj,low,trade_status,trade_date,high_adj,close,close_adj,vwap,high,low_adj,vwap_adj,open'}
     当前请求daily...
-    {'adjust_mode': 'post', 'fields': 'vwap,high,low,open,close,symbol,trade_date'}
+    {'adjust_mode': 'post', 'fields': 'low,close,vwap,high,open,symbol,trade_date'}
     当前请求query_lb_dailyindicator...
-    {'fields': 'pe,pb,symbol,trade_date'}
+    {'fields': 'symbol,pe,pb,trade_date'}
     WARNING: some data is unavailable: 
         At fields 
     Query data - daily fields prepared.
@@ -85,6 +86,7 @@ dv.prepare_data()
     Query benchmark...
     Query benchmar member info...
     Query groups (industry)...
+    Field [trade_status] is overwritten.
     Data has been successfully prepared.
 
 
@@ -101,6 +103,7 @@ dv.prepare_data()
 |freq |1 |int |数据类型，目前只支持1，表示日线数据|
 |all_price |True |bool |是否默认下载所有日线行情相关数据。默认下载|
 |adjust_mode |'post' |string |行情数据复权类型，默认后复权,目前只支持后复权|
+|report_type |'408001000' |string |财报类型。财报类型共有以下几类：'408001000':合并报表；'408002000':合并报表（单季度）；'408003000':合并报表（单季度调整）；'408004000':合并报表（调整）；'408005000':合并报表（更正前）；'408006000':母公司报表；'408007000':母公司报表（单季度）；'408008000':母公司报表（单季度调整）；'408009000':母公司报表（调整）；'408010000':母公司报表(更正前)|
 
 ### fields可选字段查询方式
 dataview的底层数据api提供了字段的文档，可供查阅。目前,只提供了**A股财务数据**的相关字段文档。更过品种、行情相关字段文档请关注[jaqs官方数据文档](http://jaqs.readthedocs.io/zh_CN/latest/)
@@ -185,60 +188,204 @@ df
     </tr>
     <tr>
       <th>3</th>
+      <td>jy.qincome</td>
+      <td>季度利润表</td>
+      <td>季度利润表</td>
+    </tr>
+    <tr>
+      <th>4</th>
       <td>jz.instrumentInfo</td>
       <td>证券基本信息</td>
       <td>证券基础信息</td>
     </tr>
     <tr>
-      <th>4</th>
+      <th>5</th>
       <td>jz.secTradeCal</td>
       <td>交易日历</td>
       <td>交易日历</td>
     </tr>
     <tr>
-      <th>5</th>
+      <th>6</th>
+      <td>lb.balanceSheet</td>
+      <td>资产负债表</td>
+      <td>资产负债表</td>
+    </tr>
+    <tr>
+      <th>7</th>
+      <td>lb.cashFlow</td>
+      <td>现金流量表</td>
+      <td>现金流量表</td>
+    </tr>
+    <tr>
+      <th>8</th>
+      <td>lb.dcCoinInfo</td>
+      <td>数字货币信息</td>
+      <td>数字货币信息</td>
+    </tr>
+    <tr>
+      <th>9</th>
+      <td>lb.dcDaily</td>
+      <td>数字货币日行情</td>
+      <td>数字货币日行情</td>
+    </tr>
+    <tr>
+      <th>10</th>
+      <td>lb.dcExchangeInfo</td>
+      <td>十大数字货币交易所信息</td>
+      <td>数字货币交易所信息</td>
+    </tr>
+    <tr>
+      <th>11</th>
+      <td>lb.dcTradeInfo</td>
+      <td>数字货币交易标的信息</td>
+      <td>数字货币交易标的信息</td>
+    </tr>
+    <tr>
+      <th>12</th>
+      <td>lb.hkSecDailyIndicator</td>
+      <td>港股日行情指标</td>
+      <td>港股日行情指标</td>
+    </tr>
+    <tr>
+      <th>13</th>
+      <td>lb.income</td>
+      <td>利润表</td>
+      <td>利润表</td>
+    </tr>
+    <tr>
+      <th>14</th>
       <td>lb.indexCons</td>
       <td>指数成份股</td>
       <td>指数成份股</td>
     </tr>
     <tr>
-      <th>6</th>
+      <th>15</th>
       <td>lb.indexInfo</td>
       <td>指数基本信息</td>
       <td>指数基本信息</td>
     </tr>
     <tr>
-      <th>7</th>
+      <th>16</th>
       <td>lb.industryType</td>
       <td>行业代码表</td>
       <td>行业代码表</td>
     </tr>
     <tr>
-      <th>8</th>
+      <th>17</th>
+      <td>lb.mfDailyPerform</td>
+      <td>公募基金行情表现</td>
+      <td>公募基金行情表现</td>
+    </tr>
+    <tr>
+      <th>18</th>
       <td>lb.mfNav</td>
       <td>公募基金净值</td>
       <td>公募基金净值</td>
     </tr>
     <tr>
-      <th>9</th>
+      <th>19</th>
       <td>lb.secAdjFactor</td>
       <td>复权因子</td>
       <td>复权因子</td>
     </tr>
     <tr>
-      <th>10</th>
+      <th>20</th>
+      <td>lb.secArchives</td>
+      <td>公司概况</td>
+      <td>公司概况</td>
+    </tr>
+    <tr>
+      <th>21</th>
+      <td>lb.secDailyIndicator</td>
+      <td>股票每日指标</td>
+      <td>股票每日指标</td>
+    </tr>
+    <tr>
+      <th>22</th>
+      <td>lb.secDailyPerform</td>
+      <td>股票行情表现</td>
+      <td>股票行情表现</td>
+    </tr>
+    <tr>
+      <th>23</th>
       <td>lb.secDividend</td>
       <td>分红送股</td>
       <td>分红送股表</td>
     </tr>
     <tr>
-      <th>11</th>
+      <th>24</th>
+      <td>lb.secFinIndicators</td>
+      <td>财务数据指标</td>
+      <td>财务数据指标</td>
+    </tr>
+    <tr>
+      <th>25</th>
+      <td>lb.secFrozenPledger</td>
+      <td>股东股权冻结和质押</td>
+      <td>股东股权冻结和质押</td>
+    </tr>
+    <tr>
+      <th>26</th>
+      <td>lb.secHolderNumber</td>
+      <td>股东户数</td>
+      <td>股东户数</td>
+    </tr>
+    <tr>
+      <th>27</th>
+      <td>lb.secHoldingStats</td>
+      <td>股东持股统计</td>
+      <td>股东持股统计</td>
+    </tr>
+    <tr>
+      <th>28</th>
+      <td>lb.secIEXDaily</td>
+      <td>美股公司日行情</td>
+      <td>美股公司日行情</td>
+    </tr>
+    <tr>
+      <th>29</th>
+      <td>lb.secIEXEps</td>
+      <td>美股公司每股收益指标</td>
+      <td>美股公司每股收益指标</td>
+    </tr>
+    <tr>
+      <th>30</th>
+      <td>lb.secIEXFinIndex</td>
+      <td>美股公司财务报表指标</td>
+      <td>美股公司财务报表指标</td>
+    </tr>
+    <tr>
+      <th>31</th>
+      <td>lb.secIEXSymbol</td>
+      <td>美股公司股票列表</td>
+      <td>美股公司股票列表</td>
+    </tr>
+    <tr>
+      <th>32</th>
       <td>lb.secIndustry</td>
       <td>行业分类信息</td>
       <td>行业分类</td>
     </tr>
     <tr>
-      <th>12</th>
+      <th>33</th>
+      <td>lb.secMainHolders</td>
+      <td>股东名单</td>
+      <td>股东名单</td>
+    </tr>
+    <tr>
+      <th>34</th>
+      <td>lb.secNewestFinIndex</td>
+      <td>A股公司最新财务指标</td>
+      <td>A股公司最新财务指标</td>
+    </tr>
+    <tr>
+      <th>35</th>
+      <td>lb.secNewestShareStru</td>
+      <td>最新公司股本结构</td>
+      <td>最新公司股本结构</td>
+    </tr>
+    <tr>
+      <th>36</th>
       <td>lb.secSusp</td>
       <td>停复牌数据</td>
       <td>停复牌</td>
@@ -365,7 +512,7 @@ df.head()
   -  初始请求数据时指定all_price=True,会请求open、high、low、close、vwap及相应复权后的结果open_adj、high_adj、low_adj、close_adj、vwap_adj
   -  请求行情类数据（open、high、low、close、vwap）,若adjust_mode不为空（默认为"post"）,会补充相应复权后结果并以'_adj'为后缀。
   -  初始请求数据字段中包含季度数据,会自动按时间、标的整理对齐一份到日级别上
-  -  初始请求数据默认会自动补充adjust_factor(复权因子)、trade_status(交易状态-停牌or可交易)
+  -  初始请求数据默认会自动补充adjust_factor(复权因子)、trade_status(交易状态-停牌or可交易)、ann_date(财报公告时间-季度数据)、quarter(季度数据对应披露月份)
 
 **示例：**
 
@@ -2321,7 +2468,7 @@ dv.get_ts("000016.SH_weight").head()
 
 
 ### add_field
-- ` jaqs_fxdayu.data.Dataview.add_field(field_name, data_api=None) `
+- ` jaqs_fxdayu.data.Dataview.add_field(field_name, data_api=None, report_type='408001000') `
 
 **简要描述：**
 
@@ -2333,6 +2480,7 @@ dv.get_ts("000016.SH_weight").head()
 |:----    |:---|:----- |-----   |
 |field_name|是  |string|待新增的字段名|
 |data_api |否  |jaqs.data.dataservice.RemoteDataService|DataService远程数据服务类|
+|report_type |否 | string |财报类型。财报类型共有以下几类：'408001000':合并报表；'408002000':合并报表（单季度）；'408003000':合并报表（单季度调整）；'408004000':合并报表（调整）；'408005000':合并报表（更正前）；'408006000':母公司报表；'408007000':母公司报表（单季度）；'408008000':母公司报表（单季度调整）；'408009000':母公司报表（调整）；'408010000':母公司报表（更正前）。 默认为'408001000':合并报表|
 
 **示例：**
 
