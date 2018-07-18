@@ -294,7 +294,7 @@ class LocalDataService(object):
         
         return res
     
-    def query_lb_fin_stat(self, type_, symbol, start_date, end_date, fields, drop_dup_cols=False):
+    def query_lb_fin_stat(self, type_, symbol, start_date, end_date, fields, drop_dup_cols=False, report_type='408001000'):
         view_map = {'income': 'lb.income', 'cash_flow': 'lb.cashFlow', 'balance_sheet': 'lb.balanceSheet',
                     'fin_indicator': 'lb.finIndicator'}
         view_name = view_map.get(type_, None)
@@ -303,7 +303,6 @@ class LocalDataService(object):
         
         fld = fields
         symbols = '("' + '","'.join(symbol.split(',')) + '")'
-        report_type = '408001000'
 
         if fields == "":
             fld = '*'
@@ -523,7 +522,7 @@ class LocalDataService(object):
                 return pd.DataFrame(columns=cols_multi, data=data)
         df = pd.concat([query_by_field(f) for f in fld], axis=1)
         df.index.name = 'trade_date'
-        df = df.stack().reset_index(drop=True)
+        df = df.stack(dropna=False).reset_index(drop=True)
 
         if adjust_mode == 'post':
             if 'adjust_factor' not in df.columns:
@@ -547,6 +546,10 @@ class LocalDataService(object):
 
         if ('adjust_factor' not in fields) and adjust_mode:
             df = df.drop(['adjust_factor'], axis=1)
+
+        if len(set(df['symbol'])) == 1:
+            df = df.set_index('trade_date').loc[need_dates, :].reset_index()
+            df['symbol'] = df['symbol'].fillna(method='bfill')
 
         df = df.dropna(how='all')
         df = df[df['trade_date'] > 0]
