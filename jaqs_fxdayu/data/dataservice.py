@@ -553,9 +553,11 @@ class LocalDataService(object):
         if ('adjust_factor' not in fields) and adjust_mode:
             df = df.drop(['adjust_factor'], axis=1)
 
-        if len(set(df['symbol'])) == 1:
+        if len(symbol) == 1:
             df = df.set_index('trade_date').loc[need_dates, :].reset_index()
             df['symbol'] = df['symbol'].fillna(method='bfill')
+            if 'freq' in df.columns:
+                df['freq'] = df['freq'].fillna(method='ffill')
 
         df = df.dropna(how='all')
         df = df[df['trade_date'] > 0]
