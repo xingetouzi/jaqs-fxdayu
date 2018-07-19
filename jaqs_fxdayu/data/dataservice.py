@@ -325,7 +325,7 @@ class LocalDataService(object):
         try:
             data = pd.read_sql(sql, self.conn)
         except Exception as e:
-            raise SqlError('%s data not found' % (view_name,), e)
+            raise SqlError('%s data not found' %(view_name,), e)
 
         if drop_dup_cols:
             data = data.drop_duplicates()
@@ -354,7 +354,7 @@ class LocalDataService(object):
         return self.daily(symbol, start_date, end_date, fields=fields, view='SecDailyIndicator')
 
     def query_adj_factor_daily(self, symbol_str, start_date, end_date, div=False):
-        data, msg = self.daily(symbol_str, start_date, end_date,fields='adjust_factor')
+        data, msg = self.daily(symbol_str, start_date, end_date, fields='adjust_factor')
         data = data.loc[:, ['trade_date', 'symbol', 'adjust_factor']]
         data = data.drop_duplicates()
         data = data.pivot_table(index='trade_date', columns='symbol', values='adjust_factor', aggfunc=np.mean)
@@ -538,7 +538,7 @@ class LocalDataService(object):
 
             for f in list(set(df.columns) & set(['open', 'high', 'low', 'close', 'vwap'])):
                 df[f] = df[f]*df['adjust_factor']
-            df = df.dropna()
+            #df = df.dropna()
 
         if adjust_mode == 'pre':
             if 'adjust_factor' not in df.columns:
@@ -548,7 +548,7 @@ class LocalDataService(object):
 
             for f in list(set(df.columns) & set(['open', 'high', 'low', 'close', 'vwap'])):
                 df[f] = df[f]/df['adjust_factor']
-            df = df.dropna()
+            #df = df.dropna()
 
         if ('adjust_factor' not in fields) and adjust_mode:
             df = df.drop(['adjust_factor'], axis=1)
