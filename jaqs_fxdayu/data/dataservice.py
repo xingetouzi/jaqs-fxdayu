@@ -14,6 +14,8 @@ from jaqs_fxdayu.patch_util import auto_register_patch
 class DataNotFoundError(Exception):
     pass
 
+class SqlError(Exception):
+    pass
 
 @auto_register_patch(parent_level=1)
 class RemoteDataService(OriginRemoteDataService):
@@ -320,7 +322,11 @@ class LocalDataService(object):
               AND symbol IN %s 
               AND report_type = "%s"''' % (fld, view_name, start_date, end_date, symbols, report_type)
 
-        data = pd.read_sql(sql, self.conn)
+        try:
+            data = pd.read_sql(sql, self.conn)
+        except Exception as e:
+            raise SqlError('%s data not found' % (view_name,), e)
+
         if drop_dup_cols:
             data = data.drop_duplicates()
         data['ann_date'] = data['ann_date'].replace('', np.NaN)
