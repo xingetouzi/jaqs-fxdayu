@@ -684,7 +684,7 @@ class DataView(OriginDataView):
                 return
         self.append_df(df, field_name, is_quarterly=True)
         df_ann = self._get_ann_df()
-        df_expanded = align(df.reindex(df_ann.index), df_ann, self.dates)
+        df_expanded = align(df.reindex_like(df_ann), df_ann, self.dates)
         self.append_df(df_expanded, field_name, is_quarterly=False)
 
     def add_comp_info(self, index, data_api=None):
