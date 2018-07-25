@@ -125,7 +125,7 @@ class LocalDataService(object):
                 with h5py.File(os.path.join(self.fp, path, "%s.hd5" % i), 'r') as file:
                     try:
                         lst.append({'view': view + '.' + i,
-                                    'updated_date': file['date_flag'][-1][0]})
+                                    'updated_date': int(file['date_flag'][-1][0])})
                     except:
                         pass
         d1 = pd.DataFrame(lst)
@@ -172,23 +172,25 @@ class LocalDataService(object):
             date_names = [i for i in cols if 'date' in i]
             if 'report_date' in date_names:
                 date_name = 'report_date'
+            if 'ann_date' in date_names:
+                date_name = 'ann_date'
             elif len(date_names) == 0:
                 date_name = None
             else:
                 date_name = date_names[0]
 
             flt = filter.split('&')
-            if flt[0] != '':  
-                k,v = flt[0].split('=')
+            if flt[0] != '':
+                k, v = flt[0].split('=')
                 if 'start_date' in flt[0]:
                     condition = '''SELECT %s FROM "%s" WHERE %s >= "%s"''' % (fields, view, date_name, v)
                 elif 'end_date' in flt[0]:
                     condition = '''SELECT %s FROM "%s" WHERE %s <= "%s"''' % (fields, view, date_name, v)
                 else:
                     condition = '''SELECT %s FROM "%s" WHERE %s = "%s"''' % (fields, view, k, v)
-                
+
                 for i in flt[1:]:
-                    k,v = i.split('=')
+                    k, v = i.split('=')
                     if k == 'start_date':
                         condition += ''' AND %s >= "%s"''' % (date_name, v)
                     elif k == 'end_date':
@@ -199,7 +201,7 @@ class LocalDataService(object):
                     else:
                         condition += ''' AND %s = "%s"''' % (k, v)
                 condition = condition + ';'
-            
+
             else:
                 condition = '''SELECT %s FROM "%s";''' % (fields, view)
 
@@ -214,13 +216,13 @@ class LocalDataService(object):
                 data = pd.read_sql(condition, self.conn)
                 return data, "0,"
 
-        elif view == 'factor':      
+        elif view == 'factor':
             dic = {}
             for i in filter.split('&'):
                 k,v = i.split('=')
                 dic[k] = v
             return self.daily(dic['symbol'], dic['start'], dic['end'], fields, adjust_mode=None)
-        
+
     def query_trade_dates(self,start_date, end_date):
         sql = '''SELECT * FROM "jz.secTradeCal" 
                  WHERE trade_date>=%s 
@@ -234,10 +236,10 @@ class LocalDataService(object):
                  WHERE index_code = "%s" ''' % (universe)
 
         data = pd.read_sql(sql, self.conn)
-        
+
         symbols = [i for i in data['symbol'] if (i[0] == '0' or i[0] == '3' or i[0] == '6')]
         data = data[data['symbol'].isin(symbols)]
-                
+
         data['out_date'][data['out_date'] == ''] = '20990101'
         data['in_date'] = data['in_date'].astype(int)
         data['out_date'] = data['out_date'].astype(int)
@@ -250,7 +252,7 @@ class LocalDataService(object):
     def query_index_member_daily(self, index, start_date, end_date):
         """
         Get index components on each day during start_date and end_date.
-        
+
         Parameters
         ----------
         index : str
@@ -268,7 +270,7 @@ class LocalDataService(object):
         df_io, err_msg = self.query_index_member(index, start_date, end_date, data_format='pandas')
         if err_msg != '0,':
             print(err_msg)
-        
+
         def str2int(s):
             if isinstance(s, basestring):
                 return int(s) if s else 99999999
@@ -278,7 +280,7 @@ class LocalDataService(object):
                 raise NotImplementedError("type s = {}".format(type(s)))
         df_io.loc[:, 'in_date'] = df_io.loc[:, 'in_date'].apply(str2int)
         df_io.loc[:, 'out_date'] = df_io.loc[:, 'out_date'].apply(str2int)
-        
+
         # df_io.set_index('symbol', inplace=True)
         dates = self.query_trade_dates(start_date=start_date, end_date=end_date)
 
@@ -290,35 +292,35 @@ class LocalDataService(object):
                 bool_index = np.logical_and(dates > row['in_date'], dates < row['out_date'])
                 mask[bool_index] = 1
             dic[sec] = mask
-            
+
         res = pd.DataFrame(index=dates, data=dic)
         res.index.name = 'trade_date'
-        
+
         return res
-    
+
     def query_lb_fin_stat(self, type_, symbol, start_date, end_date, fields, drop_dup_cols=False, report_type='408001000'):
         view_map = {'income': 'lb.income', 'cash_flow': 'lb.cashFlow', 'balance_sheet': 'lb.balanceSheet',
                     'fin_indicator': 'lb.finIndicator'}
         view_name = view_map.get(type_, None)
         if view_name is None:
             raise NotImplementedError("type_ = {:s}".format(type_))
-        
+
         fld = fields
         symbols = '("' + '","'.join(symbol.split(',')) + '")'
 
         if fields == "":
             fld = '*'
-        
+
         if view_name == 'lb.finIndicator':
             sql = '''SELECT %s FROM "%s" 
-              WHERE report_date>=%s 
-              AND report_date<=%s 
+              WHERE ann_date>=%s 
+              AND ann_date<=%s 
               AND symbol IN %s ''' % (fld, view_name, start_date, end_date, symbols)
-            
+
         else:
             sql = '''SELECT %s FROM "%s" 
-              WHERE report_date>=%s 
-              AND report_date<=%s 
+              WHERE ann_date>=%s 
+              AND ann_date<=%s 
               AND symbol IN %s 
               AND report_type = "%s"''' % (fld, view_name, start_date, end_date, symbols, report_type)
 
@@ -354,7 +356,7 @@ class LocalDataService(object):
         return self.daily(symbol, start_date, end_date, fields=fields, view='SecDailyIndicator')
 
     def query_adj_factor_daily(self, symbol_str, start_date, end_date, div=False):
-        data, msg = self.daily(symbol_str, start_date, end_date, fields='adjust_factor')
+        data, msg = self.daily(symbol_str, start_date, end_date,fields='adjust_factor')
         data = data.loc[:, ['trade_date', 'symbol', 'adjust_factor']]
         data = data.drop_duplicates()
         data = data.pivot_table(index='trade_date', columns='symbol', values='adjust_factor', aggfunc=np.mean)
@@ -538,7 +540,7 @@ class LocalDataService(object):
 
             for f in list(set(df.columns) & set(['open', 'high', 'low', 'close', 'vwap'])):
                 df[f] = df[f]*df['adjust_factor']
-            #df = df.dropna()
+            df = df.dropna()
 
         if adjust_mode == 'pre':
             if 'adjust_factor' not in df.columns:
@@ -548,16 +550,14 @@ class LocalDataService(object):
 
             for f in list(set(df.columns) & set(['open', 'high', 'low', 'close', 'vwap'])):
                 df[f] = df[f]/df['adjust_factor']
-            #df = df.dropna()
+            df = df.dropna()
 
         if ('adjust_factor' not in fields) and adjust_mode:
             df = df.drop(['adjust_factor'], axis=1)
 
-        if len(symbol) == 1:
+        if len(set(df['symbol'])) == 1:
             df = df.set_index('trade_date').loc[need_dates, :].reset_index()
             df['symbol'] = df['symbol'].fillna(method='bfill')
-            if 'freq' in df.columns:
-                df['freq'] = df['freq'].fillna(method='ffill')
 
         df = df.dropna(how='all')
         df = df[df['trade_date'] > 0]
