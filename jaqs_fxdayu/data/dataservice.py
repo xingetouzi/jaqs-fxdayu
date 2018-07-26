@@ -14,8 +14,10 @@ from jaqs_fxdayu.patch_util import auto_register_patch
 class DataNotFoundError(Exception):
     pass
 
+
 class SqlError(Exception):
     pass
+
 
 @auto_register_patch(parent_level=1)
 class RemoteDataService(OriginRemoteDataService):
@@ -91,7 +93,6 @@ class LocalDataService(object):
         self.fp = os.path.abspath(fp)
         sql_path = os.path.join(fp, 'data.sqlite')
 
-        #if not (os.path.exists(sql_path) and os.path.exists(h5_path)):
         if not os.path.exists(sql_path):
             raise FileNotFoundError("在{}目录下没有找到数据文件".format(fp))
 
@@ -153,7 +154,7 @@ class LocalDataService(object):
         mapper.update(updater)
         return mapper
 
-    def query(self, view, filter, fields, **kwargs):
+    def query(self, view, _filter, fields, **kwargs):
         if view == 'attrs':
             return pd.DataFrame(self._get_attrs()).T
 
@@ -167,7 +168,7 @@ class LocalDataService(object):
             fields = '*' 
         
         if view in sql_tables:
-            self.c.execute('''PRAGMA table_info([%s])''' % (view))
+            self.c.execute('''PRAGMA table_info([%s])''' % (view, ))
             cols = [i[1] for i in self.c.fetchall()]
             date_names = [i for i in cols if 'date' in i]
             if 'report_date' in date_names:
@@ -179,7 +180,8 @@ class LocalDataService(object):
             else:
                 date_name = date_names[0]
 
-            flt = filter.split('&')
+            flt = _filter.split('&')
+            flt.sort()
             if flt[0] != '':
                 k, v = flt[0].split('=')
                 if 'start_date' in flt[0]:
@@ -218,8 +220,8 @@ class LocalDataService(object):
 
         elif view == 'factor':
             dic = {}
-            for i in filter.split('&'):
-                k,v = i.split('=')
+            for i in _filter.split('&'):
+                k, v = i.split('=')
                 dic[k] = v
             return self.daily(dic['symbol'], dic['start'], dic['end'], fields, adjust_mode=None)
 
@@ -305,11 +307,15 @@ class LocalDataService(object):
         if view_name is None:
             raise NotImplementedError("type_ = {:s}".format(type_))
 
-        fld = fields
         symbols = '("' + '","'.join(symbol.split(',')) + '")'
 
         if fields == "":
             fld = '*'
+        else:
+            fld = fields
+            for i in ['report_date', 'symbol', 'ann_date','report_type']:
+                if i not in fld:
+                    fld += ',%s' % (i, )
 
         if view_name == 'lb.finIndicator':
             sql = '''SELECT %s FROM "%s" 
@@ -327,7 +333,7 @@ class LocalDataService(object):
         try:
             data = pd.read_sql(sql, self.conn)
         except Exception as e:
-            raise SqlError('%s data not found' %(view_name,), e)
+            raise SqlError('%s data not found' % (view_name,), e)
 
         if drop_dup_cols:
             data = data.drop_duplicates()
@@ -356,7 +362,7 @@ class LocalDataService(object):
         return self.daily(symbol, start_date, end_date, fields=fields, view='SecDailyIndicator')
 
     def query_adj_factor_daily(self, symbol_str, start_date, end_date, div=False):
-        data, msg = self.daily(symbol_str, start_date, end_date,fields='adjust_factor')
+        data, msg = self.daily(symbol_str, start_date, end_date, fields='adjust_factor')
         data = data.loc[:, ['trade_date', 'symbol', 'adjust_factor']]
         data = data.drop_duplicates()
         data = data.pivot_table(index='trade_date', columns='symbol', values='adjust_factor', aggfunc=np.mean)
@@ -484,8 +490,12 @@ class LocalDataService(object):
         exist_field = file_info[view]
         if view == 'Stock_D':
             basic_field = ['symbol', 'trade_date', 'freq']
+        #elif view in ['SecDailyIndicator']:
+        #    basic_field = ['symbol', 'trade_date']
         else:
             basic_field = ['symbol', 'trade_date']
+            adjust_mode = None
+
         fields = list(set(fields + basic_field))
         fld = list(set(exist_field) & set(fields))
         
@@ -521,13 +531,14 @@ class LocalDataService(object):
                     return None
 
                 data = dset[start_index:end_index, symbol_index]
+                _index = exist_dates[start_index:end_index]
 
                 if data.dtype not in ['float', 'float32', 'float16', 'int']:
                     data = data.astype(str)
                 if field == 'trade_date' and data.dtype in ['float', 'float32', 'float16']:
                     data = data.astype(float).astype(int)
                 cols_multi = pd.MultiIndex.from_product([[field], sorted_symbol], names=['fields', 'symbol'])
-                return pd.DataFrame(columns=cols_multi, data=data)
+                return pd.DataFrame(columns=cols_multi, index=_index, data=data)
         df = pd.concat([query_by_field(f) for f in fld], axis=1)
         df.index.name = 'trade_date'
         df = df.stack(dropna=False).reset_index(drop=True)
