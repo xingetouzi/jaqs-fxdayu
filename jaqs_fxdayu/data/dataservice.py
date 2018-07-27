@@ -313,7 +313,7 @@ class LocalDataService(object):
             fld = '*'
         else:
             fld = fields
-            for i in ['report_date', 'symbol', 'ann_date','report_type']:
+            for i in ['report_date', 'symbol', 'ann_date']:
                 if i not in fld:
                     fld += ',%s' % (i, )
 
