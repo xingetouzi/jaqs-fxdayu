@@ -124,10 +124,11 @@ class LocalDataService(object):
             view = path
             for i in fields:
                 with h5py.File(os.path.join(self.fp, path, "%s.hd5" % i), 'r') as file:
+                    # noinspection PyBroadException
                     try:
                         lst.append({'view': view + '.' + i,
                                     'updated_date': int(file['date_flag'][-1][0])})
-                    except:
+                    except Exception:
                         pass
         d1 = pd.DataFrame(lst)
         d1['freq'] = '1d'
@@ -154,7 +155,7 @@ class LocalDataService(object):
         mapper.update(updater)
         return mapper
 
-    def query(self, view, _filter, fields, **kwargs):
+    def query(self, view, filter, fields, **kwargs):
         if view == 'attrs':
             return pd.DataFrame(self._get_attrs()).T
 
@@ -180,7 +181,7 @@ class LocalDataService(object):
             else:
                 date_name = date_names[0]
 
-            flt = _filter.split('&')
+            flt = filter.split('&')
             flt.sort()
             if flt[0] != '':
                 k, v = flt[0].split('=')
@@ -220,7 +221,7 @@ class LocalDataService(object):
 
         elif view == 'factor':
             dic = {}
-            for i in _filter.split('&'):
+            for i in filter.split('&'):
                 k, v = i.split('=')
                 dic[k] = v
             return self.daily(dic['symbol'], dic['start'], dic['end'], fields, adjust_mode=None)
@@ -490,7 +491,7 @@ class LocalDataService(object):
         exist_field = file_info[view]
         if view == 'Stock_D':
             basic_field = ['symbol', 'trade_date', 'freq']
-        #elif view in ['SecDailyIndicator']:
+        # elif view in ['SecDailyIndicator']:
         #    basic_field = ['symbol', 'trade_date']
         else:
             basic_field = ['symbol', 'trade_date']
@@ -509,11 +510,12 @@ class LocalDataService(object):
         def query_by_field(field):
             _dir = os.path.join(self.fp, view, field + '.hd5')
             with h5py.File(_dir, 'r') as file:
+                # noinspection PyBroadException
                 try:
                     dset = file['data']
                     exist_symbol = file['symbol_flag'][:, 0].astype(str)
                     exist_dates = file['date_flag'][:, 0].astype(int)
-                except:
+                except Exception:
                     raise DataNotFoundError('empty hdf5 file')
 
                 if start not in exist_dates or end not in exist_dates:
