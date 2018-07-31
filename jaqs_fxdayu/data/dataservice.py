@@ -215,6 +215,7 @@ class LocalDataService(object):
             mapper.setdefault(api, set()).add(param)
 
         keys = os.listdir(self.fp)
+        [keys.remove(i) for i in os.listdir(self.fp)]
         updater = {k: set([i[:-4] for i in os.listdir(os.path.join(self.fp, k)) if i.endswith('hd5')]) for k in keys if os.path.isfile(k)}
         mapper.update(updater)
         return mapper
@@ -555,10 +556,10 @@ class LocalDataService(object):
         exist_field = file_info[view]
         if view == 'Stock_D':
             basic_field = ['symbol', 'trade_date', 'freq']
-        # elif view in ['SecDailyIndicator']:
-        #    basic_field = ['symbol', 'trade_date']
-        else:
+        elif view in ['SecDailyIndicator']:
             basic_field = ['symbol', 'trade_date']
+        else:
+            basic_field = []
             adjust_mode = None
 
         fields = list(set(fields + basic_field))
@@ -607,8 +608,10 @@ class LocalDataService(object):
                 return pd.DataFrame(columns=cols_multi, index=_index, data=data)
         df = pd.concat([query_by_field(f) for f in fld], axis=1)
         df.index.name = 'trade_date'
-        df = df.stack(dropna=False).reset_index(drop=True)
-
+        if 'symbol' in df.columns.levels[0]:
+            df = df.stack(dropna=False).reset_index(drop=True)
+        else:
+            df = df.stack(dropna=False).reset_index()
         if adjust_mode == 'post':
             if 'adjust_factor' not in df.columns:
                 df['adjust_factor'] = 1
