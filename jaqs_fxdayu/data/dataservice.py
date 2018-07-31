@@ -10,8 +10,14 @@ from jaqs.data.align import align
 import jaqs.util as jutil
 from jaqs_fxdayu.patch_util import auto_register_patch
 
+
 class DataNotFoundError(Exception):
     pass
+
+
+class SqlError(Exception):
+    pass
+
 
 @auto_register_patch(parent_level=1)
 class RemoteDataService(OriginRemoteDataService):
@@ -151,7 +157,6 @@ class LocalDataService(object):
         self.fp = os.path.abspath(fp)
         sql_path = os.path.join(fp, 'data.sqlite')
 
-        #if not (os.path.exists(sql_path) and os.path.exists(h5_path)):
         if not os.path.exists(sql_path):
             raise FileNotFoundError("在{}目录下没有找到数据文件".format(fp))
 
@@ -165,7 +170,7 @@ class LocalDataService(object):
             name = root.split(self.fp)[-1][1:]
             for file_name in files:
                 if file_name.endswith('.hd5'):
-                    with h5py.File(os.path.join(root, (file_name))) as file:
+                    with h5py.File(os.path.join(root, (file_name, )), 'r') as file:
                         if 'meta' in file.attrs:
                             value = json.loads(file.attrs['meta'])
                             dic[name + '_' + file_name[:-4]] = value
@@ -182,11 +187,12 @@ class LocalDataService(object):
         for path, fields in self._walk_path().items():
             view = path
             for i in fields:
-                with h5py.File(os.path.join(self.fp, path, "%s.hd5" % i)) as file:
+                with h5py.File(os.path.join(self.fp, path, "%s.hd5" % i), 'r') as file:
+                    # noinspection PyBroadException
                     try:
                         lst.append({'view': view + '.' + i,
-                                    'updated_date': file['date_flag'][-1][0]})
-                    except:
+                                    'updated_date': int(file['date_flag'][-1][0])})
+                    except Exception:
                         pass
         d1 = pd.DataFrame(lst)
         d1['freq'] = '1d'
@@ -227,28 +233,31 @@ class LocalDataService(object):
             fields = '*' 
         
         if view in sql_tables:
-            self.c.execute('''PRAGMA table_info([%s])''' % (view))
+            self.c.execute('''PRAGMA table_info([%s])''' % (view, ))
             cols = [i[1] for i in self.c.fetchall()]
             date_names = [i for i in cols if 'date' in i]
             if 'report_date' in date_names:
                 date_name = 'report_date'
+            if 'ann_date' in date_names:
+                date_name = 'ann_date'
             elif len(date_names) == 0:
                 date_name = None
             else:
                 date_name = date_names[0]
 
             flt = filter.split('&')
-            if flt[0] != '':  
-                k,v = flt[0].split('=')
+            flt.sort()
+            if flt[0] != '':
+                k, v = flt[0].split('=')
                 if 'start_date' in flt[0]:
                     condition = '''SELECT %s FROM "%s" WHERE %s >= "%s"''' % (fields, view, date_name, v)
                 elif 'end_date' in flt[0]:
                     condition = '''SELECT %s FROM "%s" WHERE %s <= "%s"''' % (fields, view, date_name, v)
                 else:
                     condition = '''SELECT %s FROM "%s" WHERE %s = "%s"''' % (fields, view, k, v)
-                
+
                 for i in flt[1:]:
-                    k,v = i.split('=')
+                    k, v = i.split('=')
                     if k == 'start_date':
                         condition += ''' AND %s >= "%s"''' % (date_name, v)
                     elif k == 'end_date':
@@ -259,7 +268,7 @@ class LocalDataService(object):
                     else:
                         condition += ''' AND %s = "%s"''' % (k, v)
                 condition = condition + ';'
-            
+
             else:
                 condition = '''SELECT %s FROM "%s";''' % (fields, view)
 
@@ -274,13 +283,13 @@ class LocalDataService(object):
                 data = pd.read_sql(condition, self.conn)
                 return data, "0,"
 
-        elif view == 'factor':      
+        elif view == 'factor':
             dic = {}
             for i in filter.split('&'):
-                k,v = i.split('=')
+                k, v = i.split('=')
                 dic[k] = v
             return self.daily(dic['symbol'], dic['start'], dic['end'], fields, adjust_mode=None)
-        
+
     def query_trade_dates(self,start_date, end_date):
         sql = '''SELECT * FROM "jz.secTradeCal" 
                  WHERE trade_date>=%s 
@@ -294,10 +303,10 @@ class LocalDataService(object):
                  WHERE index_code = "%s" ''' % (universe)
 
         data = pd.read_sql(sql, self.conn)
-        
+
         symbols = [i for i in data['symbol'] if (i[0] == '0' or i[0] == '3' or i[0] == '6')]
         data = data[data['symbol'].isin(symbols)]
-                
+
         data['out_date'][data['out_date'] == ''] = '20990101'
         data['in_date'] = data['in_date'].astype(int)
         data['out_date'] = data['out_date'].astype(int)
@@ -310,7 +319,7 @@ class LocalDataService(object):
     def query_index_member_daily(self, index, start_date, end_date):
         """
         Get index components on each day during start_date and end_date.
-        
+
         Parameters
         ----------
         index : str
@@ -328,7 +337,7 @@ class LocalDataService(object):
         df_io, err_msg = self.query_index_member(index, start_date, end_date, data_format='pandas')
         if err_msg != '0,':
             print(err_msg)
-        
+
         def str2int(s):
             if isinstance(s, basestring):
                 return int(s) if s else 99999999
@@ -338,7 +347,7 @@ class LocalDataService(object):
                 raise NotImplementedError("type s = {}".format(type(s)))
         df_io.loc[:, 'in_date'] = df_io.loc[:, 'in_date'].apply(str2int)
         df_io.loc[:, 'out_date'] = df_io.loc[:, 'out_date'].apply(str2int)
-        
+
         # df_io.set_index('symbol', inplace=True)
         dates = self.query_trade_dates(start_date=start_date, end_date=end_date)
 
@@ -350,43 +359,50 @@ class LocalDataService(object):
                 bool_index = np.logical_and(dates > row['in_date'], dates < row['out_date'])
                 mask[bool_index] = 1
             dic[sec] = mask
-            
+
         res = pd.DataFrame(index=dates, data=dic)
         res.index.name = 'trade_date'
-        
+
         return res
-    
-    def query_lb_fin_stat(self, type_, symbol, start_date, end_date, fields, drop_dup_cols=False):
+
+    def query_lb_fin_stat(self, type_, symbol, start_date, end_date, fields, drop_dup_cols=False, report_type='408001000'):
         view_map = {'income': 'lb.income', 'cash_flow': 'lb.cashFlow', 'balance_sheet': 'lb.balanceSheet',
                     'fin_indicator': 'lb.finIndicator'}
         view_name = view_map.get(type_, None)
         if view_name is None:
             raise NotImplementedError("type_ = {:s}".format(type_))
-        
-        fld = fields
+
         symbols = '("' + '","'.join(symbol.split(',')) + '")'
-        report_type = '408001000'
 
         if fields == "":
             fld = '*'
-        
+        else:
+            fld = fields
+            for i in ['report_date', 'symbol', 'ann_date']:
+                if i not in fld:
+                    fld += ',%s' % (i, )
+
         if view_name == 'lb.finIndicator':
             sql = '''SELECT %s FROM "%s" 
-              WHERE report_date>=%s 
-              AND report_date<=%s 
+              WHERE ann_date>=%s 
+              AND ann_date<=%s 
               AND symbol IN %s ''' % (fld, view_name, start_date, end_date, symbols)
-            
+
         else:
             sql = '''SELECT %s FROM "%s" 
-              WHERE report_date>=%s 
-              AND report_date<=%s 
+              WHERE ann_date>=%s 
+              AND ann_date<=%s 
               AND symbol IN %s 
               AND report_type = "%s"''' % (fld, view_name, start_date, end_date, symbols, report_type)
 
-        data = pd.read_sql(sql, self.conn)
+        try:
+            data = pd.read_sql(sql, self.conn)
+        except Exception as e:
+            raise SqlError('%s data not found' % (view_name,), e)
+
         if drop_dup_cols:
             data = data.drop_duplicates()
-        data[data == ''] = np.NaN
+        data['ann_date'] = data['ann_date'].replace('', np.NaN)
         return data, "0,"
 
     def query_inst_info(self, symbol, fields, inst_type=""):
@@ -410,9 +426,8 @@ class LocalDataService(object):
     def query_lb_dailyindicator(self, symbol, start_date, end_date, fields=""):
         return self.daily(symbol, start_date, end_date, fields=fields, view='SecDailyIndicator')
 
-
     def query_adj_factor_daily(self, symbol_str, start_date, end_date, div=False):
-        data, msg = self.daily(symbol_str, start_date, end_date,fields='adjust_factor')
+        data, msg = self.daily(symbol_str, start_date, end_date, fields='adjust_factor')
         data = data.loc[:, ['trade_date', 'symbol', 'adjust_factor']]
         data = data.drop_duplicates()
         data = data.pivot_table(index='trade_date', columns='symbol', values='adjust_factor', aggfunc=np.mean)
@@ -540,8 +555,12 @@ class LocalDataService(object):
         exist_field = file_info[view]
         if view == 'Stock_D':
             basic_field = ['symbol', 'trade_date', 'freq']
+        # elif view in ['SecDailyIndicator']:
+        #    basic_field = ['symbol', 'trade_date']
         else:
             basic_field = ['symbol', 'trade_date']
+            adjust_mode = None
+
         fields = list(set(fields + basic_field))
         fld = list(set(exist_field) & set(fields))
         
@@ -554,12 +573,13 @@ class LocalDataService(object):
 
         def query_by_field(field):
             _dir = os.path.join(self.fp, view, field + '.hd5')
-            with h5py.File(_dir) as file:
+            with h5py.File(_dir, 'r') as file:
+                # noinspection PyBroadException
                 try:
                     dset = file['data']
                     exist_symbol = file['symbol_flag'][:, 0].astype(str)
                     exist_dates = file['date_flag'][:, 0].astype(int)
-                except:
+                except Exception:
                     raise DataNotFoundError('empty hdf5 file')
 
                 if start not in exist_dates or end not in exist_dates:
@@ -577,16 +597,17 @@ class LocalDataService(object):
                     return None
 
                 data = dset[start_index:end_index, symbol_index]
+                _index = exist_dates[start_index:end_index]
 
                 if data.dtype not in ['float', 'float32', 'float16', 'int']:
                     data = data.astype(str)
                 if field == 'trade_date' and data.dtype in ['float', 'float32', 'float16']:
                     data = data.astype(float).astype(int)
                 cols_multi = pd.MultiIndex.from_product([[field], sorted_symbol], names=['fields', 'symbol'])
-                return pd.DataFrame(columns=cols_multi, data=data)
+                return pd.DataFrame(columns=cols_multi, index=_index, data=data)
         df = pd.concat([query_by_field(f) for f in fld], axis=1)
         df.index.name = 'trade_date'
-        df = df.stack().reset_index(drop=True)
+        df = df.stack(dropna=False).reset_index(drop=True)
 
         if adjust_mode == 'post':
             if 'adjust_factor' not in df.columns:
@@ -610,6 +631,10 @@ class LocalDataService(object):
 
         if ('adjust_factor' not in fields) and adjust_mode:
             df = df.drop(['adjust_factor'], axis=1)
+
+        if len(set(df['symbol'])) == 1:
+            df = df.set_index('trade_date').loc[need_dates, :].reset_index()
+            df['symbol'] = df['symbol'].fillna(method='bfill')
 
         df = df.dropna(how='all')
         df = df[df['trade_date'] > 0]
