@@ -44,6 +44,7 @@ class DataView(OriginDataView):
         self.factor_fields = set()
         self.meta_data_list = self.meta_data_list + ['_prepare_fields','report_type']
         self._prepare_fields = False
+        self._has_prepared_fields = False
         self.report_type = None
 
     def init_from_config(self, props, data_api):
@@ -54,6 +55,13 @@ class DataView(OriginDataView):
         if self._prepare_fields:
             self.prepare_fields(data_api)
         super(DataView, self).init_from_config(_props, data_api)
+
+    def _is_predefined_field(self, field_name):
+        if self._prepare_fields and not self._has_prepared_fields:
+            if self.data_api is None:
+                raise RuntimeError("DataView's data_api is None when calling self.prepare_data.")
+            self.prepare_fields(self.data_api)
+        return super(DataView, self)._is_predefined_field(field_name)
 
     @staticmethod
     def _is_quarterly(params):
@@ -84,6 +92,7 @@ class DataView(OriginDataView):
             custom_quarterly.difference_update(fields)
         self.custom_daily_fields.extend(custom_daily)
         self.custom_quarterly_fields.extend(custom_quarterly)
+        self._has_prepared_fields = True
 
     def distributed_query(self, query_func_name, symbol, start_date, end_date, limit=100000, **kwargs):
 
@@ -975,7 +984,6 @@ class DataView(OriginDataView):
         self._data_benchmark = dic.get('/data_benchmark', None)
         self._data_inst = dic.get('/data_inst', None)
         self.__dict__.update(meta_data)
-
         print("Dataview loaded successfully.")
 
     def add_symbol(self, symbol, data_api=None):
@@ -1073,7 +1081,10 @@ class DataView(OriginDataView):
                     "start_date":start,
                     "end_date": end,
                     "universe": ",".join(self.universe),
-                    'fields': ",".join(self.fields),
+                    "fields": ",".join(self.fields),
+                    "all_price": self.all_price,
+                    "report_type": self.report_type,
+                    "benchmark": self.benchmark,
                     "adjust_mode":self.adjust_mode,
                     "prepare_fields":self._prepare_fields
                 }
@@ -1084,6 +1095,9 @@ class DataView(OriginDataView):
                     "end_date": end,
                     "symbol": ",".join(union_symbol),
                     "fields": ",".join(self.fields),
+                    "all_price": self.all_price,
+                    "report_type": self.report_type,
+                    "benchmark": self.benchmark,
                     "adjust_mode":self.adjust_mode,
                     "prepare_fields":self._prepare_fields
                 }
@@ -1121,17 +1135,32 @@ class DataView(OriginDataView):
             dv =  self
         else:
             dv = self.__class__()
-            props={
-                "start_date": start_date,
-                "end_date": min(end_date, self.end_date),
-                "symbol":",".join(self.symbol),
-                "fields":",".join(self.fields),
-                "adjust_mode": self.adjust_mode,
-                "prepare_fields": self._prepare_fields,
-            }
+            if self.universe and len(self.universe) > 0:
+                props={
+                    "start_date": start_date,
+                    "end_date": end_date,
+                    "universe": ",".join(self.universe),
+                    'fields': ",".join(self.fields),
+                    "all_price": self.all_price,
+                    "report_type": self.report_type,
+                    "adjust_mode":self.adjust_mode,
+                    "prepare_fields":self._prepare_fields
+                }
+            # if you use symbol and in you logic
+            else:
+                props={
+                    "start_date": start_date,
+                    "end_date": end_date,
+                    "symbol": ",".join(self.symbol),
+                    "fields": ",".join(self.fields),
+                    "all_price": self.all_price,
+                    "report_type": self.report_type,
+                    "adjust_mode":self.adjust_mode,
+                    "prepare_fields":self._prepare_fields
+                }
             dv.init_from_config(data_api = data_api or self.data_api, props=props)
+            dv.fields = self.fields
             dv.benchmark = self.benchmark
-            dv.universe = self.universe
             dv.data_q = self.data_q.loc[dv.extended_start_date_q:dv.end_date]
             dv.data_d = self.data_d.loc[dv.extended_start_date_d:dv.end_date]
             dv.data_benchmark = self.data_benchmark.loc[dv.extended_start_date_d:dv.end_date]
