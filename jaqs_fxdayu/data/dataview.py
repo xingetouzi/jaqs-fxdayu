@@ -1143,6 +1143,7 @@ class DataView(OriginDataView):
                     'fields': ",".join(self.fields),
                     "all_price": self.all_price,
                     "report_type": self.report_type,
+                    "benchmark": self.benchmark,
                     "adjust_mode":self.adjust_mode,
                     "prepare_fields":self._prepare_fields
                 }
@@ -1155,16 +1156,15 @@ class DataView(OriginDataView):
                     "fields": ",".join(self.fields),
                     "all_price": self.all_price,
                     "report_type": self.report_type,
+                    "benchmark": self.benchmark,
                     "adjust_mode":self.adjust_mode,
                     "prepare_fields":self._prepare_fields
                 }
             dv.init_from_config(data_api = data_api or self.data_api, props=props)
-            dv.fields = self.fields
-            dv.benchmark = self.benchmark
+            dv.fields = copy.copy(self.fields)
             dv.data_q = self.data_q.loc[dv.extended_start_date_q:dv.end_date]
             dv.data_d = self.data_d.loc[dv.extended_start_date_d:dv.end_date]
             dv.data_benchmark = self.data_benchmark.loc[dv.extended_start_date_d:dv.end_date]
-
         if end_date > dv.end_date:
             print("Sliced dataview's end_date is %s, expected %s, refresh_data is called to extend it." % (dv.end_date, end_date))
             dv.refresh_data(end_date, data_api)
