@@ -173,10 +173,10 @@ class LocalDataService(object):
             self.c.execute('''PRAGMA table_info([%s])''' % (view, ))
             cols = [i[1] for i in self.c.fetchall()]
             date_names = [i for i in cols if 'date' in i]
-            if 'report_date' in date_names:
-                date_name = 'report_date'
             if 'ann_date' in date_names:
                 date_name = 'ann_date'
+            elif 'report_date' in date_names:
+                date_name = 'report_date'
             elif len(date_names) == 0:
                 date_name = None
             else:
@@ -220,12 +220,12 @@ class LocalDataService(object):
                 data = pd.read_sql(condition, self.conn)
                 return data, "0,"
 
-        elif view == 'factor':
+        elif '.' not in view:
             dic = {}
             for i in filter.split('&'):
                 k, v = i.split('=')
                 dic[k] = v
-            return self.daily(dic['symbol'], dic['start'], dic['end'], fields, adjust_mode=None)
+            return self.daily(dic['symbol'], dic['start_date'], dic['end_date'], fields, adjust_mode=None, view=view)
 
     def query_trade_dates(self,start_date, end_date):
         sql = '''SELECT * FROM "jz.secTradeCal" 
@@ -237,7 +237,7 @@ class LocalDataService(object):
 
     def query_index_member(self, universe, start_date, end_date,data_format='list'):
         sql = '''SELECT * FROM "lb.indexCons"
-                 WHERE index_code = "%s" ''' % (universe)
+                 WHERE index_code = "%s" ''' % (universe, )
 
         data = pd.read_sql(sql, self.conn)
 
@@ -490,10 +490,12 @@ class LocalDataService(object):
         if fields in [[''], []]:
             fields = file_info[view]
         exist_field = file_info[view]
+
+        fields.remove('trade_date') if 'trade_date' in fields else None
+        fields.remove('symbol') if 'symbol' in fields else None
+
         if view == 'Stock_D':
-            basic_field = ['symbol', 'trade_date', 'freq']
-        elif view in ['SecDailyIndicator']:
-            basic_field = ['symbol', 'trade_date']
+            basic_field = ['freq']
         else:
             basic_field = []
             adjust_mode = None
@@ -530,7 +532,7 @@ class LocalDataService(object):
                 start_index = np.where(exist_dates == start)[0][0]
                 end_index = np.where(exist_dates == end)[0][0] + 1
 
-                if symbol_index == []:
+                if len(symbol_index) == 0:
                     return None
 
                 data = dset[start_index:end_index, symbol_index]
@@ -544,10 +546,7 @@ class LocalDataService(object):
                 return pd.DataFrame(columns=cols_multi, index=_index, data=data)
         df = pd.concat([query_by_field(f) for f in fld], axis=1)
         df.index.name = 'trade_date'
-        if 'symbol' in df.columns.levels[0]:
-            df = df.stack(dropna=False).reset_index(drop=True)
-        else:
-            df = df.stack(dropna=False).reset_index()
+        df = df.stack(dropna=False).reset_index()
         if adjust_mode == 'post':
             if 'adjust_factor' not in df.columns:
                 df['adjust_factor'] = 1
