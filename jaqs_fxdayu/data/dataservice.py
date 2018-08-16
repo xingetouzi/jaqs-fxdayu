@@ -363,7 +363,64 @@ class LocalDataService(object):
     def query_lb_dailyindicator(self, symbol, start_date, end_date, fields=""):
         return self.daily(symbol, start_date, end_date, fields=fields, view='SecDailyIndicator')
 
-    def query_adj_factor_daily(self, symbol_str, start_date, end_date, div=False):
+    def query_adj_factor_daily(self, symbol, start_date, end_date, div=False):
+        """
+        Get index components on each day during start_date and end_date.
+
+        Parameters
+        ----------
+        symbol : str
+            separated by ','
+        start_date : int
+        end_date : int
+        div : bool
+            False for normal adjust factor, True for diff.
+
+        Returns
+        -------
+        res : pd.DataFrame
+            index dates, columns symbols
+            values are industry code
+
+        """
+        _flt = 'symbol=%s&start_date=%s&end_date=%s' % (symbol, start_date, end_date)
+
+        # noinspection PyBroadException
+        try:
+            df_raw, msg = self.query('lb.secAdjFactor', _flt, '')
+        except Exception:
+            print('query adjust_factor from Stock_D')
+            return self.query_adj_factor_daily_2(symbol, start_date, end_date)
+
+        dic_sec = jutil.group_df_to_dict(df_raw, by='symbol')
+        dic_sec = {sec: df.set_index('trade_date').loc[:, 'adjust_factor']
+                   for sec, df in dic_sec.items()}
+
+        # TODO: duplicate codes with dataview.py: line 512
+        res = pd.concat(dic_sec, axis=1)  # TODO: fillna ?
+
+        idx = np.unique(np.concatenate([df.index.values for df in dic_sec.values()]))
+        symbol_arr = np.sort(symbol.split(','))
+        res_final = pd.DataFrame(index=idx, columns=symbol_arr, data=np.nan)
+        res_final.loc[res.index, res.columns] = res
+
+        # align to every trade date
+        s, e = df_raw.loc[:, 'trade_date'].min(), df_raw.loc[:, 'trade_date'].max()
+        dates_arr = self.query_trade_dates(s, e)
+        if not len(dates_arr) == len(res_final.index):
+            res_final = res_final.reindex(dates_arr)
+
+            res_final = res_final.fillna(method='ffill').fillna(method='bfill')
+
+        if div:
+            res_final = res_final.div(res_final.shift(1, axis=0)).fillna(1.0)
+
+        # res = res.loc[start_date: end_date, :]
+        res_final.index = res_final.index.astype(int)
+
+        return res_final
+
+    def query_adj_factor_daily_2(self, symbol_str, start_date, end_date, div=False):
         data, msg = self.daily(symbol_str, start_date, end_date, fields='adjust_factor')
         data = data.loc[:, ['trade_date', 'symbol', 'adjust_factor']]
         data = data.drop_duplicates()
@@ -550,8 +607,6 @@ class LocalDataService(object):
         if adjust_mode == 'post':
             if 'adjust_factor' not in df.columns:
                 df['adjust_factor'] = 1
-            else:
-                df['adjust_factor'] = df['adjust_factor'].fillna(1)
 
             for f in list(set(df.columns) & set(['open', 'high', 'low', 'close', 'vwap'])):
                 df[f] = df[f]*df['adjust_factor']
@@ -560,8 +615,6 @@ class LocalDataService(object):
         if adjust_mode == 'pre':
             if 'adjust_factor' not in df.columns:
                 df['adjust_factor'] = 1
-            else:
-                df['adjust_factor'] = df['adjust_factor'].fillna(1)
 
             for f in list(set(df.columns) & set(['open', 'high', 'low', 'close', 'vwap'])):
                 df[f] = df[f]/df['adjust_factor']
