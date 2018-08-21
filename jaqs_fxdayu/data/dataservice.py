@@ -218,6 +218,8 @@ class LocalDataService(object):
                 return data, '0, '
             elif data_format == 'pandas':
                 data = pd.read_sql(condition, self.conn)
+                if 'ann_date' in data.columns:
+                    data['ann_date'] = data['ann_date'].astype(float)
                 return data, "0,"
 
         elif '.' not in view:
@@ -227,7 +229,7 @@ class LocalDataService(object):
                 dic[k] = v
             return self.daily(dic['symbol'], dic['start_date'], dic['end_date'], fields, adjust_mode=None, view=view)
 
-    def query_trade_dates(self,start_date, end_date):
+    def query_trade_dates(self, start_date, end_date):
         sql = '''SELECT * FROM "jz.secTradeCal" 
                  WHERE trade_date>=%s 
                  AND trade_date<=%s ''' % (start_date, end_date)
@@ -339,7 +341,7 @@ class LocalDataService(object):
 
         if drop_dup_cols:
             data = data.drop_duplicates()
-        data['ann_date'] = data['ann_date'].replace('', np.NaN)
+        data['ann_date'] = data['ann_date'].replace('', np.NaN).astype(float)
         return data, "0,"
 
     def query_inst_info(self, symbol, fields, inst_type=""):
@@ -503,9 +505,8 @@ class LocalDataService(object):
         res = res.loc[res.index <= end_date]
         
         mask_col = res.sum(axis=0) > 0
-        res = res.loc[:, mask_col]
-        
         return res
+        res = res.loc[:, mask_col]
 
     def _walk_path(self, path=None):
         res = {}
