@@ -1209,3 +1209,94 @@ class DataView(OriginDataView):
         if isinstance(data_q, pd.DataFrame):
             data_q = data_q.ffill()
         return data_d, data_q
+
+    def get(self, symbol="", start_date=0, end_date=0, fields="", date_type="int"):
+        """
+        Basic API to get arbitrary data. If nothing fetched, return None.
+
+        Parameters
+        ----------
+        symbol : str, optional
+            Separated by ',' default "" (all securities).
+        start_date : int, optional
+            Default 0 (self.start_date).
+        end_date : int, optional
+            Default 0 (self.start_date).
+        fields : str, optional
+            Separated by ',' default "" (all fields).
+
+        Returns
+        -------
+        res : pd.DataFrame or None
+            index is datetimeindex, columns are (symbol, fields) MultiIndex
+
+        """
+
+        def trans_t(x):
+            value = str(int(x))
+            format = '%Y%m%d' if len(value) == 8 else '%Y%m%d%H%M%S'
+            pd.to_datetime(value, format=format)
+            return pd.to_datetime(value, format=format)
+
+        sep = ','
+
+        if not fields:
+            fields = slice(None)  # self.fields
+        else:
+            fields = fields.split(sep)
+
+        if not symbol:
+            symbol = slice(None)  # this is 3X faster than symbol = self.symbol
+        else:
+            symbol = symbol.split(sep)
+
+        if not start_date:
+            start_date = self.start_date
+        if not end_date:
+            end_date = self.end_date
+
+        res = self.data.loc[pd.IndexSlice[start_date: end_date], pd.IndexSlice[symbol, fields]]
+        if date_type!="int":
+            res.index = pd.Series(res.index).apply(lambda x:trans_t(x))
+        return res
+
+    def get_symbol(self, symbol, start_date=0, end_date=0, fields="", date_type="int"):
+        res = self.get(symbol, start_date=start_date, end_date=end_date, fields=fields, date_type=date_type)
+        if res is None:
+            raise ValueError("No data. for "
+                             "start_date={}, end_date={}, field={}, symbol={}".format(start_date, end_date,
+                                                                                      fields, symbol))
+
+        res.columns = res.columns.droplevel(level='symbol')
+        return res
+
+    def get_ts(self, field, symbol="", start_date=0, end_date=0, date_type="int"):
+        """
+        Get time series data of single field.
+
+        Parameters
+        ----------
+        field : str or unicode
+            Single field.
+        symbol : str, optional
+            Separated by ',' default "" (all securities).
+        start_date : int, optional
+            Default 0 (self.start_date).
+        end_date : int, optional
+            Default 0 (self.start_date).
+
+        Returns
+        -------
+        res : pd.DataFrame
+            Index is int date, column is symbol.
+
+        """
+        res = self.get(symbol, start_date=start_date, end_date=end_date, fields=field, date_type=date_type)
+        if res is None:
+            print("No data. for start_date={}, end_date={}, field={}, symbol={}".format(start_date,
+                                                                                        end_date, field, symbol))
+            raise ValueError
+
+        res.columns = res.columns.droplevel(level='field')
+
+        return res
