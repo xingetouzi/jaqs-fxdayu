@@ -4,10 +4,12 @@ from jaqs.data.dataservice import RemoteDataService as OriginRemoteDataService
 import os
 import h5py
 import json
+import bisect
 import numpy as np
 import pandas as pd
-from jaqs.data.align import align
 import jaqs.util as jutil
+from datetime import datetime
+from jaqs.data.align import align
 from jaqs_fxdayu.patch_util import auto_register_patch
 
 
@@ -219,6 +221,115 @@ class LocalDataService(object):
         updater = {k: set([i[:-4] for i in os.listdir(os.path.join(self.fp, k)) if i.endswith('hd5')]) for k in keys if os.path.isfile(k)}
         mapper.update(updater)
         return mapper
+
+    @staticmethod
+    def query_one(field, path, symbol=None, start_date=None, end_date=None):
+        _dir = os.path.join(path, field + '.hd5')
+        with h5py.File(_dir, 'r') as file:
+            # noinspection PyBroadException
+            try:
+                dset = file['data']
+                exist_symbol = file['symbol_flag'][:, 0].astype(str)
+                exist_dates = file['date_flag'][:, 0].astype(str)
+            except Exception:
+                raise ValueError('error hdf5 file')
+
+            if not start_date:
+                start_date = min(exist_dates)
+            if not end_date:
+                end_date = max(exist_dates)
+
+            if not symbol:
+                symbol = exist_symbol
+
+            symbol_index = [i for i in range(len(exist_symbol)) if exist_symbol[i] in symbol]
+            sorted_symbol = [exist_symbol[i] for i in symbol_index]
+            start_index = bisect.bisect_left(exist_dates, start_date)
+            end_index = bisect.bisect_left(exist_dates, end_date)
+
+            data = dset[start_index:end_index, symbol_index]
+            _index = exist_dates[start_index:end_index]
+
+            try:
+                data = data.astype(float)
+            except Exception:
+                pass
+
+            if data.dtype not in ['float', 'float32', 'float16', 'int']:
+                data = data.astype(str)
+
+            cols_multi = pd.MultiIndex.from_product([[field], sorted_symbol], names=['fields', 'symbol'])
+            return pd.DataFrame(columns=cols_multi, index=_index, data=data)
+
+    def read_bar(self, path, props, resample_rules=None):
+        '''
+        :param props:
+        配置项包括symbol, start_date, end_date , field, freq
+        start_date/end_date : int   精确到秒 ，共14位数字
+        symbol :str/list
+        field  :  str/list
+        freq  :  str/list
+        配置项均可为空，代表读全部数据
+        :param path:
+        hdf5文件上一级目录
+        :return:
+        pandas.DataFrame
+        多个freq返回
+        '''
+        symbol = props.get('symbol')
+        fields = props.get('fields')
+        start_date = props.get('start_date')
+        end_date = props.get('end_date')
+        freq = props.get('freq')
+
+        if isinstance(fields, str):
+            fields = fields.split(',')
+        if isinstance(symbol, str):
+            symbol = symbol.split(',')
+        if isinstance(freq, str):
+            freq = freq.split(',')
+
+        exist_field = [i.split('.')[0] for i in os.listdir(path)]
+        basic_field = ['datetime']
+        if not fields or fields == ['']:
+            fld = exist_field
+        else:
+            fields.extend(basic_field)
+            fld = list(set(exist_field) & set(fields))
+        df = pd.concat([self.query_one(f, path, start_date=start_date, end_date=end_date, symbol=symbol) for f in fld],
+                       axis=1)
+        df.index.name = 'trade_date'
+        df = df.stack(-1, dropna=False).reset_index()
+
+        def func(d):
+            if d == 'None':
+                return None
+            else:
+                return datetime.strptime(d[:19], '%Y-%m-%d %H:%M:%S')
+
+        df['datetime'] = [func(i) for i in df['datetime']]
+        df = df.sort_values(by=['symbol', 'trade_date'])
+        df = df.set_index('datetime').dropna(how='all')
+        res = df.reset_index()
+
+        if freq:
+            if not resample_rules:
+                resample_rules = {'high': 'max', 'open': 'first', 'close': 'last',
+                                  'low': 'min', 'volume': 'sum', 'symbol': 'last',
+                                  'Ignore': 'last', 'buy_base_volume': 'sum',
+                                  'buy_quote_volume': 'sum', 'closetime': 'last',
+                                  'date': 'last', 'datetime': 'first', 'exchange': 'last',
+                                  'gatewayName': 'last', 'number_of_trades': 'sum',
+                                  'openInterest': 'last', 'quote_volume': 'sum',
+                                  'rawData': 'last', 'time': 'first', 'vtSymbol': 'last',
+                                  'trade_date': 'first'}
+            new_rules = {i: resample_rules[i] for i in df.columns.values}
+            res = {}
+            for f in freq:
+                res[f] = df.groupby('symbol').resample(f).agg(new_rules).drop('symbol', axis=1).reset_index()
+            if len(res.keys()) == 1:
+                k, res = list(res.items())[0]
+        return res
 
     def query(self, view, filter, fields, **kwargs):
         if view == 'attrs':
