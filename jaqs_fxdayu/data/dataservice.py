@@ -232,6 +232,7 @@ class LocalDataService(object):
                 dset = file['data']
                 exist_symbol = file['symbol_flag'][:, 0].astype(str)
                 exist_dates = file['date_flag'][:, 0].astype(np.int64)
+
             except Exception:
                 raise ValueError('error hdf5 file')
 
@@ -263,7 +264,6 @@ class LocalDataService(object):
             return pd.DataFrame(columns=cols_multi, index=_index, data=data)
 
     def bar_reader(self, path, props, resample_rules=None):
-        '''
         :param props:
         配置项包括symbol, start_date, end_date , field, freq
         start_date/end_date : int   精确到秒 ，共14位数字
@@ -344,6 +344,7 @@ class LocalDataService(object):
                     df1 = df.groupby('symbol').resample(f).agg(new_rules).drop('symbol', axis=1).reset_index()
                     df1['trade_date'] = [trans_time(i, 'int') for i in df1['datetime']]
                     res[f] = df1
+
             if len(res.keys()) == 1:
                 k, res = list(res.items())[0]
         return res

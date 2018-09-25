@@ -23,7 +23,7 @@ from jaqs_fxdayu.data import RemoteDataService # 远程数据服务类
 
 # step 1 其中，username password分别对应官网注册的账号和序列号
 data_config = {
-"remote.data.address": "tcp://data.quantos.org:8910", # 数据服务tcp地址
+"remote.data.address": "tcp://data.quantOS.org:8910", # 数据服务tcp地址
 "remote.data.username": "18566262672",# 账号
 "remote.data.password": "eyJhbGciOiJIUzI1NiJ9.eyJjcmVhdGVfdGltZSI6IjE1MTI3MDI3NTAyMTIiLCJpc3MiOiJhdXRoMCIsImlkIjoiMTg1NjYyNjI2NzIifQ.O_-yR0zYagrLRvPbggnru1Rapk4kiyAzcwYt2a3vlpM",
 "timeout":180 #超时设置(秒),请求超时会报错
@@ -35,7 +35,7 @@ ds.init_from_config(data_config)
 ```
 
     
-    Begin: DataApi login 18566262672@tcp://data.quantos.org:8910
+    Begin: DataApi login 18566262672@tcp://data.quantOS.org:8910
         login success 
     
 
@@ -115,6 +115,7 @@ df.head()
       <th>low</th>
       <th>oi</th>
       <th>open</th>
+      <th>preclose</th>
       <th>presettle</th>
       <th>settle</th>
       <th>symbol</th>
@@ -135,6 +136,7 @@ df.head()
       <td>2101.016</td>
       <td>NaN</td>
       <td>2112.126</td>
+      <td>2115.978</td>
       <td>NaN</td>
       <td>NaN</td>
       <td>000001.SH</td>
@@ -153,6 +155,7 @@ df.head()
       <td>2075.899</td>
       <td>NaN</td>
       <td>2101.542</td>
+      <td>2109.387</td>
       <td>NaN</td>
       <td>NaN</td>
       <td>000001.SH</td>
@@ -171,6 +174,7 @@ df.head()
       <td>2034.006</td>
       <td>NaN</td>
       <td>2078.684</td>
+      <td>2083.136</td>
       <td>NaN</td>
       <td>NaN</td>
       <td>000001.SH</td>
@@ -189,6 +193,7 @@ df.head()
       <td>2029.246</td>
       <td>NaN</td>
       <td>2034.224</td>
+      <td>2045.709</td>
       <td>NaN</td>
       <td>NaN</td>
       <td>000001.SH</td>
@@ -207,6 +212,7 @@ df.head()
       <td>2037.110</td>
       <td>NaN</td>
       <td>2047.256</td>
+      <td>2047.317</td>
       <td>NaN</td>
       <td>NaN</td>
       <td>000001.SH</td>
@@ -522,50 +528,50 @@ df.head()
     <tr>
       <th>000001.SZ</th>
       <td>NaN</td>
-      <td>11.05</td>
+      <td>8.74</td>
       <td>0.0</td>
-      <td>11.06</td>
-      <td>11.07</td>
-      <td>11.08</td>
-      <td>11.09</td>
+      <td>8.75</td>
+      <td>8.76</td>
+      <td>8.77</td>
+      <td>8.78</td>
       <td>0.0</td>
       <td>0.0</td>
       <td>0.0</td>
       <td>...</td>
-      <td>10.89</td>
+      <td>8.88</td>
       <td>0</td>
       <td>0.0</td>
       <td>0.0</td>
       <td>000001.SZ</td>
       <td>150003000</td>
-      <td>20180329</td>
-      <td>1.445282e+09</td>
-      <td>133060238</td>
-      <td>10.861861</td>
+      <td>20180716</td>
+      <td>6.034277e+08</td>
+      <td>68984558</td>
+      <td>8.747287</td>
     </tr>
     <tr>
       <th>000002.SZ</th>
       <td>NaN</td>
-      <td>34.16</td>
+      <td>23.15</td>
       <td>0.0</td>
-      <td>34.17</td>
-      <td>34.18</td>
-      <td>34.19</td>
-      <td>34.20</td>
+      <td>23.16</td>
+      <td>23.17</td>
+      <td>23.18</td>
+      <td>23.19</td>
       <td>0.0</td>
       <td>0.0</td>
       <td>0.0</td>
       <td>...</td>
-      <td>31.33</td>
+      <td>23.72</td>
       <td>0</td>
       <td>0.0</td>
       <td>0.0</td>
       <td>000002.SZ</td>
       <td>150003000</td>
-      <td>20180329</td>
-      <td>3.311803e+09</td>
-      <td>99970072</td>
-      <td>33.127942</td>
+      <td>20180716</td>
+      <td>9.947463e+08</td>
+      <td>43069406</td>
+      <td>23.096355</td>
     </tr>
   </tbody>
 </table>
@@ -643,9 +649,9 @@ df.head()
       <th>askvolume4</th>
       <th>askvolume5</th>
       <th>...</th>
-      <th>low</th>
-      <th>oi</th>
       <th>open</th>
+      <th>sell_cancel_volume</th>
+      <th>sell_volume</th>
       <th>settle</th>
       <th>symbol</th>
       <th>time</th>
@@ -669,9 +675,9 @@ df.head()
       <td>47100.0</td>
       <td>2400.0</td>
       <td>...</td>
-      <td>10.84</td>
-      <td>NaN</td>
       <td>10.85</td>
+      <td>0.0</td>
+      <td>0.0</td>
       <td>NaN</td>
       <td>000001.SZ</td>
       <td>93100</td>
@@ -694,8 +700,8 @@ df.head()
       <td>80600.0</td>
       <td>...</td>
       <td>10.86</td>
-      <td>NaN</td>
-      <td>10.86</td>
+      <td>0.0</td>
+      <td>0.0</td>
       <td>NaN</td>
       <td>000001.SZ</td>
       <td>93200</td>
@@ -717,9 +723,9 @@ df.head()
       <td>134600.0</td>
       <td>195200.0</td>
       <td>...</td>
-      <td>10.87</td>
-      <td>NaN</td>
       <td>10.88</td>
+      <td>0.0</td>
+      <td>0.0</td>
       <td>NaN</td>
       <td>000001.SZ</td>
       <td>93300</td>
@@ -741,9 +747,9 @@ df.head()
       <td>86074.0</td>
       <td>95500.0</td>
       <td>...</td>
-      <td>10.86</td>
-      <td>NaN</td>
       <td>10.87</td>
+      <td>0.0</td>
+      <td>0.0</td>
       <td>NaN</td>
       <td>000001.SZ</td>
       <td>93400</td>
@@ -766,8 +772,8 @@ df.head()
       <td>128700.0</td>
       <td>...</td>
       <td>10.86</td>
-      <td>NaN</td>
-      <td>10.86</td>
+      <td>0.0</td>
+      <td>0.0</td>
       <td>NaN</td>
       <td>000001.SZ</td>
       <td>93500</td>
@@ -778,7 +784,7 @@ df.head()
     </tr>
   </tbody>
 </table>
-<p>5 rows × 35 columns</p>
+<p>5 rows × 39 columns</p>
 </div>
 
 
@@ -796,8 +802,8 @@ df.head()
 |参数名|必选|类型|说明|
 |:----    |:---|:----- |-----   |
 |view|是 |string|参考数据的api名称,如"jz.instrumentInfo"(证券基础信息),"help.apiList"(帮助列表)|
-|filter|否 |string|过滤条件|
-|fields |否 | str |字段 以 ','隔开, 默认 ""|
+|filter|否 |string|过滤条件。过滤条件支持两种写法：1)以某个关键字的值作为条件来查询："[字段值]=[某个值]"。多个值以"，"隔开。 2)按关键字范围来查询："start[字段值]=[某个值]&end[字段值]=[某个值]"。多个条件以"&"作为分隔符。例如：filter="symbol=600030.SH,000063.SZ,000001.SZ&report_type=408002000&start_date=20160601&end_date=20170601"|
+|fields |否 | str |要查询的字段 以 ','隔开, 默认 ""|
 
 
 
@@ -813,7 +819,7 @@ err_msg : str
 
 ## 查询帮助文档
 
-- 目前，可查询到的帮助文档并不完整，常用的参考数据api如'lb.finIndicator'(金融指标),"lb.profitExpress"（业绩快报）,"lb.secDailyIndicator"(日行情估值)等api无法查询字段细节
+- 目前，可查询到的帮助文档并不完整，如"lb.profitExpress"（业绩快报）,"lb.secRestricted"(限售股解禁表)等api无法查询字段细节。文档还在不断完善中。
 
 
 ```python
@@ -871,60 +877,204 @@ df
     </tr>
     <tr>
       <th>3</th>
+      <td>jy.qincome</td>
+      <td>季度利润表</td>
+      <td>季度利润表</td>
+    </tr>
+    <tr>
+      <th>4</th>
       <td>jz.instrumentInfo</td>
       <td>证券基本信息</td>
       <td>证券基础信息</td>
     </tr>
     <tr>
-      <th>4</th>
+      <th>5</th>
       <td>jz.secTradeCal</td>
       <td>交易日历</td>
       <td>交易日历</td>
     </tr>
     <tr>
-      <th>5</th>
+      <th>6</th>
+      <td>lb.balanceSheet</td>
+      <td>资产负债表</td>
+      <td>资产负债表</td>
+    </tr>
+    <tr>
+      <th>7</th>
+      <td>lb.cashFlow</td>
+      <td>现金流量表</td>
+      <td>现金流量表</td>
+    </tr>
+    <tr>
+      <th>8</th>
+      <td>lb.dcCoinInfo</td>
+      <td>数字货币信息</td>
+      <td>数字货币信息</td>
+    </tr>
+    <tr>
+      <th>9</th>
+      <td>lb.dcDaily</td>
+      <td>数字货币日行情</td>
+      <td>数字货币日行情</td>
+    </tr>
+    <tr>
+      <th>10</th>
+      <td>lb.dcExchangeInfo</td>
+      <td>十大数字货币交易所信息</td>
+      <td>数字货币交易所信息</td>
+    </tr>
+    <tr>
+      <th>11</th>
+      <td>lb.dcTradeInfo</td>
+      <td>数字货币交易标的信息</td>
+      <td>数字货币交易标的信息</td>
+    </tr>
+    <tr>
+      <th>12</th>
+      <td>lb.hkSecDailyIndicator</td>
+      <td>港股日行情指标</td>
+      <td>港股日行情指标</td>
+    </tr>
+    <tr>
+      <th>13</th>
+      <td>lb.income</td>
+      <td>利润表</td>
+      <td>利润表</td>
+    </tr>
+    <tr>
+      <th>14</th>
       <td>lb.indexCons</td>
       <td>指数成份股</td>
       <td>指数成份股</td>
     </tr>
     <tr>
-      <th>6</th>
+      <th>15</th>
       <td>lb.indexInfo</td>
       <td>指数基本信息</td>
       <td>指数基本信息</td>
     </tr>
     <tr>
-      <th>7</th>
+      <th>16</th>
       <td>lb.industryType</td>
       <td>行业代码表</td>
       <td>行业代码表</td>
     </tr>
     <tr>
-      <th>8</th>
+      <th>17</th>
+      <td>lb.mfDailyPerform</td>
+      <td>公募基金行情表现</td>
+      <td>公募基金行情表现</td>
+    </tr>
+    <tr>
+      <th>18</th>
       <td>lb.mfNav</td>
       <td>公募基金净值</td>
       <td>公募基金净值</td>
     </tr>
     <tr>
-      <th>9</th>
+      <th>19</th>
       <td>lb.secAdjFactor</td>
       <td>复权因子</td>
       <td>复权因子</td>
     </tr>
     <tr>
-      <th>10</th>
+      <th>20</th>
+      <td>lb.secArchives</td>
+      <td>公司概况</td>
+      <td>公司概况</td>
+    </tr>
+    <tr>
+      <th>21</th>
+      <td>lb.secDailyIndicator</td>
+      <td>股票每日指标</td>
+      <td>股票每日指标</td>
+    </tr>
+    <tr>
+      <th>22</th>
+      <td>lb.secDailyPerform</td>
+      <td>股票行情表现</td>
+      <td>股票行情表现</td>
+    </tr>
+    <tr>
+      <th>23</th>
       <td>lb.secDividend</td>
       <td>分红送股</td>
       <td>分红送股表</td>
     </tr>
     <tr>
-      <th>11</th>
+      <th>24</th>
+      <td>lb.secFinIndicators</td>
+      <td>财务数据指标</td>
+      <td>财务数据指标</td>
+    </tr>
+    <tr>
+      <th>25</th>
+      <td>lb.secFrozenPledger</td>
+      <td>股东股权冻结和质押</td>
+      <td>股东股权冻结和质押</td>
+    </tr>
+    <tr>
+      <th>26</th>
+      <td>lb.secHolderNumber</td>
+      <td>股东户数</td>
+      <td>股东户数</td>
+    </tr>
+    <tr>
+      <th>27</th>
+      <td>lb.secHoldingStats</td>
+      <td>股东持股统计</td>
+      <td>股东持股统计</td>
+    </tr>
+    <tr>
+      <th>28</th>
+      <td>lb.secIEXDaily</td>
+      <td>美股公司日行情</td>
+      <td>美股公司日行情</td>
+    </tr>
+    <tr>
+      <th>29</th>
+      <td>lb.secIEXEps</td>
+      <td>美股公司每股收益指标</td>
+      <td>美股公司每股收益指标</td>
+    </tr>
+    <tr>
+      <th>30</th>
+      <td>lb.secIEXFinIndex</td>
+      <td>美股公司财务报表指标</td>
+      <td>美股公司财务报表指标</td>
+    </tr>
+    <tr>
+      <th>31</th>
+      <td>lb.secIEXSymbol</td>
+      <td>美股公司股票列表</td>
+      <td>美股公司股票列表</td>
+    </tr>
+    <tr>
+      <th>32</th>
       <td>lb.secIndustry</td>
       <td>行业分类信息</td>
       <td>行业分类</td>
     </tr>
     <tr>
-      <th>12</th>
+      <th>33</th>
+      <td>lb.secMainHolders</td>
+      <td>股东名单</td>
+      <td>股东名单</td>
+    </tr>
+    <tr>
+      <th>34</th>
+      <td>lb.secNewestFinIndex</td>
+      <td>A股公司最新财务指标</td>
+      <td>A股公司最新财务指标</td>
+    </tr>
+    <tr>
+      <th>35</th>
+      <td>lb.secNewestShareStru</td>
+      <td>最新公司股本结构</td>
+      <td>最新公司股本结构</td>
+    </tr>
+    <tr>
+      <th>36</th>
       <td>lb.secSusp</td>
       <td>停复牌数据</td>
       <td>停复牌</td>
@@ -939,7 +1089,7 @@ df
 
 
 ```python
-df ,msg = ds.query(view="help.apiParam",fields="",filter="api=jy.cashFlow") # 查询现金流量表可选字段
+df ,msg = ds.query(view="help.apiParam",fields="",filter="api=lb.cashFlow") # 查询现金流量表可选字段
 df.tail()
 ```
 
@@ -975,57 +1125,409 @@ df.tail()
   </thead>
   <tbody>
     <tr>
-      <th>62</th>
-      <td>jy.cashFlow</td>
+      <th>118</th>
+      <td>lb.cashFlow</td>
       <td></td>
       <td>Double</td>
       <td>N</td>
-      <td>others</td>
-      <td>其他</td>
+      <td>tot_bal_netcash_inc</td>
+      <td>现金净增加额差额(合计平衡项目)</td>
       <td>OUT</td>
     </tr>
     <tr>
-      <th>63</th>
-      <td>jy.cashFlow</td>
+      <th>119</th>
+      <td>lb.cashFlow</td>
       <td></td>
       <td>Double</td>
       <td>N</td>
-      <td>conv_debt_into_cap</td>
-      <td>债务转为资本</td>
+      <td>spe_bal_netcash_equ_undir</td>
+      <td>间接法-经营活动现金流量净额差额(特殊报表科目)</td>
       <td>OUT</td>
     </tr>
     <tr>
-      <th>64</th>
-      <td>jy.cashFlow</td>
+      <th>120</th>
+      <td>lb.cashFlow</td>
       <td></td>
       <td>Double</td>
       <td>N</td>
-      <td>conv_corp_bonds_due_within_1y</td>
-      <td>一年内到期的可转换公司债券</td>
+      <td>tot_bal_netcash_equ_undir</td>
+      <td>间接法-经营活动现金流量净额差额(合计平衡项目)</td>
       <td>OUT</td>
     </tr>
     <tr>
-      <th>65</th>
-      <td>jy.cashFlow</td>
+      <th>121</th>
+      <td>lb.cashFlow</td>
       <td></td>
       <td>Double</td>
       <td>N</td>
-      <td>fa_fnc_leases</td>
-      <td>融资租入固定资产</td>
+      <td>spe_bal_netcash_inc_undir</td>
+      <td>间接法-现金净增加额差额(特殊报表科目)</td>
       <td>OUT</td>
     </tr>
     <tr>
-      <th>66</th>
-      <td>jy.cashFlow</td>
+      <th>122</th>
+      <td>lb.cashFlow</td>
       <td></td>
       <td>Double</td>
       <td>N</td>
-      <td>end_bal_cash</td>
-      <td>现金的期末余额</td>
+      <td>tot_bal_netcash_inc_undir</td>
+      <td>间接法-现金净增加额差额(合计平衡项目)</td>
       <td>OUT</td>
     </tr>
   </tbody>
 </table>
+</div>
+
+
+
+## 根据帮助文档细节-可选字段查询具体内容
+
+
+```python
+df, msg = ds.query(
+                view="lb.cashFlow",
+                fields="fa_fnc_leases",
+                filter="symbol=600030.SH,000063.SZ,000001.SZ&report_type=408002000&start_date=20160601&end_date=20170601",
+                data_format='pandas')
+df
+```
+
+
+
+
+<div>
+<style>
+    .dataframe thead tr:only-child th {
+        text-align: right;
+    }
+
+    .dataframe thead th {
+        text-align: left;
+    }
+
+    .dataframe tbody tr th {
+        vertical-align: top;
+    }
+</style>
+<table border="1" class="dataframe">
+  <thead>
+    <tr style="text-align: right;">
+      <th></th>
+      <th>ann_date</th>
+      <th>cash_recp_prem_orig_inco</th>
+      <th>cash_recp_return_invest</th>
+      <th>cash_recp_sg_and_rs</th>
+      <th>fa_fnc_leases</th>
+      <th>incl_dvd_profit_paid_sc_ms</th>
+      <th>net_cash_flows_inv_act</th>
+      <th>net_cash_received_reinsu_bus</th>
+      <th>net_incr_dep_cob</th>
+      <th>net_incr_disp_tfa</th>
+      <th>...</th>
+      <th>net_incr_int_handling_chrg</th>
+      <th>net_incr_loans_central_bank</th>
+      <th>other_cash_recp_ral_fnc_act</th>
+      <th>other_cash_recp_ral_oper_act</th>
+      <th>recp_tax_rends</th>
+      <th>report_date</th>
+      <th>report_type</th>
+      <th>stot_cash_inflows_oper_act</th>
+      <th>stot_cash_outflows_oper_act</th>
+      <th>symbol</th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr>
+      <th>0</th>
+      <td>20160812</td>
+      <td>0.0</td>
+      <td>6.851000e+09</td>
+      <td>0.000000e+00</td>
+      <td>0.0</td>
+      <td>0.000000e+00</td>
+      <td>-2.912000e+10</td>
+      <td>0.0</td>
+      <td>3.130000e+09</td>
+      <td>0.0</td>
+      <td>...</td>
+      <td>3.345900e+10</td>
+      <td>3.802800e+10</td>
+      <td>0.0</td>
+      <td>1.553000e+09</td>
+      <td>0.000000e+00</td>
+      <td>20160630</td>
+      <td>408002000</td>
+      <td>7.374400e+10</td>
+      <td>1.662100e+11</td>
+      <td>000001.SZ</td>
+    </tr>
+    <tr>
+      <th>1</th>
+      <td>20161021</td>
+      <td>0.0</td>
+      <td>7.687000e+09</td>
+      <td>0.000000e+00</td>
+      <td>0.0</td>
+      <td>0.000000e+00</td>
+      <td>2.673900e+10</td>
+      <td>0.0</td>
+      <td>2.108000e+09</td>
+      <td>0.0</td>
+      <td>...</td>
+      <td>3.308600e+10</td>
+      <td>-3.047500e+10</td>
+      <td>0.0</td>
+      <td>5.779000e+09</td>
+      <td>0.000000e+00</td>
+      <td>20160930</td>
+      <td>408002000</td>
+      <td>1.936900e+10</td>
+      <td>1.391130e+11</td>
+      <td>000001.SZ</td>
+    </tr>
+    <tr>
+      <th>2</th>
+      <td>20170317</td>
+      <td>0.0</td>
+      <td>6.222000e+09</td>
+      <td>0.000000e+00</td>
+      <td>0.0</td>
+      <td>0.000000e+00</td>
+      <td>-5.181000e+09</td>
+      <td>0.0</td>
+      <td>1.542100e+11</td>
+      <td>0.0</td>
+      <td>...</td>
+      <td>3.085400e+10</td>
+      <td>7.585000e+09</td>
+      <td>0.0</td>
+      <td>-1.116000e+09</td>
+      <td>0.000000e+00</td>
+      <td>20161231</td>
+      <td>408002000</td>
+      <td>2.514760e+11</td>
+      <td>8.754500e+10</td>
+      <td>000001.SZ</td>
+    </tr>
+    <tr>
+      <th>3</th>
+      <td>20170422</td>
+      <td>0.0</td>
+      <td>8.120000e+09</td>
+      <td>0.000000e+00</td>
+      <td>0.0</td>
+      <td>0.000000e+00</td>
+      <td>-4.720900e+10</td>
+      <td>0.0</td>
+      <td>0.000000e+00</td>
+      <td>0.0</td>
+      <td>...</td>
+      <td>3.559700e+10</td>
+      <td>5.922000e+09</td>
+      <td>0.0</td>
+      <td>1.366700e+10</td>
+      <td>0.000000e+00</td>
+      <td>20170331</td>
+      <td>408002000</td>
+      <td>4.716300e+10</td>
+      <td>1.621710e+11</td>
+      <td>000001.SZ</td>
+    </tr>
+    <tr>
+      <th>4</th>
+      <td>20160826</td>
+      <td>0.0</td>
+      <td>-3.896400e+07</td>
+      <td>2.982796e+10</td>
+      <td>0.0</td>
+      <td>2.561300e+07</td>
+      <td>-5.184770e+08</td>
+      <td>0.0</td>
+      <td>0.000000e+00</td>
+      <td>0.0</td>
+      <td>...</td>
+      <td>0.000000e+00</td>
+      <td>0.000000e+00</td>
+      <td>0.0</td>
+      <td>8.246570e+08</td>
+      <td>3.181431e+09</td>
+      <td>20160630</td>
+      <td>408002000</td>
+      <td>3.383405e+10</td>
+      <td>3.542464e+10</td>
+      <td>000063.SZ</td>
+    </tr>
+    <tr>
+      <th>5</th>
+      <td>20161028</td>
+      <td>0.0</td>
+      <td>5.991480e+08</td>
+      <td>2.535173e+10</td>
+      <td>0.0</td>
+      <td>0.000000e+00</td>
+      <td>-1.684021e+09</td>
+      <td>0.0</td>
+      <td>0.000000e+00</td>
+      <td>0.0</td>
+      <td>...</td>
+      <td>0.000000e+00</td>
+      <td>0.000000e+00</td>
+      <td>0.0</td>
+      <td>8.164560e+08</td>
+      <td>1.353395e+09</td>
+      <td>20160930</td>
+      <td>408002000</td>
+      <td>2.752158e+10</td>
+      <td>2.865721e+10</td>
+      <td>000063.SZ</td>
+    </tr>
+    <tr>
+      <th>6</th>
+      <td>20170324</td>
+      <td>0.0</td>
+      <td>3.755800e+07</td>
+      <td>2.688080e+10</td>
+      <td>0.0</td>
+      <td>0.000000e+00</td>
+      <td>-4.290710e+08</td>
+      <td>0.0</td>
+      <td>0.000000e+00</td>
+      <td>0.0</td>
+      <td>...</td>
+      <td>0.000000e+00</td>
+      <td>0.000000e+00</td>
+      <td>0.0</td>
+      <td>1.089501e+09</td>
+      <td>1.504245e+09</td>
+      <td>20161231</td>
+      <td>408002000</td>
+      <td>2.947455e+10</td>
+      <td>2.543364e+10</td>
+      <td>000063.SZ</td>
+    </tr>
+    <tr>
+      <th>7</th>
+      <td>20170418</td>
+      <td>0.0</td>
+      <td>3.748800e+07</td>
+      <td>2.693577e+10</td>
+      <td>0.0</td>
+      <td>5.733100e+07</td>
+      <td>-8.994460e+08</td>
+      <td>0.0</td>
+      <td>0.000000e+00</td>
+      <td>0.0</td>
+      <td>...</td>
+      <td>0.000000e+00</td>
+      <td>0.000000e+00</td>
+      <td>0.0</td>
+      <td>4.601030e+08</td>
+      <td>1.424996e+09</td>
+      <td>20170331</td>
+      <td>408002000</td>
+      <td>2.882086e+10</td>
+      <td>2.979203e+10</td>
+      <td>000063.SZ</td>
+    </tr>
+    <tr>
+      <th>8</th>
+      <td>20160825</td>
+      <td>0.0</td>
+      <td>1.003506e+07</td>
+      <td>0.000000e+00</td>
+      <td>0.0</td>
+      <td>1.256104e+08</td>
+      <td>9.026859e+09</td>
+      <td>0.0</td>
+      <td>0.000000e+00</td>
+      <td>0.0</td>
+      <td>...</td>
+      <td>8.989932e+09</td>
+      <td>0.000000e+00</td>
+      <td>0.0</td>
+      <td>1.972198e+09</td>
+      <td>0.000000e+00</td>
+      <td>20160630</td>
+      <td>408002000</td>
+      <td>6.358746e+10</td>
+      <td>9.064982e+10</td>
+      <td>600030.SH</td>
+    </tr>
+    <tr>
+      <th>9</th>
+      <td>20161029</td>
+      <td>0.0</td>
+      <td>2.193007e+06</td>
+      <td>0.000000e+00</td>
+      <td>0.0</td>
+      <td>4.561776e+07</td>
+      <td>9.370361e+09</td>
+      <td>0.0</td>
+      <td>0.000000e+00</td>
+      <td>0.0</td>
+      <td>...</td>
+      <td>8.457742e+09</td>
+      <td>0.000000e+00</td>
+      <td>0.0</td>
+      <td>1.074041e+10</td>
+      <td>0.000000e+00</td>
+      <td>20160930</td>
+      <td>408002000</td>
+      <td>-3.589391e+10</td>
+      <td>-2.131723e+10</td>
+      <td>600030.SH</td>
+    </tr>
+    <tr>
+      <th>10</th>
+      <td>20170323</td>
+      <td>0.0</td>
+      <td>1.809526e+08</td>
+      <td>0.000000e+00</td>
+      <td>0.0</td>
+      <td>-9.404244e+06</td>
+      <td>3.555107e+09</td>
+      <td>0.0</td>
+      <td>0.000000e+00</td>
+      <td>0.0</td>
+      <td>...</td>
+      <td>1.023140e+10</td>
+      <td>0.000000e+00</td>
+      <td>0.0</td>
+      <td>-5.922571e+09</td>
+      <td>0.000000e+00</td>
+      <td>20161231</td>
+      <td>408002000</td>
+      <td>4.155698e+10</td>
+      <td>3.480941e+10</td>
+      <td>600030.SH</td>
+    </tr>
+    <tr>
+      <th>11</th>
+      <td>20170429</td>
+      <td>0.0</td>
+      <td>1.998582e+06</td>
+      <td>0.000000e+00</td>
+      <td>0.0</td>
+      <td>0.000000e+00</td>
+      <td>7.633333e+09</td>
+      <td>0.0</td>
+      <td>0.000000e+00</td>
+      <td>0.0</td>
+      <td>...</td>
+      <td>8.510626e+09</td>
+      <td>0.000000e+00</td>
+      <td>0.0</td>
+      <td>1.055551e+10</td>
+      <td>0.000000e+00</td>
+      <td>20170331</td>
+      <td>408002000</td>
+      <td>-7.895648e+09</td>
+      <td>3.004603e+10</td>
+      <td>600030.SH</td>
+    </tr>
+  </tbody>
+</table>
+<p>12 rows × 22 columns</p>
 </div>
 
 
@@ -1047,6 +1549,7 @@ df.tail()
 |end_date |是 |int |结束时间 YYYMMDD|
 |fields |否 | str |字段 以 ','隔开, 默认 "" |
 |drop_dup_cols |否 | list or tuple |是否删除重复的输入|
+|report_type |否 | string |财报类型。财报类型共有以下几类：'408001000':合并报表；'408002000':合并报表（单季度）；'408003000':合并报表（单季度调整）；'408004000':合并报表（调整）；'408005000':合并报表（更正前）；'408006000':母公司报表；'408007000':母公司报表（单季度）；'408008000':母公司报表（单季度调整）；'408009000':母公司报表（调整）；'408010000':母公司报表（更正前）。 默认为'408001000':合并报表|
 
 ** 返回：**
 
@@ -1257,7 +1760,7 @@ df.head()
 |fields |是| str |字段 以 ','隔开|
 
 
-- fields为必须参数,可选字段包括："total_mv", "float_mv", "pe", "pb", "pe_ttm", "pcf_ocf", "pcf_ocfttm", "pcf_ncf","pcf_ncfttm", "ps", "ps_ttm", "turnover_ratio", "free_turnover_ratio", "total_share","float_share", "price_div_dps", "free_share", "np_parent_comp_ttm","np_parent_comp_lyr", "net_assets", "ncf_oper_ttm", "ncf_oper_lyr", "oper_rev_ttm", "oper_rev_lyr", "limit_status" 暂无详细释义
+- fields为必须参数,可选字段可通过ds.query(view="help.apiParam",fields="",filter="api=lb.secDailyIndicator") 查询详细释义
 
 ** 返回：**
 
@@ -1268,6 +1771,359 @@ err_msg : str
     
     
 **示例：**
+
+
+```python
+df ,msg = ds.query(view="help.apiParam",fields="",filter="api=lb.secDailyIndicator") # 查询现金流量表可选字段
+df
+```
+
+
+
+
+<div>
+<style>
+    .dataframe thead tr:only-child th {
+        text-align: right;
+    }
+
+    .dataframe thead th {
+        text-align: left;
+    }
+
+    .dataframe tbody tr th {
+        vertical-align: top;
+    }
+</style>
+<table border="1" class="dataframe">
+  <thead>
+    <tr style="text-align: right;">
+      <th></th>
+      <th>api</th>
+      <th>comment</th>
+      <th>dtype</th>
+      <th>must</th>
+      <th>param</th>
+      <th>pname</th>
+      <th>ptype</th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr>
+      <th>0</th>
+      <td>lb.secDailyIndicator</td>
+      <td></td>
+      <td>String</td>
+      <td>N</td>
+      <td>symbol</td>
+      <td>证券代码</td>
+      <td>IN</td>
+    </tr>
+    <tr>
+      <th>1</th>
+      <td>lb.secDailyIndicator</td>
+      <td></td>
+      <td>String</td>
+      <td>N</td>
+      <td>start_date</td>
+      <td>公告开始日期</td>
+      <td>IN</td>
+    </tr>
+    <tr>
+      <th>2</th>
+      <td>lb.secDailyIndicator</td>
+      <td></td>
+      <td>String</td>
+      <td>N</td>
+      <td>end_date</td>
+      <td>公告结束日期</td>
+      <td>IN</td>
+    </tr>
+    <tr>
+      <th>3</th>
+      <td>lb.secDailyIndicator</td>
+      <td></td>
+      <td>Double</td>
+      <td>N</td>
+      <td>ncf_oper_ttm</td>
+      <td>经营活动产生的现金流量净额(TTM)</td>
+      <td>OUT</td>
+    </tr>
+    <tr>
+      <th>4</th>
+      <td>lb.secDailyIndicator</td>
+      <td></td>
+      <td>Double</td>
+      <td>N</td>
+      <td>ncf_oper_lyr</td>
+      <td>经营活动产生的现金流量净额(LYR)</td>
+      <td>OUT</td>
+    </tr>
+    <tr>
+      <th>5</th>
+      <td>lb.secDailyIndicator</td>
+      <td></td>
+      <td>Double</td>
+      <td>N</td>
+      <td>oper_rev_ttm</td>
+      <td>营业收入(TTM)</td>
+      <td>OUT</td>
+    </tr>
+    <tr>
+      <th>6</th>
+      <td>lb.secDailyIndicator</td>
+      <td></td>
+      <td>Double</td>
+      <td>N</td>
+      <td>oper_rev_lyr</td>
+      <td>营业收入(LYR)</td>
+      <td>OUT</td>
+    </tr>
+    <tr>
+      <th>7</th>
+      <td>lb.secDailyIndicator</td>
+      <td></td>
+      <td>Int</td>
+      <td>N</td>
+      <td>limit_status</td>
+      <td>涨跌停状态</td>
+      <td>OUT</td>
+    </tr>
+    <tr>
+      <th>8</th>
+      <td>lb.secDailyIndicator</td>
+      <td></td>
+      <td>String</td>
+      <td>Y</td>
+      <td>symbol</td>
+      <td>证券代码</td>
+      <td>OUT</td>
+    </tr>
+    <tr>
+      <th>9</th>
+      <td>lb.secDailyIndicator</td>
+      <td></td>
+      <td>String</td>
+      <td>N</td>
+      <td>trade_date</td>
+      <td>交易日期</td>
+      <td>OUT</td>
+    </tr>
+    <tr>
+      <th>10</th>
+      <td>lb.secDailyIndicator</td>
+      <td></td>
+      <td>Double</td>
+      <td>N</td>
+      <td>total_mv</td>
+      <td>当日总市值</td>
+      <td>OUT</td>
+    </tr>
+    <tr>
+      <th>11</th>
+      <td>lb.secDailyIndicator</td>
+      <td></td>
+      <td>Double</td>
+      <td>N</td>
+      <td>float_mv</td>
+      <td>当日流通市值</td>
+      <td>OUT</td>
+    </tr>
+    <tr>
+      <th>12</th>
+      <td>lb.secDailyIndicator</td>
+      <td></td>
+      <td>Double</td>
+      <td>N</td>
+      <td>pe</td>
+      <td>市盈率</td>
+      <td>OUT</td>
+    </tr>
+    <tr>
+      <th>13</th>
+      <td>lb.secDailyIndicator</td>
+      <td></td>
+      <td>Double</td>
+      <td>N</td>
+      <td>pb</td>
+      <td>市净率</td>
+      <td>OUT</td>
+    </tr>
+    <tr>
+      <th>14</th>
+      <td>lb.secDailyIndicator</td>
+      <td></td>
+      <td>Double</td>
+      <td>N</td>
+      <td>pe_ttm</td>
+      <td>市盈率TTM</td>
+      <td>OUT</td>
+    </tr>
+    <tr>
+      <th>15</th>
+      <td>lb.secDailyIndicator</td>
+      <td></td>
+      <td>Double</td>
+      <td>N</td>
+      <td>pcf_ocf</td>
+      <td>市现率(PCF,经营现金流)</td>
+      <td>OUT</td>
+    </tr>
+    <tr>
+      <th>16</th>
+      <td>lb.secDailyIndicator</td>
+      <td></td>
+      <td>Double</td>
+      <td>N</td>
+      <td>pcf_ocfttm</td>
+      <td>市现率(PCF,经营现金流TTM)</td>
+      <td>OUT</td>
+    </tr>
+    <tr>
+      <th>17</th>
+      <td>lb.secDailyIndicator</td>
+      <td></td>
+      <td>Double</td>
+      <td>N</td>
+      <td>pcf_ncf</td>
+      <td>市现率(PCF,现金净流量)</td>
+      <td>OUT</td>
+    </tr>
+    <tr>
+      <th>18</th>
+      <td>lb.secDailyIndicator</td>
+      <td></td>
+      <td>Double</td>
+      <td>N</td>
+      <td>pcf_ncfttm</td>
+      <td>市现率(PCF,现金净流量TTM)</td>
+      <td>OUT</td>
+    </tr>
+    <tr>
+      <th>19</th>
+      <td>lb.secDailyIndicator</td>
+      <td></td>
+      <td>Double</td>
+      <td>N</td>
+      <td>ps</td>
+      <td>市销率(PS)</td>
+      <td>OUT</td>
+    </tr>
+    <tr>
+      <th>20</th>
+      <td>lb.secDailyIndicator</td>
+      <td></td>
+      <td>Double</td>
+      <td>N</td>
+      <td>ps_ttm</td>
+      <td>市销率(PS,TTM)</td>
+      <td>OUT</td>
+    </tr>
+    <tr>
+      <th>21</th>
+      <td>lb.secDailyIndicator</td>
+      <td></td>
+      <td>Double</td>
+      <td>N</td>
+      <td>turnover_ratio</td>
+      <td>换手率</td>
+      <td>OUT</td>
+    </tr>
+    <tr>
+      <th>22</th>
+      <td>lb.secDailyIndicator</td>
+      <td></td>
+      <td>Double</td>
+      <td>N</td>
+      <td>free_turnover_ratio</td>
+      <td>换手率(自由流通股本)</td>
+      <td>OUT</td>
+    </tr>
+    <tr>
+      <th>23</th>
+      <td>lb.secDailyIndicator</td>
+      <td></td>
+      <td>Double</td>
+      <td>N</td>
+      <td>total_share</td>
+      <td>当日总股本</td>
+      <td>OUT</td>
+    </tr>
+    <tr>
+      <th>24</th>
+      <td>lb.secDailyIndicator</td>
+      <td></td>
+      <td>Double</td>
+      <td>N</td>
+      <td>float_share</td>
+      <td>当日流通股本</td>
+      <td>OUT</td>
+    </tr>
+    <tr>
+      <th>25</th>
+      <td>lb.secDailyIndicator</td>
+      <td></td>
+      <td>Double</td>
+      <td>N</td>
+      <td>close</td>
+      <td>当日收盘价</td>
+      <td>OUT</td>
+    </tr>
+    <tr>
+      <th>26</th>
+      <td>lb.secDailyIndicator</td>
+      <td></td>
+      <td>Double</td>
+      <td>N</td>
+      <td>price_div_dps</td>
+      <td>股价/每股派息</td>
+      <td>OUT</td>
+    </tr>
+    <tr>
+      <th>27</th>
+      <td>lb.secDailyIndicator</td>
+      <td></td>
+      <td>Double</td>
+      <td>N</td>
+      <td>free_share</td>
+      <td>当日自由流通股本</td>
+      <td>OUT</td>
+    </tr>
+    <tr>
+      <th>28</th>
+      <td>lb.secDailyIndicator</td>
+      <td></td>
+      <td>Double</td>
+      <td>N</td>
+      <td>np_parent_comp_ttm</td>
+      <td>归属母公司净利润(TTM)</td>
+      <td>OUT</td>
+    </tr>
+    <tr>
+      <th>29</th>
+      <td>lb.secDailyIndicator</td>
+      <td></td>
+      <td>Double</td>
+      <td>N</td>
+      <td>np_parent_comp_lyr</td>
+      <td>归属母公司净利润(LYR)</td>
+      <td>OUT</td>
+    </tr>
+    <tr>
+      <th>30</th>
+      <td>lb.secDailyIndicator</td>
+      <td></td>
+      <td>Double</td>
+      <td>N</td>
+      <td>net_assets</td>
+      <td>当日净资产</td>
+      <td>OUT</td>
+    </tr>
+  </tbody>
+</table>
+</div>
+
+
 
 
 ```python
@@ -2030,28 +2886,28 @@ df.head()
   <tbody>
     <tr>
       <th>20180102</th>
-      <td>J66</td>
-      <td>K70</td>
+      <td>货币金融服务</td>
+      <td>房地产业</td>
     </tr>
     <tr>
       <th>20180103</th>
-      <td>J66</td>
-      <td>K70</td>
+      <td>货币金融服务</td>
+      <td>房地产业</td>
     </tr>
     <tr>
       <th>20180104</th>
-      <td>J66</td>
-      <td>K70</td>
+      <td>货币金融服务</td>
+      <td>房地产业</td>
     </tr>
     <tr>
       <th>20180105</th>
-      <td>J66</td>
-      <td>K70</td>
+      <td>货币金融服务</td>
+      <td>房地产业</td>
     </tr>
     <tr>
       <th>20180108</th>
-      <td>J66</td>
-      <td>K70</td>
+      <td>货币金融服务</td>
+      <td>房地产业</td>
     </tr>
   </tbody>
 </table>
@@ -2367,6 +3223,40 @@ df.head()
 |inst_type |否 |string |证券类型 "1,2,3,4,5,100,101,102,103,104",默认全部|
 |fields |是| str |字段 以 ','隔开，默认""|
 
+inst_type具体类型如下:
+
+|类型编号（inst_type）|类型|
+|:----    |---|
+|1	|股票|
+|10|回购|
+|100|指数|
+|101|股指期货|
+|102|国债期货|
+|103|商品期货|
+|104|现货递延|
+|105|SPREAD价差|
+|11|国债|
+|12|地方政府债|
+|13	|金融债|
+|14|企业债|
+|15|公司债|
+|16|资产支持证券|
+|17|可交换债|
+|18|可分离转债存债|
+|19	|政府支持机构债|
+|2|封闭式基金|
+|20|转股换股|
+|201|股指ETF期权|
+|202|股指期货期权|
+|203|商品期货期权|
+|3	|LOF基金|
+|4|ETF基金|
+|5|分级基金|
+|6|国债商品|
+|7	|商品|
+|8|可转债|
+|9|BASKET|
+
 
 ** 返回：**
 
@@ -2590,7 +3480,7 @@ ds.query_next_trade_date(20170508,n=1)
 
 |参数名|必选|类型|说明|
 |:----    |:---|:----- |-----   |
-|date |是 |int | |
+|date |是 |int | 日期|
 
 
 ** 返回：**

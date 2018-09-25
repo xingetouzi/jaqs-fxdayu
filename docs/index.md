@@ -129,6 +129,10 @@ from jaqs_fxdayu.research import Optimizer
 [详细文档地址](http://jaqs-fxdayu.readthedocs.io/zh_CN/latest/)
 
 ## 最新功能
+### 2018/7/15
+
+dataview添加财务数据时，允许指定财报类型
+
 ### 2018/7/2
 
 TimingDigger/SignalDigger 支持根据group划分组内quantile

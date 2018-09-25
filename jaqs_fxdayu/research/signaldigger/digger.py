@@ -139,6 +139,7 @@ class SignalDigger(OriginSignalDigger):
             except:
                 warnings.warn("Warning: signal与group的index/columns不一致,请检查输入参数!")
                 group = group.reindex_like(signal)
+            group = group.astype(str)
 
         # ----------------------------------------------------------------------
         # save data
