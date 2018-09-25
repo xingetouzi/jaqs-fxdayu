@@ -264,6 +264,7 @@ class LocalDataService(object):
             return pd.DataFrame(columns=cols_multi, index=_index, data=data)
 
     def bar_reader(self, path, props, resample_rules=None):
+        '''
         :param props:
         配置项包括symbol, start_date, end_date , field, freq
         start_date/end_date : int   精确到秒 ，共14位数字
