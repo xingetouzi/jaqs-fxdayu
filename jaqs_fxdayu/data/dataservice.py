@@ -154,17 +154,18 @@ class RemoteDataService(OriginRemoteDataService):
 
 
 class LocalDataService(object):
-    def __init__(self, fp):
-        import sqlite3 as sql
-        self.fp = os.path.abspath(fp)
-        sql_path = os.path.join(fp, 'data.sqlite')
+    def __init__(self, fp=None):
+        if fp:
+            import sqlite3 as sql
+            self.fp = os.path.abspath(fp)
+            sql_path = os.path.join(fp, 'data.sqlite')
 
-        if not os.path.exists(sql_path):
-            raise FileNotFoundError("在{}目录下没有找到数据文件".format(fp))
+            if not os.path.exists(sql_path):
+                raise FileNotFoundError("在{}目录下没有找到数据文件".format(fp))
 
-        conn = sql.connect("file:%s?mode=ro" % sql_path, uri=True)
-        self.conn = conn
-        self.c = conn.cursor()
+            conn = sql.connect("file:%s?mode=ro" % sql_path, uri=True)
+            self.conn = conn
+            self.c = conn.cursor()
 
     def _get_attrs(self):
         dic = {}
@@ -230,7 +231,8 @@ class LocalDataService(object):
             try:
                 dset = file['data']
                 exist_symbol = file['symbol_flag'][:, 0].astype(str)
-                exist_dates = file['date_flag'][:, 0].astype(str)
+                exist_dates = file['date_flag'][:, 0].astype(np.int64)
+
             except Exception:
                 raise ValueError('error hdf5 file')
 
@@ -250,10 +252,10 @@ class LocalDataService(object):
             data = dset[start_index:end_index, symbol_index]
             _index = exist_dates[start_index:end_index]
 
-            try:
-                data = data.astype(float)
-            except Exception:
-                pass
+            # try:
+            #    data = data.astype(float)
+            # except Exception:
+            #    pass
 
             if data.dtype not in ['float', 'float32', 'float16', 'int']:
                 data = data.astype(str)
@@ -261,8 +263,7 @@ class LocalDataService(object):
             cols_multi = pd.MultiIndex.from_product([[field], sorted_symbol], names=['fields', 'symbol'])
             return pd.DataFrame(columns=cols_multi, index=_index, data=data)
 
-    def read_bar(self, path, props, resample_rules=None):
-        '''
+    def bar_reader(self, path, props, resample_rules=None):
         :param props:
         配置项包括symbol, start_date, end_date , field, freq
         start_date/end_date : int   精确到秒 ，共14位数字
@@ -298,21 +299,30 @@ class LocalDataService(object):
             fld = list(set(exist_field) & set(fields))
         df = pd.concat([self.query_one(f, path, start_date=start_date, end_date=end_date, symbol=symbol) for f in fld],
                        axis=1)
+
         df.index.name = 'trade_date'
         df = df.stack(-1, dropna=False).reset_index()
 
-        def func(d):
+        def trans_time(d, _type):
             if d == 'None':
-                return None
+                return np.NaN
             else:
-                return datetime.strptime(d[:19], '%Y-%m-%d %H:%M:%S')
+                if _type == 'datetime':
+                    datetime(int(d[:4]), int(d[5:7]), int(d[8:10]), int(d[11:13]), int(d[14:16]), int(d[17:19]))
+                    return datetime.strptime(d[:19], '%Y-%m-%d %H:%M:%S')
+                elif _type == 'int':
+                    return int(str(d)[:19].replace('-', '').replace(' ', '').replace(':', ''))
+                elif _type == 'int_to_datetime':
+                    return datetime.strptime(str(d), '%Y%m%d%H%M%S')
 
-        df['datetime'] = [func(i) for i in df['datetime']]
+        df['datetime'] = [trans_time(i, 'datetime') for i in df['datetime']]
+        df = df.set_index(['symbol', 'trade_date']).dropna(how='all').reset_index()
         df = df.sort_values(by=['symbol', 'trade_date'])
-        df = df.set_index('datetime').dropna(how='all')
-        res = df.reset_index()
+        # df['trade_date'] = df['trade_date'].astype(ctypes.c_int64)
+        res = df
 
         if freq:
+            df = df.set_index('datetime')
             if not resample_rules:
                 resample_rules = {'high': 'max', 'open': 'first', 'close': 'last',
                                   'low': 'min', 'volume': 'sum', 'symbol': 'last',
@@ -324,9 +334,17 @@ class LocalDataService(object):
                                   'rawData': 'last', 'time': 'first', 'vtSymbol': 'last',
                                   'trade_date': 'first'}
             new_rules = {i: resample_rules[i] for i in df.columns.values}
+
+            # df = df.set_index('datetime')
             res = {}
             for f in freq:
-                res[f] = df.groupby('symbol').resample(f).agg(new_rules).drop('symbol', axis=1).reset_index()
+                if f == '1Min':
+                    res[f] = df
+                else:
+                    df1 = df.groupby('symbol').resample(f).agg(new_rules).drop('symbol', axis=1).reset_index()
+                    df1['trade_date'] = [trans_time(i, 'int') for i in df1['datetime']]
+                    res[f] = df1
+
             if len(res.keys()) == 1:
                 k, res = list(res.items())[0]
         return res
