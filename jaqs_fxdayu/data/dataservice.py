@@ -4,10 +4,12 @@ from jaqs.data.dataservice import RemoteDataService as OriginRemoteDataService
 import os
 import h5py
 import json
+import bisect
 import numpy as np
 import pandas as pd
-from jaqs.data.align import align
 import jaqs.util as jutil
+from datetime import datetime
+from jaqs.data.align import align
 from jaqs_fxdayu.patch_util import auto_register_patch
 
 
@@ -77,6 +79,70 @@ class RemoteDataService(OriginRemoteDataService):
 
         return df_industry
 
+    def query_lb_fin_stat(self, type_, symbol, start_date, end_date, fields="", drop_dup_cols=None,
+                          report_type='408001000'):
+        """
+        Helper function to call data_api.query with 'lb.income' more conveniently.
+
+        Parameters
+        ----------
+        type_ : {'income', 'balance_sheet', 'cash_flow'}
+        symbol : str
+            separated by ','
+        start_date : int
+            Annoucement date in results will be no earlier than start_date
+        end_date : int
+            Annoucement date in results will be no later than start_date
+        fields : str, optional
+            separated by ',', default ""
+        drop_dup_cols : list or tuple
+            Whether drop duplicate entries according to drop_dup_cols.
+
+        Returns
+        -------
+        df : pd.DataFrame
+            index date, columns fields
+        err_msg : str
+
+        """
+        view_map = {'income': 'lb.income', 'cash_flow': 'lb.cashFlow', 'balance_sheet': 'lb.balanceSheet',
+                    'fin_indicator': 'lb.finIndicator'}
+        view_name = view_map.get(type_, None)
+        if view_name is None:
+            raise NotImplementedError("type_ = {:s}".format(type_))
+
+        dic_argument = {'symbol': symbol,
+                        'start_date': start_date,
+                        'end_date': end_date,
+                        # 'update_flag': '0'
+                        }
+        if view_name != 'lb.finIndicator':
+            dic_argument.update({'report_type': report_type})  # we do not use single quarter single there are zeros
+            """
+            408001000: joint
+            408002000: joint (single quarter)
+            """
+
+        filter_argument = self._dic2url(dic_argument)  # 0 means first time, not update
+
+        res, err_msg = self.query(view_name, fields=fields, filter=filter_argument,
+                                  order_by=self._REPORT_DATE_FIELD_NAME)
+        self._raise_error_if_msg(err_msg)
+
+        # change data type
+        try:
+            cols = list(set.intersection({'ann_date', 'report_date'}, set(res.columns)))
+            dic_dtype = {col: np.integer for col in cols}
+            res = res.astype(dtype=dic_dtype)
+        except:
+            pass
+
+        if drop_dup_cols is not None:
+            res = res.sort_values(by=drop_dup_cols, axis=0)
+            res = res.drop_duplicates(subset=drop_dup_cols, keep='first')
+
+        return res, err_msg
+
     def predefined_fields(self):
         params, msg = self.query("help.predefine", "", "")
         if msg != "0,":
@@ -88,17 +154,18 @@ class RemoteDataService(OriginRemoteDataService):
 
 
 class LocalDataService(object):
-    def __init__(self, fp):
-        import sqlite3 as sql
-        self.fp = os.path.abspath(fp)
-        sql_path = os.path.join(fp, 'data.sqlite')
+    def __init__(self, fp=None):
+        if fp:
+            import sqlite3 as sql
+            self.fp = os.path.abspath(fp)
+            sql_path = os.path.join(fp, 'data.sqlite')
 
-        if not os.path.exists(sql_path):
-            raise FileNotFoundError("在{}目录下没有找到数据文件".format(fp))
+            if not os.path.exists(sql_path):
+                raise FileNotFoundError("在{}目录下没有找到数据文件".format(fp))
 
-        conn = sql.connect("file:%s?mode=ro" % sql_path, uri=True)
-        self.conn = conn
-        self.c = conn.cursor()
+            conn = sql.connect("file:%s?mode=ro" % sql_path, uri=True)
+            self.conn = conn
+            self.c = conn.cursor()
 
     def _get_attrs(self):
         dic = {}
@@ -155,6 +222,131 @@ class LocalDataService(object):
         updater = {k: set([i[:-4] for i in os.listdir(os.path.join(self.fp, k)) if i.endswith('hd5')]) for k in keys if os.path.isfile(k)}
         mapper.update(updater)
         return mapper
+
+    @staticmethod
+    def query_one(field, path, symbol=None, start_date=None, end_date=None):
+        _dir = os.path.join(path, field + '.hd5')
+        with h5py.File(_dir, 'r') as file:
+            # noinspection PyBroadException
+            try:
+                dset = file['data']
+                exist_symbol = file['symbol_flag'][:, 0].astype(str)
+                exist_dates = file['date_flag'][:, 0].astype(np.int64)
+            except Exception:
+                raise ValueError('error hdf5 file')
+
+            if not start_date:
+                start_date = min(exist_dates)
+            if not end_date:
+                end_date = max(exist_dates)
+
+            if not symbol:
+                symbol = exist_symbol
+
+            symbol_index = [i for i in range(len(exist_symbol)) if exist_symbol[i] in symbol]
+            sorted_symbol = [exist_symbol[i] for i in symbol_index]
+            start_index = bisect.bisect_left(exist_dates, start_date)
+            end_index = bisect.bisect_left(exist_dates, end_date)
+
+            data = dset[start_index:end_index, symbol_index]
+            _index = exist_dates[start_index:end_index]
+
+            # try:
+            #    data = data.astype(float)
+            # except Exception:
+            #    pass
+
+            if data.dtype not in ['float', 'float32', 'float16', 'int']:
+                data = data.astype(str)
+
+            cols_multi = pd.MultiIndex.from_product([[field], sorted_symbol], names=['fields', 'symbol'])
+            return pd.DataFrame(columns=cols_multi, index=_index, data=data)
+
+    def bar_reader(self, path, props, resample_rules=None):
+        '''
+        :param props:
+        配置项包括symbol, start_date, end_date , field, freq
+        start_date/end_date : int   精确到秒 ，共14位数字
+        symbol :str/list
+        field  :  str/list
+        freq  :  str/list
+        配置项均可为空，代表读全部数据
+        :param path:
+        hdf5文件上一级目录
+        :return:
+        pandas.DataFrame
+        多个freq返回
+        '''
+        symbol = props.get('symbol')
+        fields = props.get('fields')
+        start_date = props.get('start_date')
+        end_date = props.get('end_date')
+        freq = props.get('freq')
+
+        if isinstance(fields, str):
+            fields = fields.split(',')
+        if isinstance(symbol, str):
+            symbol = symbol.split(',')
+        if isinstance(freq, str):
+            freq = freq.split(',')
+
+        exist_field = [i.split('.')[0] for i in os.listdir(path)]
+        basic_field = ['datetime']
+        if not fields or fields == ['']:
+            fld = exist_field
+        else:
+            fields.extend(basic_field)
+            fld = list(set(exist_field) & set(fields))
+        df = pd.concat([self.query_one(f, path, start_date=start_date, end_date=end_date, symbol=symbol) for f in fld],
+                       axis=1)
+
+        df.index.name = 'trade_date'
+        df = df.stack(-1, dropna=False).reset_index()
+
+        def trans_time(d, _type):
+            if d == 'None':
+                return np.NaN
+            else:
+                if _type == 'datetime':
+                    datetime(int(d[:4]), int(d[5:7]), int(d[8:10]), int(d[11:13]), int(d[14:16]), int(d[17:19]))
+                    return datetime.strptime(d[:19], '%Y-%m-%d %H:%M:%S')
+                elif _type == 'int':
+                    return int(str(d)[:19].replace('-', '').replace(' ', '').replace(':', ''))
+                elif _type == 'int_to_datetime':
+                    return datetime.strptime(str(d), '%Y%m%d%H%M%S')
+
+        df['datetime'] = [trans_time(i, 'datetime') for i in df['datetime']]
+        df = df.set_index(['symbol', 'trade_date']).dropna(how='all').reset_index()
+        df = df.sort_values(by=['symbol', 'trade_date'])
+        # df['trade_date'] = df['trade_date'].astype(ctypes.c_int64)
+        res = df
+
+        if freq:
+            df = df.set_index('datetime')
+            if not resample_rules:
+                resample_rules = {'high': 'max', 'open': 'first', 'close': 'last',
+                                  'low': 'min', 'volume': 'sum', 'symbol': 'last',
+                                  'Ignore': 'last', 'buy_base_volume': 'sum',
+                                  'buy_quote_volume': 'sum', 'closetime': 'last',
+                                  'date': 'last', 'datetime': 'first', 'exchange': 'last',
+                                  'gatewayName': 'last', 'number_of_trades': 'sum',
+                                  'openInterest': 'last', 'quote_volume': 'sum',
+                                  'rawData': 'last', 'time': 'first', 'vtSymbol': 'last',
+                                  'trade_date': 'first'}
+            new_rules = {i: resample_rules[i] for i in df.columns.values}
+
+            # df = df.set_index('datetime')
+            res = {}
+            for f in freq:
+                if f == '1Min':
+                    res[f] = df
+                else:
+                    df1 = df.groupby('symbol').resample(f).agg(new_rules).drop('symbol', axis=1).reset_index()
+                    df1['trade_date'] = [trans_time(i, 'int') for i in df1['datetime']]
+                    res[f] = df1
+            if len(res.keys()) == 1:
+                k, res = list(res.items())[0]
+        return res
 
     def query(self, view, filter, fields, **kwargs):
         if view == 'attrs':
