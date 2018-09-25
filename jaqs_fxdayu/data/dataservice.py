@@ -249,7 +249,11 @@ class LocalDataService(object):
             start_index = bisect.bisect_left(exist_dates, start_date)
             end_index = bisect.bisect_left(exist_dates, end_date)
 
-            data = dset[start_index:end_index, symbol_index]
+            try:
+                data = dset[start_index:end_index, symbol_index]
+            except Exception:
+                raise NameError('不支持的symbol或date,请检查输入是否正确')
+                
             _index = exist_dates[start_index:end_index]
 
             # try:
@@ -264,6 +268,7 @@ class LocalDataService(object):
             return pd.DataFrame(columns=cols_multi, index=_index, data=data)
 
     def bar_reader(self, path, props, resample_rules=None):
+        '''
         :param props:
         配置项包括symbol, start_date, end_date , field, freq
         start_date/end_date : int   精确到秒 ，共14位数字
@@ -290,7 +295,11 @@ class LocalDataService(object):
         if isinstance(freq, str):
             freq = freq.split(',')
 
-        exist_field = [i.split('.')[0] for i in os.listdir(path)]
+        try:
+            exist_field = [i.split('.')[0] for i in os.listdir(path) if i.endswith('hd5')]
+        except Exception:
+            raise FileNotFoundError('指定路径下未找到数据文件，请检查输入路径是否正确')
+            
         basic_field = ['datetime']
         if not fields or fields == ['']:
             fld = exist_field
