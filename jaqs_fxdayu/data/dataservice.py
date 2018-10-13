@@ -152,6 +152,56 @@ class RemoteDataService(OriginRemoteDataService):
             mapper.setdefault(api, set()).add(param)
         return mapper
 
+    def query_index_member_daily(self, index, start_date, end_date):
+        """
+        Get index components on each day during start_date and end_date.
+
+        Parameters
+        ----------
+        index : str
+            separated by ','
+        start_date : int
+        end_date : int
+
+        Returns
+        -------
+        res : pd.DataFrame
+            index dates, columns all securities that have ever been components,
+            values are 0 (not in) or 1 (in)
+
+        """
+        df_io, err_msg = self._get_index_comp(index, start_date, end_date)
+        if err_msg != '0,':
+            print(err_msg)
+
+        def str2int(s):
+            if isinstance(s, basestring):
+                return int(s) if s else 99999999
+            elif isinstance(s, (int, np.integer, float, np.float)):
+                return s
+            else:
+                raise NotImplementedError("type s = {}".format(type(s)))
+
+        df_io.loc[:, 'in_date'] = df_io.loc[:, 'in_date'].apply(str2int)
+        df_io.loc[:, 'out_date'] = df_io.loc[:, 'out_date'].apply(str2int)
+
+        # df_io.set_index('symbol', inplace=True)
+        dates = self.query_trade_dates(start_date=start_date, end_date=end_date)
+
+        dic = dict()
+        gp = df_io.groupby(by='symbol')
+        for sec, df in gp:
+            mask = np.zeros_like(dates, dtype=np.integer)
+            for idx, row in df.iterrows():
+                bool_index = np.logical_and(dates >= row['in_date'], dates <= row['out_date'])
+                mask[bool_index] = 1
+            dic[sec] = mask
+
+        res = pd.DataFrame(index=dates, data=dic)
+        res.index.name = 'trade_date'
+
+        return res
+
 
 class LocalDataService(object):
     def __init__(self, fp=None):
@@ -497,7 +547,7 @@ class LocalDataService(object):
         for sec, df in gp:
             mask = np.zeros_like(dates, dtype=np.integer)
             for idx, row in df.iterrows():
-                bool_index = np.logical_and(dates > row['in_date'], dates < row['out_date'])
+                bool_index = np.logical_and(dates >= row['in_date'], dates <= row['out_date'])
                 mask[bool_index] = 1
             dic[sec] = mask
 
