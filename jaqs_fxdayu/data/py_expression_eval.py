@@ -119,31 +119,31 @@ class Parser(OriginParser):
         return sfm.ts_argmin(*args, **kwargs)
 
     def std_dev(self, df, n):
-        return df.rolling(n).std()
+        return df.apply(lambda x: x.dropna().rolling(n).std())
 
     def ts_sum(self, df, n):
-        return df.rolling(n).sum()
+        return df.apply(lambda x: x.dropna().rolling(n).sum())
 
     def count_nans(self, df, n):
         return n - df.rolling(n).count()
 
     def ts_mean(self, df, n):
-        return df.rolling(n).mean()
+        return df.apply(lambda x: x.dropna().rolling(n).mean())
 
     def ts_min(self, df, n):
-        return df.rolling(n).min()
+        return df.apply(lambda x: x.dropna().rolling(n).min())
 
     def ts_max(self, df, n):
-        return df.rolling(n).max()
+        return df.apply(lambda x: x.dropna().rolling(n).max())
 
     def ts_kurt(self, df, n):
-        return df.rolling(n).kurt()
+        return df.apply(lambda x: x.dropna().rolling(n).kurt())
 
     def ts_skew(self, df, n):
-        return df.rolling(n).skew()
+        return df.apply(lambda x: x.dropna().rolling(n).skew())
 
     def ts_product(self, df, n):
-        return df.rolling(n).apply(np.product)
+        return df.apply(lambda x: x.dropna().rolling(n).apply(np.product))
 
     def corr(self, x, y, n):
         (x, y) = self._align_bivariate(x, y)
@@ -153,10 +153,10 @@ class Parser(OriginParser):
         (x, y) = self._align_bivariate(x, y)
         return x.rolling(n).cov(y)
 
-    def decay_linear(self, x, n):
-        return x.rolling(n).apply(self.decay_linear_array)
+    def decay_linear(self, df, n):
+        return df.apply(lambda x: x.dropna().rolling(n).apply(self.decay_linear_array))
 
-    def decay_exp(self, x, f, n):
-        return x.rolling(n).apply(self.decay_exp_array, args=[f])
+    def decay_exp(self, df, f, n):
+        return df.apply(lambda x: x.dropna().rolling(n).apply(self.decay_exp_array, args=[f]))
 
 

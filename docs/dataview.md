@@ -60,7 +60,7 @@ dv.init_from_config(props, ds)
         login success 
     
     Initialize config success.
-
+    
 
 
 ```python
@@ -72,11 +72,11 @@ dv.prepare_data()
     Query data - query...
     NOTE: price adjust method is [post adjust]
     当前请求daily...
-    {'adjust_mode': None, 'fields': 'symbol,open_adj,low,trade_status,trade_date,high_adj,close,close_adj,vwap,high,low_adj,vwap_adj,open'}
+    {'adjust_mode': None, 'fields': 'trade_status,open,low,close,trade_date,symbol,vwap,open_adj,vwap_adj,low_adj,close_adj,high,high_adj'}
     当前请求daily...
-    {'adjust_mode': 'post', 'fields': 'low,close,vwap,high,open,symbol,trade_date'}
+    {'adjust_mode': 'post', 'fields': 'open,low,close,vwap,high,symbol,trade_date'}
     当前请求query_lb_dailyindicator...
-    {'fields': 'symbol,pe,pb,trade_date'}
+    {'fields': 'symbol,pe,trade_date,pb'}
     WARNING: some data is unavailable: 
         At fields 
     Query data - daily fields prepared.
@@ -88,7 +88,7 @@ dv.prepare_data()
     Query groups (industry)...
     Field [trade_status] is overwritten.
     Data has been successfully prepared.
-
+    
 
 **props参数**
 
@@ -1292,7 +1292,7 @@ dv.data_q.head()
 
 
 ### get
-- ` jaqs_fxdayu.data.Dataview.get(symbol="", start_date=0, end_date=0, fields="") `
+- ` jaqs_fxdayu.data.Dataview.get(symbol="", start_date=0, end_date=0, fields="", date_type="int") `
 
 **简要描述：**
 
@@ -1306,6 +1306,7 @@ dv.data_q.head()
 |start_date |否 |int |开始日期，默认从数据集开始日期起|
 |end_date |否 |int |结束日期，默认到数据集结束日期|
 |fields |否 |string |数据字段，多字段以','隔开，如'open,close,high,low'，默认查询数据集中所有字段|
+|date_type |否 |"int"/"datetime" |日期作为索引时返回的索引类型，默认为"int",即日期为整型;当设置为"datetime"时，日期索引返回为python datetime格式|
 
 **示例：**
 
@@ -1479,8 +1480,229 @@ dv.get_snapshot(20170504, fields="open,high").head()
 
 
 
+### get_symbol
+- ` jaqs_fxdayu.data.Dataview.get_symbol(symbol, start_date=0, end_date=0, fields="", date_type="int") `
+
+**简要描述：**
+
+- 切片查询方法：指定品种，按时间+字段查询数据，返回时间为索引，字段为columns的DataFrame
+- 查询的结果为日频（季度数据也会被自动扩展为日频）
+
+**参数：**
+
+|参数名|必选|类型|说明|
+|:----    |:---|:----- |-----   |
+|symbol|是 |string|标的代码，**单标的**|
+|start_date |否 |int |开始日期，默认从数据集开始日期起|
+|end_date |否 |int |结束日期，默认到数据集结束日期|
+|fields |否 |string |字段名称，多字段以","隔开,如"close,open"，默认查询数据集所有的字段|
+|date_type |否 |"int"/"datetime" |日期作为索引时返回的索引类型，默认为"int",即日期为整型;当设置为"datetime"时，日期索引返回为python datetime格式|
+
+**示例：**
+
+
+```python
+dv.get_symbol("000001.SZ").head()
+```
+
+
+
+
+<div>
+<style>
+    .dataframe thead tr:only-child th {
+        text-align: right;
+    }
+
+    .dataframe thead th {
+        text-align: left;
+    }
+
+    .dataframe tbody tr th {
+        vertical-align: top;
+    }
+</style>
+<table border="1" class="dataframe">
+  <thead>
+    <tr style="text-align: right;">
+      <th>field</th>
+      <th>adjust_factor</th>
+      <th>ann_date</th>
+      <th>close</th>
+      <th>close_adj</th>
+      <th>high</th>
+      <th>high_adj</th>
+      <th>index_member</th>
+      <th>index_weight</th>
+      <th>low</th>
+      <th>low_adj</th>
+      <th>...</th>
+      <th>open_adj</th>
+      <th>oper_exp</th>
+      <th>pb</th>
+      <th>pe</th>
+      <th>quarter</th>
+      <th>sw1</th>
+      <th>total_oper_rev</th>
+      <th>trade_status</th>
+      <th>vwap</th>
+      <th>vwap_adj</th>
+    </tr>
+    <tr>
+      <th>trade_date</th>
+      <th></th>
+      <th></th>
+      <th></th>
+      <th></th>
+      <th></th>
+      <th></th>
+      <th></th>
+      <th></th>
+      <th></th>
+      <th></th>
+      <th></th>
+      <th></th>
+      <th></th>
+      <th></th>
+      <th></th>
+      <th></th>
+      <th></th>
+      <th></th>
+      <th></th>
+      <th></th>
+      <th></th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr>
+      <th>20170502</th>
+      <td>100.523</td>
+      <td>20170422.0</td>
+      <td>8.94</td>
+      <td>898.67562</td>
+      <td>8.96</td>
+      <td>900.68608</td>
+      <td>1.0</td>
+      <td>0.008049</td>
+      <td>8.90</td>
+      <td>894.65470</td>
+      <td>...</td>
+      <td>900.68608</td>
+      <td>1.951800e+10</td>
+      <td>0.8174</td>
+      <td>6.7925</td>
+      <td>3.0</td>
+      <td>银行</td>
+      <td>2.753200e+10</td>
+      <td>1.0</td>
+      <td>8.93</td>
+      <td>897.41</td>
+    </tr>
+    <tr>
+      <th>20170503</th>
+      <td>100.523</td>
+      <td>20170422.0</td>
+      <td>8.91</td>
+      <td>895.65993</td>
+      <td>8.93</td>
+      <td>897.67039</td>
+      <td>1.0</td>
+      <td>0.008049</td>
+      <td>8.89</td>
+      <td>893.64947</td>
+      <td>...</td>
+      <td>896.66516</td>
+      <td>1.951800e+10</td>
+      <td>0.8147</td>
+      <td>6.7697</td>
+      <td>3.0</td>
+      <td>银行</td>
+      <td>2.753200e+10</td>
+      <td>1.0</td>
+      <td>8.91</td>
+      <td>895.32</td>
+    </tr>
+    <tr>
+      <th>20170504</th>
+      <td>100.523</td>
+      <td>20170422.0</td>
+      <td>8.74</td>
+      <td>878.57102</td>
+      <td>8.89</td>
+      <td>893.64947</td>
+      <td>1.0</td>
+      <td>0.008049</td>
+      <td>8.72</td>
+      <td>876.56056</td>
+      <td>...</td>
+      <td>893.64947</td>
+      <td>1.951800e+10</td>
+      <td>0.7992</td>
+      <td>6.6405</td>
+      <td>3.0</td>
+      <td>银行</td>
+      <td>2.753200e+10</td>
+      <td>1.0</td>
+      <td>8.81</td>
+      <td>885.83</td>
+    </tr>
+    <tr>
+      <th>20170505</th>
+      <td>100.523</td>
+      <td>20170422.0</td>
+      <td>8.63</td>
+      <td>867.51349</td>
+      <td>8.76</td>
+      <td>880.58148</td>
+      <td>1.0</td>
+      <td>0.008049</td>
+      <td>8.58</td>
+      <td>862.48734</td>
+      <td>...</td>
+      <td>878.57102</td>
+      <td>1.951800e+10</td>
+      <td>0.7891</td>
+      <td>6.5570</td>
+      <td>3.0</td>
+      <td>银行</td>
+      <td>2.753200e+10</td>
+      <td>1.0</td>
+      <td>8.65</td>
+      <td>869.59</td>
+    </tr>
+    <tr>
+      <th>20170508</th>
+      <td>100.523</td>
+      <td>20170422.0</td>
+      <td>8.57</td>
+      <td>861.48211</td>
+      <td>8.62</td>
+      <td>866.50826</td>
+      <td>1.0</td>
+      <td>0.008049</td>
+      <td>8.54</td>
+      <td>858.46642</td>
+      <td>...</td>
+      <td>864.49780</td>
+      <td>1.951800e+10</td>
+      <td>0.7836</td>
+      <td>6.5114</td>
+      <td>3.0</td>
+      <td>银行</td>
+      <td>2.753200e+10</td>
+      <td>1.0</td>
+      <td>8.57</td>
+      <td>861.76</td>
+    </tr>
+  </tbody>
+</table>
+<p>5 rows × 21 columns</p>
+</div>
+
+
+
 ### get_ts
-- ` jaqs_fxdayu.data.Dataview.get_ts(field, symbol="", start_date=0, end_date=0) `
+- ` jaqs_fxdayu.data.Dataview.get_ts(field, symbol="", start_date=0, end_date=0, date_type="int") `
 
 **简要描述：**
 
@@ -1495,6 +1717,7 @@ dv.get_snapshot(20170504, fields="open,high").head()
 |start_date |否 |int |开始日期，默认从数据集开始日期起|
 |end_date |否 |int |结束日期，默认到数据集结束日期|
 |field |是 |string |数据字段,**单字段**|
+|date_type |否 |"int"/"datetime" |日期作为索引时返回的索引类型，默认为"int",即日期为整型;当设置为"datetime"时，日期索引返回为python datetime格式|
 
 **示例：**
 
@@ -2117,7 +2340,7 @@ dv.get_ts("close").tail(2)
     Field [index_weight] is overwritten.
     Query groups (industry)...
     Data has been successfully prepared.
-
+    
 
 
 
@@ -2494,7 +2717,7 @@ dv.add_field("volume")
     当前请求daily...
     {'adjust_mode': None, 'fields': 'volume,trade_status,symbol,trade_date'}
     Query data - daily fields prepared.
-
+    
 
 
 
@@ -3980,7 +4203,7 @@ dv.get_ts_quarter("d-roe").dropna().head() # 查询季度数据
 
     Query data - query...
     Query data - quarterly fields prepared.
-
+    
 
 
 
@@ -4407,7 +4630,7 @@ dv.append_df_symbol(df=df,symbol_name="000001.SZ",overwrite=True)
 ```
 
     Symbol [000001.SZ] is overwritten.
-
+    
 
 ## 删除数据
 
@@ -4437,7 +4660,7 @@ print("open" in dv.fields)
 
     True
     False
-
+    
 
 ### remove_symbol
 
@@ -4465,7 +4688,7 @@ print("000001.SZ" in dv.symbol)
 
     True
     False
-
+    
 
 ## 数据落地
 
@@ -4506,7 +4729,7 @@ dv.save_dataview(dataview_folder)
     /home/xinger/Desktop/jaqs_plus/jaqs-fxdayu/docs/_source/data
     
     You can load it with load_dataview('/home/xinger/Desktop/jaqs_plus/jaqs-fxdayu/docs/_source/data')
-
+    
 
 ### load_dataview
 
@@ -4532,4 +4755,4 @@ dv.load_dataview(dataview_folder)
 ```
 
     Dataview loaded successfully.
-
+    
