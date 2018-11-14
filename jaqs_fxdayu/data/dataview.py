@@ -1255,7 +1255,7 @@ class DataView(OriginDataView):
         if not end_date:
             end_date = self.end_date
 
-        res = self.data.loc[pd.IndexSlice[start_date: end_date], pd.IndexSlice[symbol, fields]]
+        res = self.data_d.loc[pd.IndexSlice[start_date: end_date], pd.IndexSlice[symbol, fields]]
         if date_type!="int":
             res.index = pd.Series(res.index).apply(lambda x:trans_t(x))
         return res
