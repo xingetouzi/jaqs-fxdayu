@@ -147,11 +147,11 @@ class Parser(OriginParser):
 
     def corr(self, x, y, n):
         (x, y) = self._align_bivariate(x, y)
-        return x.rolling(n).corr(y)
+        return x.rolling(n,min_periods=1).corr(y)
 
     def cov(self, x, y, n):
         (x, y) = self._align_bivariate(x, y)
-        return x.rolling(n).cov(y)
+        return x.rolling(n,min_periods=1).cov(y)
 
     def decay_linear(self, df, n):
         return df.apply(lambda x: x.dropna().rolling(n).apply(self.decay_linear_array))
