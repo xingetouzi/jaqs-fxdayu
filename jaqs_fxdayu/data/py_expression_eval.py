@@ -119,31 +119,31 @@ class Parser(OriginParser):
         return sfm.ts_argmin(*args, **kwargs)
 
     def std_dev(self, df, n):
-        return df.apply(lambda x: x.dropna().rolling(n).std())
+        return df.apply(lambda x: x.dropna().rolling(n).std()).reindex(df.index)
 
     def ts_sum(self, df, n):
-        return df.apply(lambda x: x.dropna().rolling(n).sum())
+        return df.apply(lambda x: x.dropna().rolling(n).sum()).reindex(df.index)
 
     def count_nans(self, df, n):
         return n - df.rolling(n).count()
 
     def ts_mean(self, df, n):
-        return df.apply(lambda x: x.dropna().rolling(n).mean())
+        return df.apply(lambda x: x.dropna().rolling(n).mean()).reindex(df.index)
 
     def ts_min(self, df, n):
-        return df.apply(lambda x: x.dropna().rolling(n).min())
+        return df.apply(lambda x: x.dropna().rolling(n).min()).reindex(df.index)
 
     def ts_max(self, df, n):
-        return df.apply(lambda x: x.dropna().rolling(n).max())
+        return df.apply(lambda x: x.dropna().rolling(n).max()).reindex(df.index)
 
     def ts_kurt(self, df, n):
-        return df.apply(lambda x: x.dropna().rolling(n).kurt())
+        return df.apply(lambda x: x.dropna().rolling(n).kurt()).reindex(df.index)
 
     def ts_skew(self, df, n):
-        return df.apply(lambda x: x.dropna().rolling(n).skew())
+        return df.apply(lambda x: x.dropna().rolling(n).skew()).reindex(df.index)
 
     def ts_product(self, df, n):
-        return df.apply(lambda x: x.dropna().rolling(n).apply(np.product))
+        return df.apply(lambda x: x.dropna().rolling(n).apply(np.product)).reindex(df.index)
 
     def corr(self, x, y, n):
         (x, y) = self._align_bivariate(x, y)
@@ -154,9 +154,9 @@ class Parser(OriginParser):
         return x.rolling(n,min_periods=1).cov(y)
 
     def decay_linear(self, df, n):
-        return df.apply(lambda x: x.dropna().rolling(n).apply(self.decay_linear_array))
+        return df.apply(lambda x: x.dropna().rolling(n).apply(self.decay_linear_array)).reindex(df.index)
 
     def decay_exp(self, df, f, n):
-        return df.apply(lambda x: x.dropna().rolling(n).apply(self.decay_exp_array, args=[f]))
+        return df.apply(lambda x: x.dropna().rolling(n).apply(self.decay_exp_array, args=[f])).reindex(df.index)
 
 
