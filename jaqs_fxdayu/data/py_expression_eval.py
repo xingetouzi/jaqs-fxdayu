@@ -88,6 +88,45 @@ class Parser(OriginParser):
         return _fillinf(nstack[0])
 
     # -----------------------------------------------------
+    def reindex_df(self, df):
+        # 修復因子中有缺的索引
+        if isinstance(df, pd.DataFrame):
+            if self.ann_dts is not None:
+                if len(set(list(df.index)) - set(list(self.ann_dts))) == 0:
+                    return df.reindex(self.ann_dts)
+            if self.trade_dts is not None:
+                if len(set(list(df.index)) - set(list(self.trade_dts))) == 0:
+                    return df.reindex(self.trade_dts)
+        return df
+
+    # align functions
+    def _align_bivariate(self, df1, df2, force_align=False):
+        df1 = self.reindex_df(df1)
+        df2 = self.reindex_df(df2)
+        if isinstance(df1, pd.DataFrame) and isinstance(df2, pd.DataFrame):
+            len1 = len(df1.index)
+            len2 = len(df2.index)
+            if (self.ann_dts is not None) and (self.trade_dts is not None):
+                if len1 > len2:
+                    df2 = align(df2, self.ann_dts, self.trade_dts)
+                elif len1 < len2:
+                    df1 = align(df1, self.ann_dts, self.trade_dts)
+                elif force_align:
+                    df1 = align(df1, self.ann_dts, self.trade_dts)
+                    df2 = align(df2, self.ann_dts, self.trade_dts)
+        return (df1, df2)
+
+    def _align_univariate(self, df1):
+        df1 = self.reindex_df(df1)
+        if isinstance(df1, pd.DataFrame):
+            if (self.ann_dts is not None) and (self.trade_dts is not None):
+                len1 = len(df1.index)
+                len2 = len(self.trade_dts)
+                if len1 != len2:
+                    return align(df1, self.ann_dts, self.trade_dts)
+        return df1
+
+    # -----------------------------------------------------
     # functions
     # ta function
     def ta(self,
@@ -147,16 +186,14 @@ class Parser(OriginParser):
 
     def corr(self, x, y, n):
         (x, y) = self._align_bivariate(x, y)
-        return x.rolling(n,min_periods=1).corr(y)
+        return x.rolling(n, min_periods=1).corr(y)
 
     def cov(self, x, y, n):
         (x, y) = self._align_bivariate(x, y)
-        return x.rolling(n,min_periods=1).cov(y)
+        return x.rolling(n, min_periods=1).cov(y)
 
     def decay_linear(self, df, n):
         return df.apply(lambda x: x.dropna().rolling(n).apply(self.decay_linear_array)).reindex(df.index)
 
     def decay_exp(self, df, f, n):
         return df.apply(lambda x: x.dropna().rolling(n).apply(self.decay_exp_array, args=[f])).reindex(df.index)
-
-
