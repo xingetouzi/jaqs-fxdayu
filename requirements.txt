@@ -1,4 +1,4 @@
-jaqs>=0.6.11
+jaqs==0.6.11
 pandas>=0.20.0
 scipy>=1.0.1
 sklearn>=0.0
