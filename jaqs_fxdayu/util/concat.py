@@ -1,5 +1,5 @@
 import pandas as pd
-from pandas.core.internals import BlockManager, BlockPlacement
+from pandas.core.internals import BlockManager
 import numpy as np
 
 
