@@ -309,7 +309,7 @@ def max_IR_weight(ic_df,
             ic_cov_mat = np.mat(np.cov(ic_dt.T.as_matrix()).astype(float))
         inv_ic_cov_mat = np.linalg.inv(ic_cov_mat)
         weight = inv_ic_cov_mat * np.mat(ic_dt.mean().values).reshape(len(inv_ic_cov_mat), 1)
-        weight = np.array(weight.values.reshape(len(weight), ))[0]
+        weight = np.array(weight.reshape(len(weight), ))[0]
         weight_df.ix[dt] = weight / np.sum(np.abs(weight))
 
     return weight_df.shift(holding_period)
@@ -358,7 +358,7 @@ def max_IC_weight(ic_df,
             f_cov_mat = np.mat(np.cov(f_dt.T.as_matrix()).astype(float))
         inv_f_cov_mat = np.linalg.inv(f_cov_mat)
         weight = inv_f_cov_mat * np.mat(ic_df.loc[dt].values).reshape(len(inv_f_cov_mat), 1)
-        weight = np.array(weight.values.reshape(len(weight), ))[0]
+        weight = np.array(weight.reshape(len(weight), ))[0]
         weight_df.ix[dt] = weight / np.sum(np.abs(weight))
 
     return weight_df.shift(holding_period)
