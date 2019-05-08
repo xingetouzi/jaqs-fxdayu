@@ -502,7 +502,7 @@ class TimingDigger():
                                                           "Portfolio Cumulative Return",
                                                     ax=gf.next_row())
 
-                    file_name = 'sig_type:%s_returns_report'%(sig_type,)
+                    file_name = 'sig_type-%s_returns_report'%(sig_type,)
                     if self.signal_name is not None:
                         file_name = self.signal_name+"#"+file_name
                     self.show_fig(gf.fig, file_name)
@@ -547,7 +547,7 @@ class TimingDigger():
 
                     plotting.plot_mean_ic_heatmap(mean_ic, period=self.period, format=mean_ic_format, ax=gf.next_row())
 
-                    file_name = 'sig_type:%s_information_report'% (sig_type,)
+                    file_name = 'sig_type-%s_information_report'% (sig_type,)
                     if self.signal_name is not None:
                         file_name = self.signal_name+"#"+file_name
                     self.show_fig(gf.fig, file_name)
