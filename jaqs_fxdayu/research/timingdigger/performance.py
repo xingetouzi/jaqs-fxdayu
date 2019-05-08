@@ -27,3 +27,42 @@ def cal_return_stats(ret):
 
     return summary_table
 
+
+def calc_performance_metrics(ser, cum_return=False, compound=False):
+    """
+    Calculate annualized return, volatility and sharpe.
+    We assumed data frequency to be day.
+
+    Parameters
+    ----------
+    ser : pd.DataFrame or pd.Series
+        Index is int date, values are floats.
+        ser should start from 0.
+    cum_return : bool
+        Whether ser is cumulative or daily return.
+    compound
+        Whether calculation of return is compound.
+
+    Returns
+    -------
+    res : dict
+
+    """
+    if isinstance(ser, pd.DataFrame):
+        ser = ser.iloc[:, 0]
+    if cum_return:
+        cum_ret = ser
+        ret = cum2ret(cum_ret, period=1, compound=compound)
+    else:
+        ret = ser
+        cum_ret = ret2cum(ret, compound=compound)
+
+    total_ret = cum_ret.iat[-1]
+    std = np.std(ret)
+    mean = np.mean(ret)
+    res = {'total_ret': total_ret,
+           'std(ret)': std,
+           'mean(ret)':mean,
+           'ir': mean/std}
+    return res
+

@@ -485,7 +485,7 @@ class TimingDigger():
                 if self.output_format:
                     vertical_sections = 4
                     gf = plotting.GridFigure(rows=vertical_sections, cols=1)
-                    gf.fig.suptitle("Returns Tear Sheet\n\n(compound)\n (period length = {:d} days)".format(self.period))
+                    gf.fig.suptitle("Returns Tear Sheet\n\n(compound)\n (period length = {:d})".format(self.period))
 
                     plotting.plot_quantile_returns_ts(period_wise_quantile_ret_stats,
                                                       ax=gf.next_row())
@@ -495,7 +495,6 @@ class TimingDigger():
 
                     plotting.plot_mean_quantile_returns_spread_time_series(period_wise_tmb_ret,
                                                                            self.period,
-                                                                           bandwidth=0.5,
                                                                            ax=gf.next_row())
 
                     plotting.plot_cumulative_return(cum_tmb_ret,
@@ -527,9 +526,10 @@ class TimingDigger():
             else:
                 signal_data = self.signal_data[sig_type]
                 ic = pfm.calc_signal_ic(signal_data)
-                ic.index = pd.to_datetime(ic.index, format="%Y%m%d")
-                monthly_ic = pfm.mean_information_coefficient(ic, "M")
-
+                format = '%Y%m%d' if len(str(ic.index[0])) == 8 else '%Y%m%d%H%M%S'
+                ic.index = pd.to_datetime(ic.index, format=format)
+                mean_ic_format = 'M' if len(str(ic.index[0])) == 8 else 'D'
+                mean_ic = pfm.mean_information_coefficient(ic, mean_ic_format)
                 if self.output_format:
                     ic_summary_table = pfm.calc_ic_stats_table(ic.dropna())
                     plotting.plot_information_table(ic_summary_table)
@@ -539,21 +539,21 @@ class TimingDigger():
                     rows_when_wide = (((fr_cols - 1) // columns_wide) + 1)
                     vertical_sections = fr_cols + 3 * rows_when_wide + 2 * fr_cols
                     gf = plotting.GridFigure(rows=vertical_sections, cols=columns_wide)
-                    gf.fig.suptitle("Information Coefficient Report\n\n(period length = {:d} days)"
-                                    "\ndaily IC = rank_corr(period-wise forward return, signal value)".format(self.period))
+                    gf.fig.suptitle("Information Coefficient Report\n\n(period length = {:d})"
+                                    "\nIC = rank_corr(period-wise forward return, signal value)".format(self.period))
 
                     plotting.plot_ic_ts(ic, self.period, ax=gf.next_row())
                     plotting.plot_ic_hist(ic, self.period, ax=gf.next_row())
 
-                    plotting.plot_monthly_ic_heatmap(monthly_ic, period=self.period, ax=gf.next_row())
+                    plotting.plot_mean_ic_heatmap(mean_ic, period=self.period, format=mean_ic_format, ax=gf.next_row())
 
                     file_name = 'sig_type:%s_information_report'% (sig_type,)
                     if self.signal_name is not None:
                         file_name = self.signal_name+"#"+file_name
                     self.show_fig(gf.fig, file_name)
 
-                self.ic_report_data[sig_type] = {'daily_ic': ic,
-                                                 'monthly_ic': monthly_ic}
+                self.ic_report_data[sig_type] = {'ic': ic,
+                                                 'mean_ic': mean_ic}
 
 
 
