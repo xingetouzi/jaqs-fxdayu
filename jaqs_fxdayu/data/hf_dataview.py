@@ -547,12 +547,6 @@ class HFDataView(object):
 
         """
 
-        def trans_t(x):
-            value = str(int(x))
-            format = '%Y%m%d' if len(value) == 8 else '%Y%m%d%H%M%S'
-            pd.to_datetime(value, format=format)
-            return pd.to_datetime(value, format=format)
-
         sep = ','
 
         if not fields:
@@ -572,7 +566,8 @@ class HFDataView(object):
 
         res = self.data.loc[pd.IndexSlice[start_date: end_date], pd.IndexSlice[symbol, fields]]
         if date_type!="int":
-            res.index = pd.Series(res.index).apply(lambda x:trans_t(x))
+            format = '%Y%m%d' if len(str(res.index[0])) == 8 else '%Y%m%d%H%M%S'
+            res.index = pd.to_datetime(res.index, format=format)
         return res
 
     def get_snapshot(self, snapshot_date, symbol="", fields=""):
